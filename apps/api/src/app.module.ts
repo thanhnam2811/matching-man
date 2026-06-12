@@ -12,6 +12,7 @@ import { validateEnv } from './config/env.validation';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
+      envFilePath: ['.env.development.local', '.env.development', '.env'],
       validate: validateEnv,
     }),
     ScheduleModule.forRoot(),

@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { MatchStatus, MatchStructure, Prisma, QueueEntryStatus } from "../generated/prisma/client";
+import { MatchStatus, MatchStructure, Prisma, QueueEntryStatus, RatingMode } from "../generated/prisma/client";
 import { GameModesService } from "../game-modes/game-modes.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProjectEnvironmentsService } from "../projects/project-environments.service";
@@ -119,6 +119,26 @@ export class QueuesService {
     }
 
     async dequeue(authProjectId: string, dequeueDto: DequeueDto) {
+        if (dequeueDto.idempotencyKey) {
+            const existingByIdempotency = await this.prismaService.client.queueEntry.findFirst({
+                where: {
+                    projectId: authProjectId,
+                    dequeueIdempotencyKey: dequeueDto.idempotencyKey,
+                },
+            });
+
+            if (existingByIdempotency) {
+                if (existingByIdempotency.id !== dequeueDto.queueEntryId) {
+                    throw new ConflictException("Idempotency key is already associated with a different queue entry");
+                }
+
+                return {
+                    queueEntryId: existingByIdempotency.id,
+                    status: existingByIdempotency.status.toLowerCase(),
+                };
+            }
+        }
+
         const queueEntry = await this.prismaService.client.queueEntry.findFirst({
             where: {
                 id: dequeueDto.queueEntryId,
@@ -145,6 +165,8 @@ export class QueuesService {
                 status: QueueEntryStatus.CANCELLED,
                 cancelledAt: new Date(),
                 cancelReason: dequeueDto.reason ?? "cancelled",
+                dequeueIdempotencyKey: dequeueDto.idempotencyKey,
+                dequeueRequestedAt: new Date(),
             },
         });
 
@@ -178,14 +200,14 @@ export class QueuesService {
                 return null;
             }
 
-            const lockedRows = await tx.$queryRaw<Array<{ id: string; team_id: string }>>(
+            const lockedRows = await tx.$queryRaw<Array<{ id: string }>>(
                 Prisma.sql`
-          SELECT id, team_id
+          SELECT id
           FROM queue_entries
           WHERE match_pool_id = ${matchPoolId}
             AND status = ${QueueEntryStatus.QUEUED}
           ORDER BY queued_at ASC, id ASC
-          LIMIT ${pool.gameMode.requiredSlots}
+          LIMIT ${Math.max(pool.gameMode.requiredSlots * 4, pool.gameMode.requiredSlots)}
           FOR UPDATE SKIP LOCKED
         `,
             );
@@ -194,17 +216,39 @@ export class QueuesService {
                 return null;
             }
 
-            const queueEntryIds = lockedRows.map((row) => row.id);
-            const queueEntries = await tx.queueEntry.findMany({
+            const candidateEntries = await tx.queueEntry.findMany({
                 where: {
                     id: {
-                        in: queueEntryIds,
+                        in: lockedRows.map((row) => row.id),
                     },
                 },
                 orderBy: {
                     queuedAt: "asc",
                 },
+                include: {
+                    team: {
+                        include: {
+                            members: {
+                                orderBy: {
+                                    createdAt: "asc",
+                                },
+                            },
+                        },
+                    },
+                },
             });
+
+            const queueEntries = this.selectCandidateQueueEntries(
+                candidateEntries,
+                pool.gameMode.ratingMode,
+                pool.gameMode.requiredSlots,
+            );
+
+            if (queueEntries.length < pool.gameMode.requiredSlots) {
+                return null;
+            }
+
+            const queueEntryIds = queueEntries.map((queueEntry) => queueEntry.id);
 
             const match = await tx.match.create({
                 data: {
@@ -232,6 +276,10 @@ export class QueuesService {
                         pool.gameMode.requiredSlots,
                         index + 1,
                     ),
+                    teamSnapshot: queueEntry.team.members.map((member) => ({
+                        playerId: member.playerId,
+                        rating: member.ratingSnapshot,
+                    })),
                 })),
             });
 
@@ -263,6 +311,72 @@ export class QueuesService {
 
         const slotsPerGroup = requiredSlots / groupCount;
         return Math.floor((slotIndex - 1) / slotsPerGroup) + 1;
+    }
+
+    private selectCandidateQueueEntries(
+        queueEntries: Array<{
+            id: string;
+            teamId: string;
+            queuedAt: Date;
+            team: {
+                members: Array<{
+                    playerId: string;
+                    ratingSnapshot: number | null;
+                }>;
+            };
+        }>,
+        ratingMode: RatingMode,
+        requiredSlots: number,
+    ) {
+        if (queueEntries.length < requiredSlots) {
+            return [];
+        }
+
+        if (ratingMode !== RatingMode.EXTERNAL_RATING) {
+            return queueEntries.slice(0, requiredSlots);
+        }
+
+        const ratedEntries = queueEntries
+            .map((queueEntry) => ({
+                queueEntry,
+                teamRating: this.computeTeamRating(queueEntry.team.members),
+            }))
+            .filter((entry) => entry.teamRating !== null) as Array<{
+            queueEntry: (typeof queueEntries)[number];
+            teamRating: number;
+        }>;
+
+        if (ratedEntries.length < requiredSlots) {
+            return [];
+        }
+
+        const anchor = ratedEntries[0];
+        const selected = ratedEntries
+            .slice(1)
+            .toSorted((left, right) => {
+                const delta = Math.abs(left.teamRating - anchor.teamRating) - Math.abs(right.teamRating - anchor.teamRating);
+
+                if (delta !== 0) {
+                    return delta;
+                }
+
+                return left.queueEntry.queuedAt.getTime() - right.queueEntry.queuedAt.getTime();
+            })
+            .slice(0, requiredSlots - 1)
+            .map((entry) => entry.queueEntry);
+
+        return [anchor.queueEntry, ...selected].toSorted(
+            (left, right) => left.queuedAt.getTime() - right.queuedAt.getTime(),
+        );
+    }
+
+    private computeTeamRating(members: Array<{ ratingSnapshot: number | null }>) {
+        if (members.length === 0 || members.some((member) => member.ratingSnapshot === null)) {
+            return null;
+        }
+
+        const total = members.reduce((sum, member) => sum + (member.ratingSnapshot ?? 0), 0);
+        return total / members.length;
     }
 
     private async upsertExternalTeam(

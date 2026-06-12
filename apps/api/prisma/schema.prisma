@@ -235,30 +235,33 @@ model TeamMember {
 }
 
 model QueueEntry {
-  id             String           @id @default(cuid())
-  projectId      String           @map("project_id")
-  gameModeId     String           @map("game_mode_id")
-  matchPoolId    String           @map("match_pool_id")
-  teamId         String           @map("team_id")
-  environment    String
-  regionKey      String           @map("region_key")
-  idempotencyKey String?          @map("idempotency_key")
-  ratingMode     RatingMode       @map("rating_mode")
-  status         QueueEntryStatus @default(QUEUED)
-  metadata       Json?
-  queuedAt       DateTime         @default(now()) @map("queued_at")
-  matchedAt      DateTime?        @map("matched_at")
-  cancelledAt    DateTime?        @map("cancelled_at")
-  cancelReason   String?          @map("cancel_reason")
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
-  project        Project          @relation(fields: [projectId], references: [id])
-  gameMode       GameMode         @relation(fields: [gameModeId], references: [id])
-  matchPool      MatchPool        @relation(fields: [matchPoolId], references: [id])
-  team           Team             @relation(fields: [teamId], references: [id])
-  matchSlots     MatchSlot[]
+  id                   String           @id @default(cuid())
+  projectId            String           @map("project_id")
+  gameModeId           String           @map("game_mode_id")
+  matchPoolId          String           @map("match_pool_id")
+  teamId               String           @map("team_id")
+  environment          String
+  regionKey            String           @map("region_key")
+  idempotencyKey       String?          @map("idempotency_key")
+  dequeueIdempotencyKey String?         @map("dequeue_idempotency_key")
+  ratingMode           RatingMode       @map("rating_mode")
+  status               QueueEntryStatus @default(QUEUED)
+  metadata             Json?
+  queuedAt             DateTime         @default(now()) @map("queued_at")
+  matchedAt            DateTime?        @map("matched_at")
+  cancelledAt          DateTime?        @map("cancelled_at")
+  cancelReason         String?          @map("cancel_reason")
+  dequeueRequestedAt   DateTime?        @map("dequeue_requested_at")
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+  project              Project          @relation(fields: [projectId], references: [id])
+  gameMode             GameMode         @relation(fields: [gameModeId], references: [id])
+  matchPool            MatchPool        @relation(fields: [matchPoolId], references: [id])
+  team                 Team             @relation(fields: [teamId], references: [id])
+  matchSlots           MatchSlot[]
 
   @@unique([projectId, idempotencyKey])
+  @@unique([projectId, dequeueIdempotencyKey])
   @@index([matchPoolId, status, queuedAt])
   @@index([projectId])
   @@index([gameModeId])
@@ -296,6 +299,7 @@ model MatchSlot {
   teamId       String     @map("team_id")
   slotIndex    Int        @map("slot_index")
   groupIndex   Int        @map("group_index")
+  teamSnapshot Json       @map("team_snapshot")
   createdAt    DateTime   @default(now()) @map("created_at")
   match        Match      @relation(fields: [matchId], references: [id])
   queueEntry   QueueEntry @relation(fields: [queueEntryId], references: [id])

@@ -1,5 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
-import { MatchStructure, QueueEntryStatus, RatingMode } from "../generated/prisma/client";
+import { MatchStructure, QueueEntryStatus, RatingMode } from "../generated/prisma/enums";
 import { GameModesService } from "../game-modes/game-modes.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProjectEnvironmentsService } from "../projects/project-environments.service";
@@ -13,6 +13,7 @@ describe("QueuesService", () => {
                 findFirst: jest.Mock;
                 create: jest.Mock;
                 findUniqueOrThrow: jest.Mock;
+                update: jest.Mock;
                 updateMany: jest.Mock;
             };
             matchPool: {
@@ -52,6 +53,7 @@ describe("QueuesService", () => {
                     findFirst: jest.fn(),
                     create: jest.fn(),
                     findUniqueOrThrow: jest.fn(),
+                    update: jest.fn(),
                     updateMany: jest.fn(),
                 },
                 matchPool: {
@@ -190,5 +192,83 @@ describe("QueuesService", () => {
             }),
         );
         expect(result.poolKey).toBe("project_1:production:mode_1:global");
+    });
+
+    it("replays dequeue response for an existing idempotency key", async () => {
+        prismaService.client.queueEntry.findFirst
+            .mockResolvedValueOnce({
+                id: "entry_1",
+                projectId: "project_1",
+                dequeueIdempotencyKey: "deq_1",
+                status: QueueEntryStatus.CANCELLED,
+            })
+            .mockResolvedValueOnce(null);
+
+        const result = await service.dequeue("project_1", {
+            queueEntryId: "entry_1",
+            idempotencyKey: "deq_1",
+        });
+
+        expect(result).toEqual({
+            queueEntryId: "entry_1",
+            status: "cancelled",
+        });
+        expect(prismaService.client.queueEntry.update).not.toHaveBeenCalled();
+    });
+
+    it("stores dequeue idempotency metadata when cancelling a queued entry", async () => {
+        prismaService.client.queueEntry.findFirst
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({
+                id: "entry_1",
+                projectId: "project_1",
+                status: QueueEntryStatus.QUEUED,
+            });
+        prismaService.client.queueEntry.update.mockResolvedValue({
+            id: "entry_1",
+            status: QueueEntryStatus.CANCELLED,
+        });
+
+        const result = await service.dequeue("project_1", {
+            queueEntryId: "entry_1",
+            idempotencyKey: "deq_2",
+            reason: "party_cancelled",
+        });
+
+        expect(result.status).toBe("cancelled");
+        expect(prismaService.client.queueEntry.update).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    dequeueIdempotencyKey: "deq_2",
+                    cancelReason: "party_cancelled",
+                }),
+            }),
+        );
+    });
+
+    it("uses rating-aware candidate selection for external rating modes", () => {
+        const selected = service["selectCandidateQueueEntries"](
+            [
+                {
+                    id: "entry_1",
+                    queuedAt: new Date("2026-06-12T00:00:00.000Z"),
+                    team: { members: [{ playerId: "p1", ratingSnapshot: 1000 }] },
+                },
+                {
+                    id: "entry_2",
+                    queuedAt: new Date("2026-06-12T00:00:01.000Z"),
+                    team: { members: [{ playerId: "p2", ratingSnapshot: 1600 }] },
+                },
+                {
+                    id: "entry_3",
+                    queuedAt: new Date("2026-06-12T00:00:02.000Z"),
+                    team: { members: [{ playerId: "p3", ratingSnapshot: 1020 }] },
+                },
+            ],
+            RatingMode.EXTERNAL_RATING,
+            2,
+        );
+
+        expect(selected.map((entry) => entry.id)).toEqual(["entry_1", "entry_3"]);
     });
 });

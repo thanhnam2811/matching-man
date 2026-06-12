@@ -2,7 +2,7 @@
 
 ## Status
 
-- [x] In progress
+- [x] Done
 
 ## Objective
 
@@ -75,5 +75,5 @@ Ship the first end-to-end matchmaking flow without internal Elo.
 
 ## Notes
 
-- Source evidence: authenticated enqueue and dequeue endpoints, pool upsert, row locking with `FOR UPDATE SKIP LOCKED`, match creation, and match reads are implemented.
-- The flow currently lives in one consolidated service instead of the roadmap's more granular service split.
+- Source evidence: authenticated enqueue and dequeue endpoints, pool upsert, row locking with `FOR UPDATE SKIP LOCKED`, dequeue idempotency, match-slot team snapshots, rating-aware external candidate selection, match creation, and match reads are implemented.
+- The flow still lives in one consolidated service instead of the roadmap's more granular service split, which remains acceptable for the current V1 scope.

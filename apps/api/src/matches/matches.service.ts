@@ -16,17 +16,6 @@ export class MatchesService {
                     orderBy: {
                         slotIndex: "asc",
                     },
-                    include: {
-                        team: {
-                            include: {
-                                members: {
-                                    orderBy: {
-                                        createdAt: "asc",
-                                    },
-                                },
-                            },
-                        },
-                    },
                 },
             },
         });
@@ -49,11 +38,37 @@ export class MatchesService {
                 slotIndex: slot.slotIndex,
                 groupIndex: slot.groupIndex,
                 teamId: slot.teamId,
-                members: slot.team.members.map((member) => ({
+                members: this.toTeamMembersSnapshot(slot.teamSnapshot).map((member) => ({
                     playerId: member.playerId,
-                    rating: member.ratingSnapshot,
+                    rating: member.rating,
                 })),
             })),
         };
+    }
+
+    private toTeamMembersSnapshot(snapshot: unknown) {
+        if (!Array.isArray(snapshot)) {
+            return [];
+        }
+
+        return snapshot.flatMap((member) => {
+            if (typeof member !== "object" || member === null) {
+                return [];
+            }
+
+            const playerId = "playerId" in member ? member.playerId : undefined;
+            const rating = "rating" in member ? member.rating : undefined;
+
+            if (typeof playerId !== "string") {
+                return [];
+            }
+
+            return [
+                {
+                    playerId,
+                    rating: typeof rating === "number" ? rating : null,
+                },
+            ];
+        });
     }
 }

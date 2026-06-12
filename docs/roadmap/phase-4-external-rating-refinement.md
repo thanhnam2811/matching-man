@@ -2,7 +2,7 @@
 
 ## Status
 
-- [x] In progress
+- [x] Complete
 
 ## Objective
 
@@ -11,9 +11,9 @@ Improve rating-aware matching without taking ownership of rating state yet.
 ## Implementation Checklist
 
 - [x] Mode-level rating config
-- [ ] Rating window rules
-- [ ] Rating-based candidate filtering
-- [ ] History view for rating snapshots if desired
+- [x] Rating window rules
+- [x] Rating-based candidate filtering
+- [ ] History view for rating snapshots if desired (deferred to Phase 6 Admin UI)
 
 ## NestJS Modules
 
@@ -23,7 +23,7 @@ Improve rating-aware matching without taking ownership of rating state yet.
 
 ## Database Work
 
-- [ ] Enrich game mode and pool rule tables
+- [x] Enrich game mode table with rating window fields (`initialRatingWindow`, `windowExpandIntervalSeconds`, `windowExpandStep`)
 - [x] Optional storage for external rating snapshots per queue entry
 
 ## API Endpoints
@@ -37,10 +37,11 @@ Improve rating-aware matching without taking ownership of rating state yet.
 ## Done Checklist
 
 - [x] Each game mode can define its own rating mode
-- [ ] External rating affects matching window correctly
+- [x] External rating affects matching window correctly
 - [x] Neutral matching still works when rating is disabled
 
 ## Notes
 
-- Source evidence: `GameMode.ratingMode`, `QueueEntry.ratingMode`, and `TeamMember.ratingSnapshot` already exist in schema and service flow.
-- Missing work: there is still no rating window expansion or candidate filtering by rating.
+- `GameMode` now carries `initialRatingWindow`, `windowExpandIntervalSeconds`, `windowExpandStep` — all optional, must be set together, only valid when `ratingMode = EXTERNAL_RATING`.
+- `QueuesService.selectCandidateQueueEntries` enforces the window: anchor entry's elapsed queue time determines the current window via `initialRatingWindow + floor(elapsed / interval) * step`. Candidates outside the window are excluded. When no window is configured, behavior falls back to closest-rating selection.
+- History view for rating snapshots deferred to Phase 6 when Admin UI is available.

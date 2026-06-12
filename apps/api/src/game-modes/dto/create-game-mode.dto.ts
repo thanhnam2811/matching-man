@@ -44,4 +44,22 @@ export class CreateGameModeDto {
     @IsOptional()
     @IsEnum(RatingMode)
     ratingMode?: RatingMode;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    initialRatingWindow?: number;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    windowExpandIntervalSeconds?: number;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    windowExpandStep?: number;
 }

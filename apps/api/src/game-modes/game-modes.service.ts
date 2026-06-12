@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { MatchStructure, RatingMode } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { normalizeSlug } from "../common/utils/slug.util";
@@ -11,6 +11,7 @@ export class GameModesService {
     async create(projectId: string, createGameModeDto: CreateGameModeDto) {
         await this.ensureProjectExists(projectId);
         this.validateModeShape(createGameModeDto);
+        this.validateRatingWindowConfig(createGameModeDto);
 
         try {
             return await this.prismaService.client.gameMode.create({
@@ -24,6 +25,9 @@ export class GameModesService {
                     teamSizeMin: createGameModeDto.teamSizeMin,
                     teamSizeMax: createGameModeDto.teamSizeMax,
                     ratingMode: createGameModeDto.ratingMode ?? RatingMode.DISABLED,
+                    initialRatingWindow: createGameModeDto.initialRatingWindow ?? null,
+                    windowExpandIntervalSeconds: createGameModeDto.windowExpandIntervalSeconds ?? null,
+                    windowExpandStep: createGameModeDto.windowExpandStep ?? null,
                 },
             });
         } catch {
@@ -55,6 +59,21 @@ export class GameModesService {
         }
 
         return gameMode;
+    }
+
+    private validateRatingWindowConfig(dto: CreateGameModeDto) {
+        const windowFields = [dto.initialRatingWindow, dto.windowExpandIntervalSeconds, dto.windowExpandStep];
+        const setCount = windowFields.filter((v) => v !== undefined).length;
+
+        if (setCount > 0 && setCount < 3) {
+            throw new BadRequestException(
+                "initialRatingWindow, windowExpandIntervalSeconds, and windowExpandStep must all be set together",
+            );
+        }
+
+        if (setCount === 3 && dto.ratingMode !== RatingMode.EXTERNAL_RATING) {
+            throw new BadRequestException("Rating window config is only valid when ratingMode is EXTERNAL_RATING");
+        }
     }
 
     private validateModeShape(createGameModeDto: CreateGameModeDto) {

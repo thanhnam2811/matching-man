@@ -273,11 +273,7 @@ export class QueuesService {
                 },
             });
 
-            const queueEntries = this.selectCandidateQueueEntries(
-                candidateEntries,
-                pool.gameMode.ratingMode,
-                pool.gameMode.requiredSlots,
-            );
+            const queueEntries = this.selectCandidateQueueEntries(candidateEntries, pool.gameMode);
 
             if (queueEntries.length < pool.gameMode.requiredSlots) {
                 return null;
@@ -360,9 +356,17 @@ export class QueuesService {
                 }>;
             };
         }>,
-        ratingMode: RatingMode,
-        requiredSlots: number,
+        gameMode: {
+            ratingMode: RatingMode;
+            requiredSlots: number;
+            initialRatingWindow: number | null;
+            windowExpandIntervalSeconds: number | null;
+            windowExpandStep: number | null;
+        },
     ) {
+        const { ratingMode, requiredSlots, initialRatingWindow, windowExpandIntervalSeconds, windowExpandStep } =
+            gameMode;
+
         if (queueEntries.length < requiredSlots) {
             return [];
         }
@@ -386,16 +390,32 @@ export class QueuesService {
         }
 
         const anchor = ratedEntries[0];
-        const selected = ratedEntries
-            .slice(1)
+
+        const effectiveWindow = this.computeEffectiveWindow(
+            anchor.queueEntry.queuedAt,
+            initialRatingWindow,
+            windowExpandIntervalSeconds,
+            windowExpandStep,
+        );
+
+        const eligibleRest = ratedEntries.slice(1).filter((entry) => {
+            if (effectiveWindow === null) {
+                return true;
+            }
+            return Math.abs(entry.teamRating - anchor.teamRating) <= effectiveWindow;
+        });
+
+        if (eligibleRest.length < requiredSlots - 1) {
+            return [];
+        }
+
+        const selected = eligibleRest
             .toSorted((left, right) => {
                 const delta =
                     Math.abs(left.teamRating - anchor.teamRating) - Math.abs(right.teamRating - anchor.teamRating);
-
                 if (delta !== 0) {
                     return delta;
                 }
-
                 return left.queueEntry.queuedAt.getTime() - right.queueEntry.queuedAt.getTime();
             })
             .slice(0, requiredSlots - 1)
@@ -404,6 +424,20 @@ export class QueuesService {
         return [anchor.queueEntry, ...selected].toSorted(
             (left, right) => left.queuedAt.getTime() - right.queuedAt.getTime(),
         );
+    }
+
+    private computeEffectiveWindow(
+        queuedAt: Date,
+        initialRatingWindow: number | null,
+        windowExpandIntervalSeconds: number | null,
+        windowExpandStep: number | null,
+    ): number | null {
+        if (initialRatingWindow === null || windowExpandIntervalSeconds === null || windowExpandStep === null) {
+            return null;
+        }
+        const elapsedSeconds = (Date.now() - queuedAt.getTime()) / 1000;
+        const expansions = Math.floor(elapsedSeconds / windowExpandIntervalSeconds);
+        return initialRatingWindow + expansions * windowExpandStep;
     }
 
     private computeTeamRating(members: Array<{ ratingSnapshot: number | null }>) {

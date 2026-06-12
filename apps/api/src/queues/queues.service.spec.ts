@@ -156,6 +156,9 @@ describe("QueuesService", () => {
                 ratingMode: RatingMode.DISABLED,
                 matchStructure: MatchStructure.VERSUS,
                 groupCount: 2,
+                initialRatingWindow: null,
+                windowExpandIntervalSeconds: null,
+                windowExpandStep: null,
             },
         });
         prismaService.client.$queryRaw.mockResolvedValue([]);
@@ -244,32 +247,133 @@ describe("QueuesService", () => {
         );
     });
 
-    it("uses rating-aware candidate selection for external rating modes", () => {
-        const selected = service["selectCandidateQueueEntries"](
-            [
-                {
-                    id: "entry_1",
-                    teamId: "team_1",
-                    queuedAt: new Date("2026-06-12T00:00:00.000Z"),
-                    team: { members: [{ playerId: "p1", ratingSnapshot: 1000 }] },
-                },
-                {
-                    id: "entry_2",
-                    teamId: "team_2",
-                    queuedAt: new Date("2026-06-12T00:00:01.000Z"),
-                    team: { members: [{ playerId: "p2", ratingSnapshot: 1600 }] },
-                },
-                {
-                    id: "entry_3",
-                    teamId: "team_3",
-                    queuedAt: new Date("2026-06-12T00:00:02.000Z"),
-                    team: { members: [{ playerId: "p3", ratingSnapshot: 1020 }] },
-                },
-            ],
-            RatingMode.EXTERNAL_RATING,
-            2,
-        );
+    describe("selectCandidateQueueEntries", () => {
+        const baseGameMode = {
+            ratingMode: RatingMode.EXTERNAL_RATING,
+            requiredSlots: 2,
+            initialRatingWindow: null,
+            windowExpandIntervalSeconds: null,
+            windowExpandStep: null,
+        };
 
-        expect(selected.map((entry) => entry.id)).toEqual(["entry_1", "entry_3"]);
+        it("selects closest-rated candidates when no window is configured", () => {
+            const selected = service["selectCandidateQueueEntries"](
+                [
+                    {
+                        id: "entry_1",
+                        teamId: "team_1",
+                        queuedAt: new Date("2026-06-12T00:00:00.000Z"),
+                        team: { members: [{ playerId: "p1", ratingSnapshot: 1000 }] },
+                    },
+                    {
+                        id: "entry_2",
+                        teamId: "team_2",
+                        queuedAt: new Date("2026-06-12T00:00:01.000Z"),
+                        team: { members: [{ playerId: "p2", ratingSnapshot: 1600 }] },
+                    },
+                    {
+                        id: "entry_3",
+                        teamId: "team_3",
+                        queuedAt: new Date("2026-06-12T00:00:02.000Z"),
+                        team: { members: [{ playerId: "p3", ratingSnapshot: 1020 }] },
+                    },
+                ],
+                baseGameMode,
+            );
+
+            expect(selected.map((entry) => entry.id)).toEqual(["entry_1", "entry_3"]);
+        });
+
+        it("returns empty when DISABLED mode has fewer candidates than required slots", () => {
+            const selected = service["selectCandidateQueueEntries"](
+                [
+                    {
+                        id: "entry_1",
+                        teamId: "team_1",
+                        queuedAt: new Date("2026-06-12T00:00:00.000Z"),
+                        team: { members: [{ playerId: "p1", ratingSnapshot: null }] },
+                    },
+                ],
+                { ...baseGameMode, ratingMode: RatingMode.DISABLED },
+            );
+
+            expect(selected).toHaveLength(0);
+        });
+
+        it("filters candidates outside the effective rating window", () => {
+            const anchor = new Date(Date.now() - 5000); // queued 5s ago
+            const selected = service["selectCandidateQueueEntries"](
+                [
+                    {
+                        id: "entry_1",
+                        teamId: "team_1",
+                        queuedAt: anchor,
+                        team: { members: [{ playerId: "p1", ratingSnapshot: 1000 }] },
+                    },
+                    {
+                        id: "entry_2",
+                        teamId: "team_2",
+                        queuedAt: new Date(Date.now() - 4000),
+                        team: { members: [{ playerId: "p2", ratingSnapshot: 1100 }] }, // delta 100 > window 50
+                    },
+                    {
+                        id: "entry_3",
+                        teamId: "team_3",
+                        queuedAt: new Date(Date.now() - 3000),
+                        team: { members: [{ playerId: "p3", ratingSnapshot: 1030 }] }, // delta 30 <= window 50
+                    },
+                ],
+                { ...baseGameMode, initialRatingWindow: 50, windowExpandIntervalSeconds: 15, windowExpandStep: 50 },
+            );
+
+            expect(selected.map((entry) => entry.id)).toEqual(["entry_1", "entry_3"]);
+        });
+
+        it("returns empty when no candidates fall within the rating window", () => {
+            const anchor = new Date(Date.now() - 5000); // queued 5s ago, window = 50
+            const selected = service["selectCandidateQueueEntries"](
+                [
+                    {
+                        id: "entry_1",
+                        teamId: "team_1",
+                        queuedAt: anchor,
+                        team: { members: [{ playerId: "p1", ratingSnapshot: 1000 }] },
+                    },
+                    {
+                        id: "entry_2",
+                        teamId: "team_2",
+                        queuedAt: new Date(Date.now() - 4000),
+                        team: { members: [{ playerId: "p2", ratingSnapshot: 1200 }] }, // delta 200 > window 50
+                    },
+                ],
+                { ...baseGameMode, initialRatingWindow: 50, windowExpandIntervalSeconds: 15, windowExpandStep: 50 },
+            );
+
+            expect(selected).toHaveLength(0);
+        });
+
+        it("expands the window as the anchor entry waits longer", () => {
+            // anchor queued 20s ago: initial 50 + 1 expansion (20/15=1) * 50 = 100
+            const anchor = new Date(Date.now() - 20000);
+            const selected = service["selectCandidateQueueEntries"](
+                [
+                    {
+                        id: "entry_1",
+                        teamId: "team_1",
+                        queuedAt: anchor,
+                        team: { members: [{ playerId: "p1", ratingSnapshot: 1000 }] },
+                    },
+                    {
+                        id: "entry_2",
+                        teamId: "team_2",
+                        queuedAt: new Date(Date.now() - 4000),
+                        team: { members: [{ playerId: "p2", ratingSnapshot: 1090 }] }, // delta 90 <= expanded window 100
+                    },
+                ],
+                { ...baseGameMode, initialRatingWindow: 50, windowExpandIntervalSeconds: 15, windowExpandStep: 50 },
+            );
+
+            expect(selected.map((entry) => entry.id)).toEqual(["entry_1", "entry_2"]);
+        });
     });
 });

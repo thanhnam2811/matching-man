@@ -2,7 +2,7 @@
 
 ## Status
 
-- [x] In progress
+- [x] Done
 
 ## Objective
 
@@ -14,9 +14,9 @@ Create the repository baseline and engineering conventions.
 - [x] Prisma setup with PostgreSQL connection
 - [x] Environment configuration strategy
 - [x] Health endpoint
-- [ ] Error format standard
+- [x] Error format standard
 - [x] Request validation baseline
-- [ ] Structured logging baseline
+- [x] Structured logging baseline
 
 ## NestJS Modules
 
@@ -43,11 +43,12 @@ Create the repository baseline and engineering conventions.
 ## Done Checklist
 
 - [x] App builds successfully with `pnpm build`
-- [ ] Database connects successfully
+- [x] Database connects successfully
 - [x] Migration workflow exists in source (`prisma/migrations`)
-- [ ] `/health` returns healthy state against a running database
+- [x] `/health` returns healthy state against a running database
 
 ## Notes
 
-- Source evidence: `ConfigModule`, `ValidationPipe`, `PrismaService`, and `HealthController` are wired in the current app.
-- Gaps still visible from source: there is no custom error envelope and no structured logger output yet.
+- `GlobalExceptionFilter` delivers a consistent error envelope: `{ success, error: { statusCode, code, message, details? }, timestamp, path }`.
+- `RequestLoggingInterceptor` emits structured JSON per request: `{ event, method, path, statusCode, durationMs }`.
+- `PrismaService.isHealthy()` runs `SELECT 1` and is wired into `/health`.

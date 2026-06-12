@@ -1,18 +1,19 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider             = "prisma-client"
-  output               = "../src/generated/prisma"
-  moduleFormat         = "cjs"
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  moduleFormat           = "cjs"
   generatedFileExtension = "ts"
-  importFileExtension  = ""
+  importFileExtension    = ""
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum ProjectMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
 }
 
 model SystemSetting {
@@ -23,4 +24,108 @@ model SystemSetting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("system_settings")
+}
+
+model User {
+  id             String          @id @default(cuid())
+  email          String          @unique
+  name           String?
+  passwordHash   String?         @map("password_hash")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  ownedOrganizations Organization[] @relation("OrganizationOwner")
+  projectMembers ProjectMember[]
+
+  @@map("users")
+}
+
+model Organization {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  createdById String?   @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdBy   User?     @relation("OrganizationOwner", fields: [createdById], references: [id])
+  projects    Project[]
+
+  @@map("organizations")
+}
+
+model Project {
+  id             String               @id @default(cuid())
+  name           String
+  slug           String               @unique
+  defaultRegion  String?              @map("default_region")
+  organizationId String               @map("organization_id")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+  organization   Organization         @relation(fields: [organizationId], references: [id])
+  apiKeys        ApiKey[]
+  members        ProjectMember[]
+  environments   ProjectEnvironment[]
+  webhookEndpoints WebhookEndpoint[]
+
+  @@index([organizationId])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String            @id @default(cuid())
+  projectId String            @map("project_id")
+  userId    String            @map("user_id")
+  role      ProjectMemberRole
+  createdAt DateTime          @default(now()) @map("created_at")
+  project   Project           @relation(fields: [projectId], references: [id])
+  user      User              @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+model ProjectEnvironment {
+  id        String   @id @default(cuid())
+  projectId String   @map("project_id")
+  name      String
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  project   Project  @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("project_environments")
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  projectId  String    @map("project_id")
+  name       String
+  keyPrefix  String    @map("key_prefix")
+  lastFour   String    @map("last_four")
+  hashedKey  String    @map("hashed_key")
+  isRevoked  Boolean   @default(false) @map("is_revoked")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  project    Project   @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+  @@index([keyPrefix])
+  @@map("api_keys")
+}
+
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  projectId String   @map("project_id")
+  url       String
+  secret    String
+  events    Json
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  project   Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+  @@map("webhook_endpoints")
 }

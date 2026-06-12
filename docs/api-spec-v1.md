@@ -37,13 +37,29 @@ Allowed values:
 
 Creates a new project.
 
+Current implementation note:
+
+- until dashboard auth exists, project creation bootstraps the first owner and organization in the same request
+
 Request:
 
 ```json
 {
   "name": "Arena VN",
   "slug": "arena-vn",
-  "default_region": "ap-southeast-1"
+  "defaultRegion": "ap-southeast-1",
+  "owner": {
+    "email": "owner@example.com",
+    "name": "Arena Owner"
+  },
+  "organization": {
+    "name": "Arena Studio",
+    "slug": "arena-studio"
+  },
+  "environments": [
+    "development",
+    "production"
+  ]
 }
 ```
 
@@ -54,13 +70,21 @@ Response:
   "id": "proj_123",
   "name": "Arena VN",
   "slug": "arena-vn",
-  "created_at": "2026-06-12T00:00:00Z"
+  "defaultRegion": "ap-southeast-1",
+  "createdAt": "2026-06-12T00:00:00Z"
 }
 ```
 
 ### `POST /v1/projects/:projectId/api-keys`
 
 Creates a project API key.
+
+Additional implemented endpoints:
+
+- `GET /v1/projects`
+- `GET /v1/projects/:projectId`
+- `GET /v1/projects/:projectId/api-keys`
+- `POST /v1/projects/:projectId/api-keys/:apiKeyId/revoke`
 
 ### `POST /v1/projects/:projectId/webhooks`
 
@@ -80,6 +104,12 @@ Request:
   ]
 }
 ```
+
+Additional implemented endpoints:
+
+- `GET /v1/projects/:projectId/webhooks`
+- `PATCH /v1/projects/:projectId/webhooks/:webhookId`
+- `DELETE /v1/projects/:projectId/webhooks/:webhookId`
 
 ## Queue APIs
 

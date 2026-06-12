@@ -28,7 +28,7 @@ describe('AppController', () => {
       expect(appController.getInfo()).toEqual({
         service: 'matching-hub-api',
         environment: 'development',
-        version: 'phase-0',
+        version: 'phase-1',
       });
     });
   });

@@ -2,7 +2,7 @@
 
 ## Status
 
-- [x] In progress
+- [x] Done
 
 ## Objective
 
@@ -59,5 +59,5 @@ Allow a dashboard user to create and manage projects that game servers can authe
 
 ## Notes
 
-- Source evidence: `projects`, `api-keys`, `webhooks`, `organizations`, and `auth` controllers and services are implemented.
-- Dashboard auth is still only a documented contract endpoint, not a real login or session flow.
+- Source evidence: `projects`, `organizations`, `project members`, `project environments`, `api-keys`, `webhooks`, and `auth` control-plane surfaces are implemented.
+- Dashboard auth is intentionally minimal in V1: a shared dashboard admin bearer token protects the control-plane surface. Per-user dashboard identity and tenant-scoped authorization remain future upgrades.

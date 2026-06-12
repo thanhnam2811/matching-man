@@ -24,7 +24,7 @@ export class WebhooksService {
     async findAll(projectId: string) {
         await this.ensureProjectExists(projectId);
 
-        return this.prismaService.client.webhookEndpoint.findMany({
+        const webhooks = await this.prismaService.client.webhookEndpoint.findMany({
             where: {
                 projectId,
             },
@@ -32,6 +32,17 @@ export class WebhooksService {
                 createdAt: "desc",
             },
         });
+
+        return webhooks.map((webhook) => ({
+            id: webhook.id,
+            projectId: webhook.projectId,
+            url: webhook.url,
+            events: webhook.events,
+            isActive: webhook.isActive,
+            createdAt: webhook.createdAt,
+            updatedAt: webhook.updatedAt,
+            hasSecret: true,
+        }));
     }
 
     async update(projectId: string, webhookId: string, updateWebhookDto: UpdateWebhookDto) {

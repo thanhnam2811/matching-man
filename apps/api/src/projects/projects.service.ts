@@ -10,7 +10,6 @@ export class ProjectsService {
 
     async create(createProjectDto: CreateProjectDto) {
         const projectSlug = normalizeSlug(createProjectDto.slug);
-        const organizationSlug = normalizeSlug(createProjectDto.organization.slug);
         const environmentNames = Array.from(
             new Set(
                 (createProjectDto.environments?.length
@@ -35,13 +34,23 @@ export class ProjectsService {
                     },
                 });
 
-                const organization = await tx.organization.create({
-                    data: {
-                        name: createProjectDto.organization.name,
-                        slug: organizationSlug,
-                        createdById: owner.id,
-                    },
-                });
+                const organization = createProjectDto.organizationId
+                    ? await tx.organization.findUnique({
+                          where: {
+                              id: createProjectDto.organizationId,
+                          },
+                      })
+                    : await tx.organization.create({
+                          data: {
+                              name: createProjectDto.organization?.name ?? "organization",
+                              slug: normalizeSlug(createProjectDto.organization?.slug ?? "organization"),
+                              createdById: owner.id,
+                          },
+                      });
+
+                if (!organization) {
+                    throw new NotFoundException("Organization not found");
+                }
 
                 const project = await tx.project.create({
                     data: {
@@ -130,6 +139,17 @@ export class ProjectsService {
                         name: "asc",
                     },
                 },
+                members: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                email: true,
+                                name: true,
+                            },
+                        },
+                    },
+                },
             },
         });
     }
@@ -157,7 +177,11 @@ export class ProjectsService {
                         },
                     },
                 },
-                webhookEndpoints: true,
+                webhookEndpoints: {
+                    orderBy: {
+                        createdAt: "desc",
+                    },
+                },
             },
         });
 
@@ -165,6 +189,30 @@ export class ProjectsService {
             throw new NotFoundException("Project not found");
         }
 
-        return project;
+        return {
+            id: project.id,
+            name: project.name,
+            slug: project.slug,
+            defaultRegion: project.defaultRegion,
+            createdAt: project.createdAt,
+            updatedAt: project.updatedAt,
+            organization: project.organization,
+            environments: project.environments,
+            members: project.members.map((member) => ({
+                id: member.id,
+                role: member.role,
+                createdAt: member.createdAt,
+                user: member.user,
+            })),
+            webhookEndpoints: project.webhookEndpoints.map((webhook) => ({
+                id: webhook.id,
+                url: webhook.url,
+                events: webhook.events,
+                isActive: webhook.isActive,
+                createdAt: webhook.createdAt,
+                updatedAt: webhook.updatedAt,
+                hasSecret: true,
+            })),
+        };
     }
 }

@@ -10,6 +10,7 @@ describe("AppController (e2e)", () => {
     beforeEach(async () => {
         process.env.NODE_ENV = "test";
         process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/matching_hub?schema=public";
+        process.env.DASHBOARD_ADMIN_TOKEN = "test-dashboard-token";
 
         const moduleFixture: TestingModule = await Test.createTestingModule({
             imports: [AppModule],
@@ -35,6 +36,10 @@ describe("AppController (e2e)", () => {
                 environment: "test",
                 version: "phase-2",
             });
+    });
+
+    it("blocks control-plane routes without dashboard token", () => {
+        return request(app.getHttpServer() as Parameters<typeof request>[0]).get("/projects").expect(401);
     });
 
     afterEach(async () => {

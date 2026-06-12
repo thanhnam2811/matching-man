@@ -6,6 +6,7 @@ import {
     IsString,
     Matches,
     MaxLength,
+    ValidateIf,
     ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
@@ -48,13 +49,19 @@ export class CreateProjectDto {
     @MaxLength(64)
     defaultRegion?: string;
 
+    @IsOptional()
+    @IsString()
+    @MaxLength(64)
+    organizationId?: string;
+
     @ValidateNested()
     @Type(() => OwnerDto)
     owner!: OwnerDto;
 
+    @ValidateIf((value: CreateProjectDto) => !value.organizationId)
     @ValidateNested()
     @Type(() => OrganizationDto)
-    organization!: OrganizationDto;
+    organization?: OrganizationDto;
 
     @IsOptional()
     @IsArray()

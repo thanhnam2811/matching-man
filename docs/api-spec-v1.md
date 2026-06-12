@@ -4,7 +4,7 @@
 
 - Base path: `/v1`
 - Authentication for game servers: `Authorization: Bearer <project_api_key>`
-- Authentication for dashboard users: session-based or token-based auth
+- Authentication for dashboard users: `Authorization: Bearer <dashboard_admin_token>`
 - All write endpoints should support `idempotency_key`
 - Timestamps use ISO 8601 UTC
 
@@ -83,8 +83,25 @@ Additional implemented endpoints:
 
 - `GET /v1/projects`
 - `GET /v1/projects/:projectId`
+- `GET /v1/projects/:projectId/members`
+- `POST /v1/projects/:projectId/members`
+- `PATCH /v1/projects/:projectId/members/:memberId`
+- `DELETE /v1/projects/:projectId/members/:memberId`
+- `GET /v1/projects/:projectId/environments`
+- `POST /v1/projects/:projectId/environments`
+- `PATCH /v1/projects/:projectId/environments/:environmentId`
+- `DELETE /v1/projects/:projectId/environments/:environmentId`
 - `GET /v1/projects/:projectId/api-keys`
 - `POST /v1/projects/:projectId/api-keys/:apiKeyId/revoke`
+
+### `POST /v1/organizations`
+
+Creates a new organization for later project attachment.
+
+Additional implemented endpoints:
+
+- `GET /v1/organizations`
+- `GET /v1/organizations/:organizationId`
 
 ### `POST /v1/projects/:projectId/webhooks`
 
@@ -110,6 +127,8 @@ Additional implemented endpoints:
 - `GET /v1/projects/:projectId/webhooks`
 - `PATCH /v1/projects/:projectId/webhooks/:webhookId`
 - `DELETE /v1/projects/:projectId/webhooks/:webhookId`
+
+Read responses do not expose the raw webhook signing secret after creation.
 
 ## Queue APIs
 

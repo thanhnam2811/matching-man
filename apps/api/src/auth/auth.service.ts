@@ -39,10 +39,7 @@ export class AuthService {
         const providedBuffer = Buffer.from(providedToken);
         const expectedBuffer = Buffer.from(expectedToken);
 
-        if (
-            providedBuffer.length !== expectedBuffer.length ||
-            !timingSafeEqual(providedBuffer, expectedBuffer)
-        ) {
+        if (providedBuffer.length !== expectedBuffer.length || !timingSafeEqual(providedBuffer, expectedBuffer)) {
             throw new UnauthorizedException("Invalid dashboard admin bearer token");
         }
     }

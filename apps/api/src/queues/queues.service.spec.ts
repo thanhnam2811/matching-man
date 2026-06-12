@@ -127,8 +127,8 @@ describe("QueuesService", () => {
             groupCount: 2,
         });
         prismaService.client.queueEntry.findFirst.mockResolvedValue(null);
-        prismaService.client.$transaction.mockImplementation(async (callback: (tx: typeof prismaService.client) => unknown) =>
-            callback(prismaService.client),
+        prismaService.client.$transaction.mockImplementation(
+            async (callback: (tx: typeof prismaService.client) => unknown) => callback(prismaService.client),
         );
         prismaService.client.matchPool.upsert.mockResolvedValue({ id: "pool_1" });
         prismaService.client.team.create.mockResolvedValue({ id: "team_1" });

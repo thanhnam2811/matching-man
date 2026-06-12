@@ -26,10 +26,7 @@ export class QueuesService {
             throw new BadRequestException("Team size is outside the allowed range");
         }
 
-        const environment = await this.projectEnvironmentsService.assertExists(
-            authProjectId,
-            enqueueDto.environment,
-        );
+        const environment = await this.projectEnvironmentsService.assertExists(authProjectId, enqueueDto.environment);
 
         if (enqueueDto.idempotencyKey) {
             const existing = await this.prismaService.client.queueEntry.findFirst({

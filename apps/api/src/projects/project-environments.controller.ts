@@ -15,10 +15,7 @@ export class ProjectEnvironmentsController {
     }
 
     @Post()
-    create(
-        @Param("projectId") projectId: string,
-        @Body() createProjectEnvironmentDto: CreateProjectEnvironmentDto,
-    ) {
+    create(@Param("projectId") projectId: string, @Body() createProjectEnvironmentDto: CreateProjectEnvironmentDto) {
         return this.projectEnvironmentsService.create(projectId, createProjectEnvironmentDto);
     }
 

@@ -354,7 +354,8 @@ export class QueuesService {
         const selected = ratedEntries
             .slice(1)
             .toSorted((left, right) => {
-                const delta = Math.abs(left.teamRating - anchor.teamRating) - Math.abs(right.teamRating - anchor.teamRating);
+                const delta =
+                    Math.abs(left.teamRating - anchor.teamRating) - Math.abs(right.teamRating - anchor.teamRating);
 
                 if (delta !== 0) {
                     return delta;

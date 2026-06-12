@@ -39,7 +39,9 @@ describe("AppController (e2e)", () => {
     });
 
     it("blocks control-plane routes without dashboard token", () => {
-        return request(app.getHttpServer() as Parameters<typeof request>[0]).get("/projects").expect(401);
+        return request(app.getHttpServer() as Parameters<typeof request>[0])
+            .get("/projects")
+            .expect(401);
     });
 
     afterEach(async () => {

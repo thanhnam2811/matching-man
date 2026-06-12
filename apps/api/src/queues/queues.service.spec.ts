@@ -217,13 +217,11 @@ describe("QueuesService", () => {
     });
 
     it("stores dequeue idempotency metadata when cancelling a queued entry", async () => {
-        prismaService.client.queueEntry.findFirst
-            .mockResolvedValueOnce(null)
-            .mockResolvedValueOnce({
-                id: "entry_1",
-                projectId: "project_1",
-                status: QueueEntryStatus.QUEUED,
-            });
+        prismaService.client.queueEntry.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
+            id: "entry_1",
+            projectId: "project_1",
+            status: QueueEntryStatus.QUEUED,
+        });
         prismaService.client.queueEntry.update.mockResolvedValue({
             id: "entry_1",
             status: QueueEntryStatus.CANCELLED,
@@ -251,16 +249,19 @@ describe("QueuesService", () => {
             [
                 {
                     id: "entry_1",
+                    teamId: "team_1",
                     queuedAt: new Date("2026-06-12T00:00:00.000Z"),
                     team: { members: [{ playerId: "p1", ratingSnapshot: 1000 }] },
                 },
                 {
                     id: "entry_2",
+                    teamId: "team_2",
                     queuedAt: new Date("2026-06-12T00:00:01.000Z"),
                     team: { members: [{ playerId: "p2", ratingSnapshot: 1600 }] },
                 },
                 {
                     id: "entry_3",
+                    teamId: "team_3",
                     queuedAt: new Date("2026-06-12T00:00:02.000Z"),
                     team: { members: [{ playerId: "p3", ratingSnapshot: 1020 }] },
                 },

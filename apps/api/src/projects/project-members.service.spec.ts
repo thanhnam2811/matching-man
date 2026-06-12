@@ -90,8 +90,8 @@ describe("ProjectMembersService", () => {
     it("fails when project member does not exist", async () => {
         prismaService.client.projectMember.findFirst.mockResolvedValue(null);
 
-        await expect(service.update("project_1", "member_missing", { role: ProjectMemberRole.ADMIN })).rejects.toBeInstanceOf(
-            NotFoundException,
-        );
+        await expect(
+            service.update("project_1", "member_missing", { role: ProjectMemberRole.ADMIN }),
+        ).rejects.toBeInstanceOf(NotFoundException);
     });
 });

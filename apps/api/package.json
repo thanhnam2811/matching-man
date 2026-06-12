@@ -8,12 +8,10 @@
   "scripts": {
     "postinstall": "prisma generate",
     "build": "nest build",
-    "format": "pnpm --dir ../.. api:format",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main",
-    "lint": "pnpm --dir ../.. api:lint",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",

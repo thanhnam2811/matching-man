@@ -45,21 +45,18 @@ Request:
 
 ```json
 {
-  "name": "Arena VN",
-  "slug": "arena-vn",
-  "defaultRegion": "ap-southeast-1",
-  "owner": {
-    "email": "owner@example.com",
-    "name": "Arena Owner"
-  },
-  "organization": {
-    "name": "Arena Studio",
-    "slug": "arena-studio"
-  },
-  "environments": [
-    "development",
-    "production"
-  ]
+    "name": "Arena VN",
+    "slug": "arena-vn",
+    "defaultRegion": "ap-southeast-1",
+    "owner": {
+        "email": "owner@example.com",
+        "name": "Arena Owner"
+    },
+    "organization": {
+        "name": "Arena Studio",
+        "slug": "arena-studio"
+    },
+    "environments": ["development", "production"]
 }
 ```
 
@@ -67,11 +64,11 @@ Response:
 
 ```json
 {
-  "id": "proj_123",
-  "name": "Arena VN",
-  "slug": "arena-vn",
-  "defaultRegion": "ap-southeast-1",
-  "createdAt": "2026-06-12T00:00:00Z"
+    "id": "proj_123",
+    "name": "Arena VN",
+    "slug": "arena-vn",
+    "defaultRegion": "ap-southeast-1",
+    "createdAt": "2026-06-12T00:00:00Z"
 }
 ```
 
@@ -111,14 +108,8 @@ Request:
 
 ```json
 {
-  "url": "https://game.example.com/match-callback",
-  "events": [
-    "match.created",
-    "match.failed",
-    "queue.timeout",
-    "match.completed",
-    "rating.updated"
-  ]
+    "url": "https://game.example.com/match-callback",
+    "events": ["match.created", "match.failed", "queue.timeout", "match.completed", "rating.updated"]
 }
 ```
 
@@ -140,28 +131,28 @@ Request:
 
 ```json
 {
-  "idempotency_key": "enq_001",
-  "projectId": "proj_123",
-  "environment": "production",
-  "gameModeId": "mode_ranked_5v5",
-  "team": {
-    "externalTeamId": "team_1001",
-    "members": [
-      {
-        "playerId": "p1",
-        "rating": 1510
-      },
-      {
-        "playerId": "p2",
-        "rating": 1490
-      }
-    ]
-  },
-  "rating_mode": "external_rating",
-  "region": "ap-southeast-1",
-  "metadata": {
-    "party_size": 2
-  }
+    "idempotency_key": "enq_001",
+    "projectId": "proj_123",
+    "environment": "production",
+    "gameModeId": "mode_ranked_5v5",
+    "team": {
+        "externalTeamId": "team_1001",
+        "members": [
+            {
+                "playerId": "p1",
+                "rating": 1510
+            },
+            {
+                "playerId": "p2",
+                "rating": 1490
+            }
+        ]
+    },
+    "rating_mode": "external_rating",
+    "region": "ap-southeast-1",
+    "metadata": {
+        "party_size": 2
+    }
 }
 ```
 
@@ -169,10 +160,10 @@ Response:
 
 ```json
 {
-  "queueEntryId": "qe_123",
-  "status": "queued",
-  "poolKey": "proj_123:production:mode_ranked_5v5:ap-southeast-1",
-  "queuedAt": "2026-06-12T00:00:00Z"
+    "queueEntryId": "qe_123",
+    "status": "queued",
+    "poolKey": "proj_123:production:mode_ranked_5v5:ap-southeast-1",
+    "queuedAt": "2026-06-12T00:00:00Z"
 }
 ```
 
@@ -184,9 +175,9 @@ Request:
 
 ```json
 {
-  "idempotency_key": "deq_001",
-  "queueEntryId": "qe_123",
-  "reason": "party_cancelled"
+    "idempotency_key": "deq_001",
+    "queueEntryId": "qe_123",
+    "reason": "party_cancelled"
 }
 ```
 
@@ -194,8 +185,8 @@ Response:
 
 ```json
 {
-  "queueEntryId": "qe_123",
-  "status": "cancelled"
+    "queueEntryId": "qe_123",
+    "status": "cancelled"
 }
 ```
 
@@ -209,23 +200,23 @@ Response:
 
 ```json
 {
-  "id": "match_123",
-  "projectId": "proj_123",
-  "gameModeId": "mode_ranked_5v5",
-  "status": "created",
-  "slots": [
-    {
-      "slotIndex": 1,
-      "groupIndex": 1,
-      "teamId": "team_1001"
-    },
-    {
-      "slotIndex": 2,
-      "groupIndex": 2,
-      "teamId": "team_2002"
-    }
-  ],
-  "createdAt": "2026-06-12T00:00:10Z"
+    "id": "match_123",
+    "projectId": "proj_123",
+    "gameModeId": "mode_ranked_5v5",
+    "status": "created",
+    "slots": [
+        {
+            "slotIndex": 1,
+            "groupIndex": 1,
+            "teamId": "team_1001"
+        },
+        {
+            "slotIndex": 2,
+            "groupIndex": 2,
+            "teamId": "team_2002"
+        }
+    ],
+    "createdAt": "2026-06-12T00:00:10Z"
 }
 ```
 
@@ -237,13 +228,13 @@ Request:
 
 ```json
 {
-  "idempotency_key": "result_001",
-  "winner_side": "A",
-  "ended_at": "2026-06-12T00:25:00Z",
-  "metadata": {
-    "duration_seconds": 1490,
-    "server_match_id": "gs_abc_999"
-  }
+    "idempotency_key": "result_001",
+    "winner_side": "A",
+    "ended_at": "2026-06-12T00:25:00Z",
+    "metadata": {
+        "duration_seconds": 1490,
+        "server_match_id": "gs_abc_999"
+    }
 }
 ```
 
@@ -251,9 +242,9 @@ Response:
 
 ```json
 {
-  "match_id": "match_123",
-  "status": "completed",
-  "rating_update_status": "pending"
+    "match_id": "match_123",
+    "status": "completed",
+    "rating_update_status": "pending"
 }
 ```
 
@@ -302,26 +293,26 @@ Payload:
 
 ```json
 {
-  "event": "match.created",
-  "event_id": "evt_001",
-  "project_id": "proj_123",
-  "occurred_at": "2026-06-12T00:00:10Z",
-  "data": {
-    "match_id": "match_123",
-    "game_mode_id": "mode_ranked_5v5",
-    "slots": [
-      {
-        "slot_index": 1,
-        "group_index": 1,
-        "team_id": "team_1001"
-      },
-      {
-        "slot_index": 2,
-        "group_index": 2,
-        "team_id": "team_2002"
-      }
-    ]
-  }
+    "event": "match.created",
+    "event_id": "evt_001",
+    "project_id": "proj_123",
+    "occurred_at": "2026-06-12T00:00:10Z",
+    "data": {
+        "match_id": "match_123",
+        "game_mode_id": "mode_ranked_5v5",
+        "slots": [
+            {
+                "slot_index": 1,
+                "group_index": 1,
+                "team_id": "team_1001"
+            },
+            {
+                "slot_index": 2,
+                "group_index": 2,
+                "team_id": "team_2002"
+            }
+        ]
+    }
 }
 ```
 
@@ -366,10 +357,10 @@ Suggested error format:
 
 ```json
 {
-  "error": {
-    "code": "invalid_rating_mode",
-    "message": "rating_mode must be one of internal_elo, external_rating, disabled"
-  }
+    "error": {
+        "code": "invalid_rating_mode",
+        "message": "rating_mode must be one of internal_elo, external_rating, disabled"
+    }
 }
 ```
 

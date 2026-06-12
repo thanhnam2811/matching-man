@@ -18,17 +18,19 @@ Project-level instructions for coding agents working in this repository.
 
 ## Current Commands
 
-- API install: `pnpm install`
+- Workspace install: `pnpm install`
+- Workspace format: `pnpm format`
+- Workspace lint: `pnpm lint`
 - API dev: `pnpm start:dev`
-- API build: `pnpm build`
-- API test: `pnpm test`
-- API lint: `pnpm lint`
-- API format: `pnpm format`
-- Prisma generate: `pnpm prisma:generate`
-- Prisma migrate (dev): `pnpm prisma:migrate:dev`
-- Prisma Studio: `pnpm prisma:studio`
+- API build: `pnpm api:build`
+- API test: `pnpm api:test`
+- API e2e test: `pnpm api:test:e2e`
+- Prisma generate: `pnpm --dir apps/api prisma:generate`
+- Prisma migrate (dev): `pnpm --dir apps/api prisma:migrate:dev`
+- Prisma Studio: `pnpm --dir apps/api prisma:studio`
 
-Run commands from [apps/api](D:/Documents/matching-man/apps/api).
+Run workspace commands from [matching-man](D:/Documents/matching-man).
+Run NestJS dev server commands from [apps/api](D:/Documents/matching-man/apps/api).
 
 ## Decision Rules
 
@@ -60,11 +62,11 @@ Run commands from [apps/api](D:/Documents/matching-man/apps/api).
 ## Documentation
 
 - When the project gains a concrete stack, update this file with:
-  - setup commands
-  - dev and test commands
-  - repo structure
-  - code style constraints
-  - deployment or environment notes
+    - setup commands
+    - dev and test commands
+    - repo structure
+    - code style constraints
+    - deployment or environment notes
 - If a tool-specific file is needed later, keep `AGENTS.md` as the canonical source and make the other file a thin pointer.
 
 ## Repo Structure

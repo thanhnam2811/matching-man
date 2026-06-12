@@ -1,26 +1,20 @@
 {
-	"$schema": "./node_modules/oxlint/configuration_schema.json",
-	"plugins": [
-		"typescript",
-		"unicorn",
-		"oxc"
-	],
-	"categories": {
-		"correctness": "error"
-	},
-	"rules": {
-		"typescript/no-extraneous-class": [
-			"error",
-			{
-				"allowWithDecorator": true
-			}
-		],
-		"import/no-unassigned-import": "off"
-	},
-	"env": {
-		"builtin": true
-	},
-	"ignorePatterns": [
-		"apps/api/prisma.config.ts"
-	]
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "typescript/no-extraneous-class": [
+      "error",
+      {
+        "allowWithDecorator": true
+      }
+    ],
+    "import/no-unassigned-import": "off"
+  },
+  "env": {
+    "builtin": true
+  },
+  "ignorePatterns": ["apps/api/prisma.config.ts"]
 }

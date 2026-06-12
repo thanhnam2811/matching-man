@@ -35,9 +35,9 @@ The MVP should avoid hard dependency on an always-on Redis worker. Matching scan
 - Matchmaking pools per project and game mode
 - Webhook-based match result delivery
 - Optional rating modes:
-  - internal Elo managed by the hub
-  - external rating supplied by the game server
-  - rating disabled for neutral matching
+    - internal Elo managed by the hub
+    - external rating supplied by the game server
+    - rating disabled for neutral matching
 - Audit-friendly history for queue entries, matches, and webhook deliveries
 
 ## MVP Scope
@@ -51,8 +51,8 @@ The MVP should avoid hard dependency on an always-on Redis worker. Matching scan
 - Match history
 - Webhook delivery log
 - Rating mode configuration with initial support for:
-  - external rating
-  - no rating
+    - external rating
+    - no rating
 
 Internal Elo should be designed into the domain model early, but can be implemented after the first usable release.
 
@@ -60,7 +60,7 @@ Internal Elo should be designed into the domain model early, but can be implemen
 
 - [Architecture](D:/Documents/matching-man/docs/architecture.md)
 - [API Spec v1](D:/Documents/matching-man/docs/api-spec-v1.md)
-- [Roadmap](D:/Documents/matching-man/docs/roadmap.md)
+- [Roadmap Folder](D:/Documents/matching-man/docs/roadmap)
 
 ## Build Order
 

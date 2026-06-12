@@ -82,15 +82,15 @@ Supported modes:
 Behavior by mode:
 
 - `internal_elo`
-  - hub stores current rating per competitor
-  - hub recalculates rating after result reports
-  - hub stores rating history
+    - hub stores current rating per competitor
+    - hub recalculates rating after result reports
+    - hub stores rating history
 - `external_rating`
-  - game server sends current rating on enqueue
-  - hub uses provided rating only for matchmaking
-  - hub does not own the source of truth
+    - game server sends current rating on enqueue
+    - hub uses provided rating only for matchmaking
+    - hub does not own the source of truth
 - `disabled`
-  - hub ignores rating and matches using neutral rules
+    - hub ignores rating and matches using neutral rules
 
 ## 4. Event Delivery
 
@@ -161,16 +161,16 @@ Rules:
 Examples:
 
 - 1v1
-  - required slots: 2
-  - group count: 2
+    - required slots: 2
+    - group count: 2
 - 5v5
-  - required slots: 2
-  - group count: 2
-  - each slot is a full team
+    - required slots: 2
+    - group count: 2
+    - each slot is a full team
 - 4-player board game
-  - required slots: 4
-  - group count: 4
-  - each slot is an independent competitor
+    - required slots: 4
+    - group count: 4
+    - each slot is an independent competitor
 
 ## Core Flows
 
@@ -291,9 +291,9 @@ For the first usable version:
 - NestJS API service
 - PostgreSQL for source-of-truth data and durable background job state
 - in-process scheduled processors for:
-  - matchmaking scans
-  - queue timeout scans
-  - webhook retry delivery
+    - matchmaking scans
+    - queue timeout scans
+    - webhook retry delivery
 - Next.js dashboard separated from the public API
 
 ## Suggested NestJS Module Layout

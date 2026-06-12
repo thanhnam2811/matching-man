@@ -2,9 +2,4 @@
 
 set -eu
 
-pnpm precommit:api
-
-if ! git diff --quiet -- .; then
-  echo "Pre-commit updated files. Review, stage the changes, and commit again."
-  exit 1
-fi
+pnpm precommit

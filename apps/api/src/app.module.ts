@@ -14,6 +14,7 @@ import { WebhooksModule } from "./webhooks/webhooks.module";
 import { GameModesModule } from "./game-modes/game-modes.module";
 import { QueuesModule } from "./queues/queues.module";
 import { MatchesModule } from "./matches/matches.module";
+import { DeliveriesModule } from "./deliveries/deliveries.module";
 
 @Module({
     imports: [
@@ -34,6 +35,7 @@ import { MatchesModule } from "./matches/matches.module";
         GameModesModule,
         QueuesModule,
         MatchesModule,
+        DeliveriesModule,
     ],
     controllers: [AppController],
     providers: [AppService],

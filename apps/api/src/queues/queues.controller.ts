@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
 import type { AuthenticatedProjectRequest } from "../common/interfaces/authenticated-project-request";
 import { ProjectApiKeyGuard } from "../common/guards/project-api-key/project-api-key.guard";
 import { DequeueDto } from "./dto/dequeue.dto";
@@ -18,5 +18,10 @@ export class QueuesController {
     @Post("dequeue")
     dequeue(@Req() request: AuthenticatedProjectRequest, @Body() dequeueDto: DequeueDto) {
         return this.queuesService.dequeue(request.authProjectId, dequeueDto);
+    }
+
+    @Get("pools")
+    listPools(@Req() request: AuthenticatedProjectRequest) {
+        return this.queuesService.listPools(request.authProjectId);
     }
 }

@@ -3,6 +3,7 @@ import { MatchStatus, MatchStructure, Prisma, QueueEntryStatus, RatingMode } fro
 import { GameModesService } from "../game-modes/game-modes.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProjectEnvironmentsService } from "../projects/project-environments.service";
+import { WebhookDeliveryService } from "../deliveries/deliveries.service";
 import { DequeueDto } from "./dto/dequeue.dto";
 import { EnqueueDto } from "./dto/enqueue.dto";
 
@@ -12,6 +13,7 @@ export class QueuesService {
         private readonly prismaService: PrismaService,
         private readonly gameModesService: GameModesService,
         private readonly projectEnvironmentsService: ProjectEnvironmentsService,
+        private readonly webhookDeliveryService: WebhookDeliveryService,
     ) {}
 
     async enqueue(authProjectId: string, enqueueDto: EnqueueDto) {
@@ -100,7 +102,17 @@ export class QueuesService {
             });
         });
 
-        await this.tryCreateMatch(queueEntry.matchPoolId);
+        const matchId = await this.tryCreateMatch(queueEntry.matchPoolId);
+
+        if (matchId) {
+            await this.webhookDeliveryService.scheduleDelivery(authProjectId, "match.created", {
+                event: "match.created",
+                matchId,
+                gameModeId: gameMode.id,
+                environment,
+                regionKey,
+            });
+        }
 
         const freshQueueEntry = await this.prismaService.client.queueEntry.findUniqueOrThrow({
             where: {
@@ -174,6 +186,29 @@ export class QueuesService {
             queueEntryId: updated.id,
             status: updated.status.toLowerCase(),
         };
+    }
+
+    async listPools(projectId: string) {
+        const pools = await this.prismaService.client.matchPool.findMany({
+            where: { projectId },
+            include: {
+                _count: {
+                    select: {
+                        queueEntries: { where: { status: QueueEntryStatus.QUEUED } },
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        return pools.map((pool) => ({
+            id: pool.id,
+            gameModeId: pool.gameModeId,
+            environment: pool.environment,
+            regionKey: pool.regionKey,
+            queuedCount: pool._count.queueEntries,
+            createdAt: pool.createdAt,
+        }));
     }
 
     private async tryCreateMatch(matchPoolId: string) {

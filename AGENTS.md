@@ -74,6 +74,20 @@ Run NestJS dev server commands from [apps/api](D:/Documents/matching-man/apps/ap
 - `apps/api`: NestJS API service
 - `docs`: product, architecture, API, and roadmap documents
 
+## Skills
+
+Use these Claude Code skills for the following task categories:
+
+| Task                                                                        | Skill                        |
+| --------------------------------------------------------------------------- | ---------------------------- |
+| Complex TypeScript types, Prisma generics, DTO inference, conditional types | `/typescript-advanced-types` |
+| Review API security: auth middleware, HMAC webhook signing, API key hashing | `/security-review`           |
+| Post-implementation code quality pass: simplify, remove duplication         | `/simplify`                  |
+| Pull request review                                                         | `/review`                    |
+| Reduce Claude Code permission prompts for new commands                      | `/less-permission-prompts`   |
+
+Phase 6+ (Admin UI): if a Next.js + Tailwind frontend is added, also use `/next-best-practices`, `/tailwind-design-system`, `/radix-ui-design-system`.
+
 ## Empty-Repo Behavior
 
 - If asked to bootstrap the project, create only what is required for the requested outcome.

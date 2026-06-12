@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { MatchStatus, MatchStructure, Prisma, QueueEntryStatus } from "../generated/prisma/client";
 import { GameModesService } from "../game-modes/game-modes.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { ProjectEnvironmentsService } from "../projects/project-environments.service";
 import { DequeueDto } from "./dto/dequeue.dto";
 import { EnqueueDto } from "./dto/enqueue.dto";
 
@@ -10,6 +11,7 @@ export class QueuesService {
     constructor(
         private readonly prismaService: PrismaService,
         private readonly gameModesService: GameModesService,
+        private readonly projectEnvironmentsService: ProjectEnvironmentsService,
     ) {}
 
     async enqueue(authProjectId: string, enqueueDto: EnqueueDto) {
@@ -23,6 +25,11 @@ export class QueuesService {
         if (teamSize < gameMode.teamSizeMin || teamSize > gameMode.teamSizeMax) {
             throw new BadRequestException("Team size is outside the allowed range");
         }
+
+        const environment = await this.projectEnvironmentsService.assertExists(
+            authProjectId,
+            enqueueDto.environment,
+        );
 
         if (enqueueDto.idempotencyKey) {
             const existing = await this.prismaService.client.queueEntry.findFirst({
@@ -45,7 +52,6 @@ export class QueuesService {
         }
 
         const regionKey = enqueueDto.region?.trim() || "global";
-        const environment = enqueueDto.environment.trim().toLowerCase();
 
         const queueEntry = await this.prismaService.client.$transaction(async (tx) => {
             const pool = await tx.matchPool.upsert({
@@ -163,6 +169,15 @@ export class QueuesService {
             });
 
             if (!pool) {
+                return null;
+            }
+
+            const isConfiguredEnvironment = await this.projectEnvironmentsService.isConfigured(
+                pool.projectId,
+                pool.environment,
+            );
+
+            if (!isConfiguredEnvironment) {
                 return null;
             }
 

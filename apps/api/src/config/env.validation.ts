@@ -1,5 +1,5 @@
 import { plainToInstance, Type } from "class-transformer";
-import { IsEnum, IsInt, IsString, Max, Min, validateSync } from "class-validator";
+import { IsEnum, IsInt, IsNotEmpty, IsString, Max, Min, validateSync } from "class-validator";
 
 class EnvironmentVariables {
     @IsEnum(["development", "test", "production"])
@@ -13,6 +13,10 @@ class EnvironmentVariables {
 
     @IsString()
     DATABASE_URL!: string;
+
+    @IsString()
+    @IsNotEmpty()
+    DASHBOARD_ADMIN_TOKEN!: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

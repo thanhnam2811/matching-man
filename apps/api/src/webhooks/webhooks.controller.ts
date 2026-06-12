@@ -1,8 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { DashboardAdminGuard } from "../common/guards/dashboard-admin/dashboard-admin.guard";
 import { CreateWebhookDto } from "./dto/create-webhook.dto";
 import { UpdateWebhookDto } from "./dto/update-webhook.dto";
 import { WebhooksService } from "./webhooks.service";
 
+@UseGuards(DashboardAdminGuard)
 @Controller("projects/:projectId/webhooks")
 export class WebhooksController {
     constructor(private readonly webhooksService: WebhooksService) {}

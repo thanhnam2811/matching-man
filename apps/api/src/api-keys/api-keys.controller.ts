@@ -1,7 +1,9 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { DashboardAdminGuard } from "../common/guards/dashboard-admin/dashboard-admin.guard";
 import { CreateApiKeyDto } from "./dto/create-api-key.dto";
 import { ApiKeysService } from "./api-keys.service";
 
+@UseGuards(DashboardAdminGuard)
 @Controller("projects/:projectId/api-keys")
 export class ApiKeysController {
     constructor(private readonly apiKeysService: ApiKeysService) {}

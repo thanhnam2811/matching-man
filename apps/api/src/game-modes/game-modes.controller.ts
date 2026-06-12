@@ -1,7 +1,9 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { DashboardAdminGuard } from "../common/guards/dashboard-admin/dashboard-admin.guard";
 import { CreateGameModeDto } from "./dto/create-game-mode.dto";
 import { GameModesService } from "./game-modes.service";
 
+@UseGuards(DashboardAdminGuard)
 @Controller("projects/:projectId/game-modes")
 export class GameModesController {
     constructor(private readonly gameModesService: GameModesService) {}

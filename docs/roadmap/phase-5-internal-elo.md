@@ -46,4 +46,4 @@ Add hub-owned rating updates and history.
 
 ## Notes
 
-- This phase introduces system-owned competitive state, so correctness and auditability matter more than breadth.
+- No source evidence yet for `rating_profiles`, `rating_history`, `match_results`, or result-report processing.

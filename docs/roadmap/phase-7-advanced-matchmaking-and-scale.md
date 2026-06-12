@@ -50,4 +50,4 @@ Handle higher traffic and more complex matchmaking constraints.
 
 ## Notes
 
-- Treat Redis and BullMQ as scaling tools, not default architecture for the first usable release.
+- No source evidence yet for Redis, BullMQ, handshake flows, dispute handling, or partitioned pool processing.

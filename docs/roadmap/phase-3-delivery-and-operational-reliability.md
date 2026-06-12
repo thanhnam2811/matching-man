@@ -49,4 +49,4 @@ Make the system safe to retry and operable for real integrations.
 
 ## Notes
 
-- This phase focuses on durable retry behavior and operational visibility, not new product surface.
+- Partial prerequisite only: enqueue idempotency already exists on `queue_entries`, but there is no delivery subsystem, retry processor, or timeout scanner yet.

@@ -51,4 +51,4 @@ Deliver a usable management surface for project owners.
 
 ## Notes
 
-- The UI should expose the existing backend capabilities cleanly before new backend scope is added.
+- No admin UI source tree exists in the repository yet.

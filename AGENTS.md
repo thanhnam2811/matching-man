@@ -4,9 +4,10 @@ Project-level instructions for coding agents working in this repository.
 
 ## Status
 
-- This repository is currently a blank project scaffold.
-- There is no approved application stack, package manager, or folder structure yet.
-- Do not assume React, Next.js, Node, Python, or any other runtime unless the repository contents or the user explicitly establish it.
+- This repository is an early-stage product scaffold for a multi-tenant matchmaking platform.
+- The approved backend stack is `NestJS + Prisma + PostgreSQL`.
+- The current package manager in `apps/api` is `pnpm`.
+- The current application structure starts with `apps/api` for the NestJS service.
 
 ## First-Step Workflow
 
@@ -14,6 +15,19 @@ Project-level instructions for coding agents working in this repository.
 - Treat existing files as the source of truth over prior assumptions.
 - If the repo is still effectively empty, prefer proposing or creating the smallest viable scaffold that satisfies the user request.
 - Before introducing a new stack or major dependency, state the choice and why it fits the request.
+
+## Current Commands
+
+- API install: `pnpm install`
+- API dev: `pnpm start:dev`
+- API build: `pnpm build`
+- API test: `pnpm test`
+- API lint: `pnpm lint`
+- Prisma generate: `pnpm prisma:generate`
+- Prisma migrate (dev): `pnpm prisma:migrate:dev`
+- Prisma Studio: `pnpm prisma:studio`
+
+Run commands from [apps/api](D:/Documents/matching-man/apps/api).
 
 ## Decision Rules
 
@@ -51,6 +65,11 @@ Project-level instructions for coding agents working in this repository.
   - code style constraints
   - deployment or environment notes
 - If a tool-specific file is needed later, keep `AGENTS.md` as the canonical source and make the other file a thin pointer.
+
+## Repo Structure
+
+- `apps/api`: NestJS API service
+- `docs`: product, architecture, API, and roadmap documents
 
 ## Empty-Repo Behavior
 

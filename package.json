@@ -1,0 +1,17 @@
+{
+	"name": "matching-man",
+	"private": true,
+	"packageManager": "pnpm@11.5.2",
+	"scripts": {
+		"prepare": "husky",
+		"format:api": "pnpm --dir apps/api format",
+		"lint:api": "pnpm --dir apps/api lint",
+		"build:api": "pnpm --dir apps/api build",
+		"test:api": "pnpm --dir apps/api test",
+		"test:e2e:api": "pnpm --dir apps/api test:e2e",
+		"precommit:api": "pnpm format:api && pnpm lint:api"
+	},
+	"devDependencies": {
+		"husky": "^9.1.7"
+	}
+}

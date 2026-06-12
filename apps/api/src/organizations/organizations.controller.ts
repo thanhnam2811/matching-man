@@ -1,12 +1,12 @@
-import { Controller, Get } from '@nestjs/common';
-import { OrganizationsService } from './organizations.service';
+import { Controller, Get } from "@nestjs/common";
+import { OrganizationsService } from "./organizations.service";
 
-@Controller('organizations')
+@Controller("organizations")
 export class OrganizationsController {
-  constructor(private readonly organizationsService: OrganizationsService) {}
+    constructor(private readonly organizationsService: OrganizationsService) {}
 
-  @Get()
-  findAll() {
-    return this.organizationsService.findAll();
-  }
+    @Get()
+    findAll() {
+        return this.organizationsService.findAll();
+    }
 }

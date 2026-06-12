@@ -1,12 +1,12 @@
-import { Controller, Get } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { Controller, Get } from "@nestjs/common";
+import { AuthService } from "./auth.service";
 
-@Controller('auth')
+@Controller("auth")
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+    constructor(private readonly authService: AuthService) {}
 
-  @Get('contract')
-  getContract() {
-    return this.authService.getContract();
-  }
+    @Get("contract")
+    getContract() {
+        return this.authService.getContract();
+    }
 }

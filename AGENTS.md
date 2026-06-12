@@ -23,6 +23,7 @@ Project-level instructions for coding agents working in this repository.
 - API build: `pnpm build`
 - API test: `pnpm test`
 - API lint: `pnpm lint`
+- API format: `pnpm format`
 - Prisma generate: `pnpm prisma:generate`
 - Prisma migrate (dev): `pnpm prisma:migrate:dev`
 - Prisma Studio: `pnpm prisma:studio`

@@ -1,27 +1,27 @@
-import { NestFactory } from '@nestjs/core';
-import { Logger, RequestMethod, ValidationPipe } from '@nestjs/common';
-import { AppModule } from './app.module';
+import { NestFactory } from "@nestjs/core";
+import { Logger, RequestMethod, ValidationPipe } from "@nestjs/common";
+import { AppModule } from "./app.module";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    bufferLogs: true,
-  });
-  const logger = new Logger('Bootstrap');
+    const app = await NestFactory.create(AppModule, {
+        bufferLogs: true,
+    });
+    const logger = new Logger("Bootstrap");
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
-  app.setGlobalPrefix('v1', {
-    exclude: [{ path: 'health', method: RequestMethod.GET }],
-  });
+    app.useGlobalPipes(
+        new ValidationPipe({
+            whitelist: true,
+            transform: true,
+            forbidNonWhitelisted: true,
+        }),
+    );
+    app.setGlobalPrefix("v1", {
+        exclude: [{ path: "health", method: RequestMethod.GET }],
+    });
 
-  const port = process.env.PORT ?? 3000;
+    const port = process.env.PORT ?? 3000;
 
-  await app.listen(port);
-  logger.log(`API listening on port ${port}`);
+    await app.listen(port);
+    logger.log(`API listening on port ${port}`);
 }
 void bootstrap();

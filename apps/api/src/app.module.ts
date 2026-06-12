@@ -11,6 +11,9 @@ import { OrganizationsModule } from "./organizations/organizations.module";
 import { ProjectsModule } from "./projects/projects.module";
 import { ApiKeysModule } from "./api-keys/api-keys.module";
 import { WebhooksModule } from "./webhooks/webhooks.module";
+import { GameModesModule } from "./game-modes/game-modes.module";
+import { QueuesModule } from "./queues/queues.module";
+import { MatchesModule } from "./matches/matches.module";
 
 @Module({
     imports: [
@@ -28,6 +31,9 @@ import { WebhooksModule } from "./webhooks/webhooks.module";
         ProjectsModule,
         ApiKeysModule,
         WebhooksModule,
+        GameModesModule,
+        QueuesModule,
+        MatchesModule,
     ],
     controllers: [AppController],
     providers: [AppService],

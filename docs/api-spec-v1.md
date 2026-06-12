@@ -122,18 +122,18 @@ Request:
 ```json
 {
   "idempotency_key": "enq_001",
-  "project_id": "proj_123",
+  "projectId": "proj_123",
   "environment": "production",
-  "mode": "ranked_5v5",
+  "gameModeId": "mode_ranked_5v5",
   "team": {
-    "team_id": "team_1001",
+    "externalTeamId": "team_1001",
     "members": [
       {
-        "player_id": "p1",
+        "playerId": "p1",
         "rating": 1510
       },
       {
-        "player_id": "p2",
+        "playerId": "p2",
         "rating": 1490
       }
     ]
@@ -150,10 +150,10 @@ Response:
 
 ```json
 {
-  "queue_entry_id": "qe_123",
+  "queueEntryId": "qe_123",
   "status": "queued",
-  "pool_key": "proj_123:production:ranked_5v5:ap-southeast-1",
-  "queued_at": "2026-06-12T00:00:00Z"
+  "poolKey": "proj_123:production:mode_ranked_5v5:ap-southeast-1",
+  "queuedAt": "2026-06-12T00:00:00Z"
 }
 ```
 
@@ -166,7 +166,7 @@ Request:
 ```json
 {
   "idempotency_key": "deq_001",
-  "queue_entry_id": "qe_123",
+  "queueEntryId": "qe_123",
   "reason": "party_cancelled"
 }
 ```
@@ -175,7 +175,7 @@ Response:
 
 ```json
 {
-  "queue_entry_id": "qe_123",
+  "queueEntryId": "qe_123",
   "status": "cancelled"
 }
 ```
@@ -191,20 +191,22 @@ Response:
 ```json
 {
   "id": "match_123",
-  "project_id": "proj_123",
-  "mode": "ranked_5v5",
+  "projectId": "proj_123",
+  "gameModeId": "mode_ranked_5v5",
   "status": "created",
-  "participants": [
+  "slots": [
     {
-      "team_id": "team_1001",
-      "side": "A"
+      "slotIndex": 1,
+      "groupIndex": 1,
+      "teamId": "team_1001"
     },
     {
-      "team_id": "team_2002",
-      "side": "B"
+      "slotIndex": 2,
+      "groupIndex": 2,
+      "teamId": "team_2002"
     }
   ],
-  "created_at": "2026-06-12T00:00:10Z"
+  "createdAt": "2026-06-12T00:00:10Z"
 }
 ```
 
@@ -287,15 +289,17 @@ Payload:
   "occurred_at": "2026-06-12T00:00:10Z",
   "data": {
     "match_id": "match_123",
-    "mode": "ranked_5v5",
-    "participants": [
+    "game_mode_id": "mode_ranked_5v5",
+    "slots": [
       {
-        "team_id": "team_1001",
-        "side": "A"
+        "slot_index": 1,
+        "group_index": 1,
+        "team_id": "team_1001"
       },
       {
-        "team_id": "team_2002",
-        "side": "B"
+        "slot_index": 2,
+        "group_index": 2,
+        "team_id": "team_2002"
       }
     ]
   }

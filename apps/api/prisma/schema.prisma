@@ -16,6 +16,34 @@ enum ProjectMemberRole {
   MEMBER
 }
 
+enum RatingMode {
+  INTERNAL_ELO
+  EXTERNAL_RATING
+  DISABLED
+}
+
+enum MatchStructure {
+  VERSUS
+  FFA
+}
+
+enum QueueEntryStatus {
+  QUEUED
+  MATCHED
+  CANCELLED
+  TIMED_OUT
+  FAILED
+}
+
+enum MatchStatus {
+  CREATED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  EXPIRED
+  DISPUTED
+}
+
 model SystemSetting {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -27,14 +55,14 @@ model SystemSetting {
 }
 
 model User {
-  id             String          @id @default(cuid())
-  email          String          @unique
-  name           String?
-  passwordHash   String?         @map("password_hash")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
-  ownedOrganizations Organization[] @relation("OrganizationOwner")
-  projectMembers ProjectMember[]
+  id                 String             @id @default(cuid())
+  email              String             @unique
+  name               String?
+  passwordHash       String?            @map("password_hash")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  ownedOrganizations Organization[]     @relation("OrganizationOwner")
+  projectMembers     ProjectMember[]
 
   @@map("users")
 }
@@ -53,18 +81,23 @@ model Organization {
 }
 
 model Project {
-  id             String               @id @default(cuid())
-  name           String
-  slug           String               @unique
-  defaultRegion  String?              @map("default_region")
-  organizationId String               @map("organization_id")
-  createdAt      DateTime             @default(now()) @map("created_at")
-  updatedAt      DateTime             @updatedAt @map("updated_at")
-  organization   Organization         @relation(fields: [organizationId], references: [id])
-  apiKeys        ApiKey[]
-  members        ProjectMember[]
-  environments   ProjectEnvironment[]
+  id               String               @id @default(cuid())
+  name             String
+  slug             String               @unique
+  defaultRegion    String?              @map("default_region")
+  organizationId   String               @map("organization_id")
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+  organization     Organization         @relation(fields: [organizationId], references: [id])
+  apiKeys          ApiKey[]
+  members          ProjectMember[]
+  environments     ProjectEnvironment[]
   webhookEndpoints WebhookEndpoint[]
+  gameModes        GameMode[]
+  matchPools       MatchPool[]
+  teams            Team[]
+  queueEntries     QueueEntry[]
+  matches          Match[]
 
   @@index([organizationId])
   @@map("projects")
@@ -128,4 +161,148 @@ model WebhookEndpoint {
 
   @@index([projectId])
   @@map("webhook_endpoints")
+}
+
+model GameMode {
+  id             String         @id @default(cuid())
+  projectId      String         @map("project_id")
+  key            String
+  name           String
+  matchStructure MatchStructure @map("match_structure")
+  requiredSlots  Int            @map("required_slots")
+  groupCount     Int            @map("group_count")
+  teamSizeMin    Int            @map("team_size_min")
+  teamSizeMax    Int            @map("team_size_max")
+  ratingMode     RatingMode     @default(DISABLED) @map("rating_mode")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  project        Project        @relation(fields: [projectId], references: [id])
+  matchPools     MatchPool[]
+  queueEntries   QueueEntry[]
+  matches        Match[]
+
+  @@unique([projectId, key])
+  @@index([projectId])
+  @@map("game_modes")
+}
+
+model MatchPool {
+  id          String      @id @default(cuid())
+  projectId   String      @map("project_id")
+  gameModeId  String      @map("game_mode_id")
+  environment String
+  regionKey   String      @map("region_key")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  project     Project     @relation(fields: [projectId], references: [id])
+  gameMode    GameMode    @relation(fields: [gameModeId], references: [id])
+  queueEntries QueueEntry[]
+  matches     Match[]
+
+  @@unique([projectId, gameModeId, environment, regionKey])
+  @@index([projectId])
+  @@index([gameModeId])
+  @@map("match_pools")
+}
+
+model Team {
+  id             String        @id @default(cuid())
+  projectId      String        @map("project_id")
+  externalTeamId String?       @map("external_team_id")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  project        Project       @relation(fields: [projectId], references: [id])
+  members        TeamMember[]
+  queueEntries   QueueEntry[]
+  matchSlots     MatchSlot[]
+
+  @@unique([projectId, externalTeamId])
+  @@index([projectId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id             String   @id @default(cuid())
+  teamId         String   @map("team_id")
+  playerId       String   @map("player_id")
+  ratingSnapshot Int?     @map("rating_snapshot")
+  createdAt      DateTime @default(now()) @map("created_at")
+  team           Team     @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
+  @@unique([teamId, playerId])
+  @@map("team_members")
+}
+
+model QueueEntry {
+  id             String           @id @default(cuid())
+  projectId      String           @map("project_id")
+  gameModeId     String           @map("game_mode_id")
+  matchPoolId    String           @map("match_pool_id")
+  teamId         String           @map("team_id")
+  environment    String
+  regionKey      String           @map("region_key")
+  idempotencyKey String?          @map("idempotency_key")
+  ratingMode     RatingMode       @map("rating_mode")
+  status         QueueEntryStatus @default(QUEUED)
+  metadata       Json?
+  queuedAt       DateTime         @default(now()) @map("queued_at")
+  matchedAt      DateTime?        @map("matched_at")
+  cancelledAt    DateTime?        @map("cancelled_at")
+  cancelReason   String?          @map("cancel_reason")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  project        Project          @relation(fields: [projectId], references: [id])
+  gameMode       GameMode         @relation(fields: [gameModeId], references: [id])
+  matchPool      MatchPool        @relation(fields: [matchPoolId], references: [id])
+  team           Team             @relation(fields: [teamId], references: [id])
+  matchSlots     MatchSlot[]
+
+  @@unique([projectId, idempotencyKey])
+  @@index([matchPoolId, status, queuedAt])
+  @@index([projectId])
+  @@index([gameModeId])
+  @@map("queue_entries")
+}
+
+model Match {
+  id             String      @id @default(cuid())
+  projectId      String      @map("project_id")
+  gameModeId     String      @map("game_mode_id")
+  matchPoolId    String      @map("match_pool_id")
+  environment    String
+  regionKey      String      @map("region_key")
+  status         MatchStatus @default(CREATED)
+  ratingMode     RatingMode  @map("rating_mode")
+  requiredSlots  Int         @map("required_slots")
+  groupCount     Int         @map("group_count")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  project        Project     @relation(fields: [projectId], references: [id])
+  gameMode       GameMode    @relation(fields: [gameModeId], references: [id])
+  matchPool      MatchPool   @relation(fields: [matchPoolId], references: [id])
+  slots          MatchSlot[]
+
+  @@index([projectId])
+  @@index([gameModeId])
+  @@index([matchPoolId])
+  @@map("matches")
+}
+
+model MatchSlot {
+  id           String     @id @default(cuid())
+  matchId      String     @map("match_id")
+  queueEntryId String     @map("queue_entry_id")
+  teamId       String     @map("team_id")
+  slotIndex    Int        @map("slot_index")
+  groupIndex   Int        @map("group_index")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  match        Match      @relation(fields: [matchId], references: [id])
+  queueEntry   QueueEntry @relation(fields: [queueEntryId], references: [id])
+  team         Team       @relation(fields: [teamId], references: [id])
+
+  @@unique([matchId, slotIndex])
+  @@unique([queueEntryId])
+  @@index([teamId])
+  @@map("match_slots")
 }

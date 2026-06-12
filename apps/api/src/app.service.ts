@@ -9,7 +9,7 @@ export class AppService {
         return {
             service: "matching-hub-api",
             environment: this.configService.get<string>("NODE_ENV", "development"),
-            version: "phase-1",
+            version: "phase-2",
         };
     }
 }

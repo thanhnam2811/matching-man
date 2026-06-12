@@ -33,7 +33,7 @@ describe("AppController (e2e)", () => {
             .expect({
                 service: "matching-hub-api",
                 environment: "test",
-                version: "phase-1",
+                version: "phase-2",
             });
     });
 

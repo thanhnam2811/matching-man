@@ -1,6 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma } from "../generated/prisma/client";
-import { ProjectMemberRole } from "../generated/prisma/enums";
+import { Prisma, ProjectMemberRole } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { normalizeSlug } from "../common/utils/slug.util";
 import { CreateProjectDto } from "./dto/create-project.dto";

@@ -122,7 +122,7 @@ Initial core entities:
 - `teams`
 - `team_members`
 - `matches`
-- `match_participants`
+- `match_slots`
 - `match_results`
 - `rating_profiles`
 - `rating_history`
@@ -138,6 +138,39 @@ Rationale:
 - party queue becomes a team of size N
 - team-vs-team games fit naturally
 - avoids rebuilding the model when moving beyond 1v1
+
+## Key Design Choice: Slot-Based Matches
+
+Matches must be modeled as `N slots`, not as a hard-coded two-side contest.
+
+Required match slot fields:
+
+- `slot_index`
+- `group_index`
+
+Both values are mandatory integers.
+
+Rules:
+
+- `slot_index` is the unique position inside the match
+- `group_index` is the logical placement group for that slot
+- `1 <= group_index <= group_count`
+- free-for-all is represented by `group_count == required_slots`
+- versus games are represented by `group_count == 2`
+
+Examples:
+
+- 1v1
+  - required slots: 2
+  - group count: 2
+- 5v5
+  - required slots: 2
+  - group count: 2
+  - each slot is a full team
+- 4-player board game
+  - required slots: 4
+  - group count: 4
+  - each slot is an independent competitor
 
 ## Core Flows
 
@@ -182,13 +215,21 @@ Each pool should be scoped by:
 
 Rule examples:
 
-- `team_size`
-- `required_teams`
+- `team_size_min`
+- `team_size_max`
+- `required_slots`
+- `group_count`
+- `match_structure`
 - `max_queue_time_seconds`
 - `rating_mode`
 - `initial_rating_window`
 - `window_expand_interval_seconds`
 - `window_expand_step`
+
+Suggested structure values:
+
+- `VERSUS`
+- `FFA`
 
 Example rating window behavior:
 

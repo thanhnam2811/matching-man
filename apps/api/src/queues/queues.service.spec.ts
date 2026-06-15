@@ -1,5 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 import { MatchStructure, QueueEntryStatus, RatingMode } from "../generated/prisma/enums";
+import { WebhookDeliveryService } from "../deliveries/deliveries.service";
 import { GameModesService } from "../game-modes/game-modes.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProjectEnvironmentsService } from "../projects/project-environments.service";
@@ -44,6 +45,9 @@ describe("QueuesService", () => {
     let gameModesService: {
         findOne: jest.Mock;
     };
+    let webhookDeliveryService: {
+        scheduleDelivery: jest.Mock;
+    };
     let projectEnvironmentsService: ProjectEnvironmentsService;
 
     beforeEach(() => {
@@ -86,11 +90,16 @@ describe("QueuesService", () => {
             findOne: jest.fn(),
         };
 
+        webhookDeliveryService = {
+            scheduleDelivery: jest.fn(),
+        };
+
         projectEnvironmentsService = new ProjectEnvironmentsService(prismaService as unknown as PrismaService);
         service = new QueuesService(
             prismaService as unknown as PrismaService,
             gameModesService as unknown as GameModesService,
             projectEnvironmentsService,
+            webhookDeliveryService as unknown as WebhookDeliveryService,
         );
     });
 

@@ -105,6 +105,7 @@ model Project {
   teams            Team[]
   queueEntries     QueueEntry[]
   matches          Match[]
+  ratingProfiles   RatingProfile[]
 
   @@index([organizationId])
   @@map("projects")
@@ -202,6 +203,7 @@ model GameMode {
   groupCount     Int            @map("group_count")
   teamSizeMin    Int            @map("team_size_min")
   teamSizeMax    Int            @map("team_size_max")
+  ratingProfiles              RatingProfile[]
   ratingMode                  RatingMode @default(DISABLED) @map("rating_mode")
   initialRatingWindow         Int?       @map("initial_rating_window")
   windowExpandIntervalSeconds Int?       @map("window_expand_interval_seconds")
@@ -319,6 +321,8 @@ model Match {
   gameMode       GameMode    @relation(fields: [gameModeId], references: [id])
   matchPool      MatchPool   @relation(fields: [matchPoolId], references: [id])
   slots          MatchSlot[]
+  result         MatchResult?
+  ratingHistory  RatingHistory[]
 
   @@index([projectId])
   @@index([gameModeId])
@@ -343,4 +347,52 @@ model MatchSlot {
   @@unique([queueEntryId])
   @@index([teamId])
   @@map("match_slots")
+}
+
+model MatchResult {
+  id               String   @id @default(cuid())
+  matchId          String   @unique @map("match_id")
+  idempotencyKey   String?  @unique @map("idempotency_key")
+  winnerGroupIndex Int?     @map("winner_group_index")
+  endedAt          DateTime @map("ended_at")
+  metadata         Json?
+  createdAt        DateTime @default(now()) @map("created_at")
+  match            Match    @relation(fields: [matchId], references: [id])
+
+  @@map("match_results")
+}
+
+model RatingProfile {
+  id          String          @id @default(cuid())
+  projectId   String          @map("project_id")
+  gameModeId  String          @map("game_mode_id")
+  playerId    String          @map("player_id")
+  rating      Int             @default(1200)
+  gamesPlayed Int             @default(0) @map("games_played")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  project     Project         @relation(fields: [projectId], references: [id])
+  gameMode    GameMode        @relation(fields: [gameModeId], references: [id])
+  history     RatingHistory[]
+
+  @@unique([projectId, gameModeId, playerId])
+  @@index([projectId])
+  @@index([gameModeId])
+  @@map("rating_profiles")
+}
+
+model RatingHistory {
+  id              String        @id @default(cuid())
+  ratingProfileId String        @map("rating_profile_id")
+  matchId         String        @map("match_id")
+  ratingBefore    Int           @map("rating_before")
+  ratingAfter     Int           @map("rating_after")
+  delta           Int
+  createdAt       DateTime      @default(now()) @map("created_at")
+  ratingProfile   RatingProfile @relation(fields: [ratingProfileId], references: [id])
+  match           Match         @relation(fields: [matchId], references: [id])
+
+  @@index([ratingProfileId])
+  @@index([matchId])
+  @@map("rating_history")
 }

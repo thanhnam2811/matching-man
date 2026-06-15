@@ -2,7 +2,7 @@
 
 ## Status
 
-- [ ] Not started
+- [x] Done
 
 ## Objective
 
@@ -10,40 +10,44 @@ Add hub-owned rating updates and history.
 
 ## Implementation Checklist
 
-- [ ] Rating profiles
-- [ ] Result-driven Elo recalculation
-- [ ] Rating history log
-- [ ] Rating history API
-- [ ] `rating.updated` webhook
+- [x] Rating profiles
+- [x] Result-driven Elo recalculation
+- [x] Rating history log
+- [x] Rating history API
+- [x] `rating.updated` webhook
 
 ## NestJS Modules
 
-- [ ] `ratings`
-- [ ] `matches`
-- [ ] `deliveries`
+- [x] `ratings`
+- [x] `matches`
+- [x] `deliveries`
 
 ## Database Work
 
-- [ ] `rating_profiles`
-- [ ] `rating_history`
-- [ ] `match_results`
+- [x] `rating_profiles`
+- [x] `rating_history`
+- [x] `match_results`
 
 ## API Endpoints
 
-- [ ] `POST /v1/matches/:matchId/report-result`
-- [ ] `GET /v1/projects/:projectId/rating-history`
+- [x] `POST /v1/matches/:matchId/report-result`
+- [x] `GET /v1/ratings/history` (project API key scoped; dashboard path deferred to Phase 6)
 
 ## Internal Services
 
-- [ ] `RatingCalculationService`
-- [ ] `RatingHistoryService`
+- [x] `RatingsService` — Elo calculation + history query (merged, small scope)
 
 ## Done Checklist
 
-- [ ] Match result updates internal rating when enabled
-- [ ] Rating changes are traceable per competitor
-- [ ] Webhook is emitted after rating finalization
+- [x] Match result updates internal rating when enabled
+- [x] Rating changes are traceable per competitor
+- [x] Webhook is emitted after rating finalization
 
 ## Notes
 
-- No source evidence yet for `rating_profiles`, `rating_history`, `match_results`, or result-report processing.
+- Elo formula: K=32, initial rating=1200. Team-vs-team uses average opposing team rating as the reference for each individual's expected score.
+- `report-result` is idempotent on matchId: if a result already exists, the existing outcome is replayed without re-processing.
+- `ratingUpdateStatus` in the response: `skipped` when ratingMode ≠ INTERNAL_ELO or no winnerGroupIndex provided; `completed` when Elo was calculated synchronously.
+- `rating_profiles` are scoped per (projectId, gameModeId, playerId) so a player can have independent ratings across game modes.
+- FFA Elo is out of scope for V1; only VERSUS (2-group) matches trigger rating updates.
+- Dashboard-auth rating history route deferred to Phase 6.

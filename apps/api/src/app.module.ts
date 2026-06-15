@@ -15,6 +15,7 @@ import { GameModesModule } from "./game-modes/game-modes.module";
 import { QueuesModule } from "./queues/queues.module";
 import { MatchesModule } from "./matches/matches.module";
 import { DeliveriesModule } from "./deliveries/deliveries.module";
+import { RatingsModule } from "./ratings/ratings.module";
 
 @Module({
     imports: [
@@ -36,6 +37,7 @@ import { DeliveriesModule } from "./deliveries/deliveries.module";
         QueuesModule,
         MatchesModule,
         DeliveriesModule,
+        RatingsModule,
     ],
     controllers: [AppController],
     providers: [AppService],

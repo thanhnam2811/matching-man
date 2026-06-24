@@ -27,8 +27,7 @@ flowchart TD
     Kind -->|"public:<br/>/auth/register, /auth/login"| Pub["no guard"]
     Kind -->|"/auth/me"| US["UserSessionGuard"]
     Kind -->|"/organizations, /projects"| DA["DashboardAuthGuard"]
-    Kind -->|"/projects/:id/* sub-resources"| DA2["DashboardAuthGuard"] --> PA["ProjectAccessGuard"]
-    Kind -->|"/projects/:id/game-modes"| ADM["DashboardAdminGuard<br/>(admin token only — see note)"]
+    Kind -->|"/projects/:id/* sub-resources<br/>(api-keys, webhooks, environments,<br/>members, game-modes, dashboard reads)"| DA2["DashboardAuthGuard"] --> PA["ProjectAccessGuard"]
 
     DA --> Tok{"Bearer token"}
     Tok -->|"== DASHBOARD_ADMIN_TOKEN"| SA["isSuperAdmin = true<br/>(bypass tenant scoping)"]
@@ -39,10 +38,9 @@ flowchart TD
     Mem -->|no| F["403 Forbidden"]
 ```
 
-> **Note / known gap:** `game-modes` controllers still use `DashboardAdminGuard` (admin token
-> only) — they were not rebound to `DashboardAuthGuard + ProjectAccessGuard` in Stage 3 like the
-> other project-scoped control-plane routes. A regular org user therefore cannot manage game
-> modes from the dashboard yet. Rebinding it is a one-controller guard swap.
+All project-scoped control-plane and dashboard-read routes — including `game-modes` — go
+through `DashboardAuthGuard + ProjectAccessGuard`. Only game-server routes use
+`ProjectApiKeyGuard`, and `/auth/login`/`/auth/register` are public.
 
 ## Session token
 

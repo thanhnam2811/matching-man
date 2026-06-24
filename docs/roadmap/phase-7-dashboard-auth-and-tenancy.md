@@ -56,7 +56,7 @@ projects inside it, and invites teammates with roles.
 - [x] Combined `DashboardAuthGuard` (admin token super-admin OR user session) landed in Stage 2
 - [x] `DASHBOARD_ADMIN_TOKEN` still works as super-admin
 - [x] `organizations` and `projects` routes rebound to `DashboardAuthGuard` + org membership
-- [x] Remaining control-plane routes (api-keys, webhooks, environments, project-members) rebound via `ProjectAccessGuard`
+- [x] Remaining control-plane routes (api-keys, webhooks, environments, project-members, game-modes) rebound via `ProjectAccessGuard`
 - [x] Dashboard read routes (pools, matches, deliveries, rating-history) rebound + membership-scoped
 - [x] Game-server routes keep using `ProjectApiKeyGuard` unchanged
 

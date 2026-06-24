@@ -1,16 +1,16 @@
-import { LoginForm } from "@/components/login-form";
+import { RegisterForm } from "@/components/register-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function LoginPage() {
+export default function RegisterPage() {
     return (
         <main className="flex min-h-screen items-center justify-center p-4">
             <Card className="w-full max-w-sm">
                 <CardHeader>
-                    <CardTitle className="text-lg">Matching Hub</CardTitle>
-                    <CardDescription>Sign in to manage your organizations and projects.</CardDescription>
+                    <CardTitle className="text-lg">Create your account</CardTitle>
+                    <CardDescription>You will start with your own organization.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <LoginForm />
+                    <RegisterForm />
                 </CardContent>
             </Card>
         </main>

@@ -5,13 +5,14 @@ const TOKEN_COOKIE = "dashboard_token";
 
 export function middleware(request: NextRequest) {
     const token = request.cookies.get(TOKEN_COOKIE)?.value;
-    const isLoginRoute = request.nextUrl.pathname.startsWith("/login");
+    const pathname = request.nextUrl.pathname;
+    const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register");
 
-    if (!token && !isLoginRoute) {
+    if (!token && !isAuthRoute) {
         return NextResponse.redirect(new URL("/login", request.url));
     }
 
-    if (token && isLoginRoute) {
+    if (token && isAuthRoute) {
         return NextResponse.redirect(new URL("/", request.url));
     }
 

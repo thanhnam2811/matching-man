@@ -43,6 +43,24 @@ export type Paginated<T> = {
     total: number;
 };
 
+export type OrganizationMembership = {
+    id: string;
+    name: string;
+    slug: string;
+    role: string;
+};
+
+export type CurrentUser = {
+    id: string;
+    email: string;
+    name: string | null;
+    organizations: OrganizationMembership[];
+};
+
+export function getCurrentUser() {
+    return apiFetch<CurrentUser>("/auth/me");
+}
+
 export type Project = {
     id: string;
     name: string;

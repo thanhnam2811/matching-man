@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function LoginForm() {
+export function RegisterForm() {
     const router = useRouter();
+    const [name, setName] = React.useState("");
     const [email, setEmail] = React.useState("");
     const [password, setPassword] = React.useState("");
+    const [organizationName, setOrganizationName] = React.useState("");
     const [error, setError] = React.useState<string | null>(null);
     const [pending, setPending] = React.useState(false);
 
@@ -20,15 +22,15 @@ export function LoginForm() {
         setPending(true);
 
         try {
-            const response = await fetch("/api/session", {
+            const response = await fetch("/api/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ name, email, password, organizationName }),
             });
 
             if (!response.ok) {
                 const body = (await response.json().catch(() => null)) as { error?: string } | null;
-                setError(body?.error ?? "Sign in failed");
+                setError(body?.error ?? "Sign up failed");
                 return;
             }
 
@@ -43,6 +45,17 @@ export function LoginForm() {
 
     return (
         <form onSubmit={onSubmit} className="space-y-4">
+            <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                    id="name"
+                    autoComplete="name"
+                    placeholder="Your name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                />
+            </div>
+
             <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -61,10 +74,22 @@ export function LoginForm() {
                 <Input
                     id="password"
                     type="password"
-                    autoComplete="current-password"
+                    autoComplete="new-password"
+                    placeholder="At least 8 characters"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
+                    minLength={8}
                     required
+                />
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="organizationName">Organization name</Label>
+                <Input
+                    id="organizationName"
+                    placeholder="Optional — defaults to a personal org"
+                    value={organizationName}
+                    onChange={(event) => setOrganizationName(event.target.value)}
                 />
             </div>
 
@@ -74,14 +99,14 @@ export function LoginForm() {
                 </p>
             ) : null}
 
-            <Button type="submit" className="w-full" disabled={pending || !email || !password}>
-                {pending ? "Signing in…" : "Sign in"}
+            <Button type="submit" className="w-full" disabled={pending || !email || password.length < 8}>
+                {pending ? "Creating account…" : "Create account"}
             </Button>
 
             <p className="text-center text-sm text-muted-foreground">
-                No account?{" "}
-                <Link href="/register" className="text-foreground underline-offset-4 hover:underline">
-                    Create one
+                Already have an account?{" "}
+                <Link href="/login" className="text-foreground underline-offset-4 hover:underline">
+                    Sign in
                 </Link>
             </p>
         </form>

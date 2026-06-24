@@ -62,11 +62,32 @@ projects inside it, and invites teammates with roles.
 
 ## Stage 4 — Frontend (apps/web)
 
-- [ ] Register and login pages (email + password) replace the token-paste screen
-- [ ] Org switcher in the dashboard shell
-- [ ] Create organization and create project flows
-- [ ] Member management UI (list, invite, change role, remove)
-- [ ] `GET /v1/auth/me` drives the authenticated shell
+Broken into shippable slices, each its own commit.
+
+### Stage 4a — Auth screens
+
+- [x] Email + password login form replaces the token-paste screen
+- [x] Register page (email, password, name, optional org name)
+- [x] `/api/session` (login) and `/api/register` route handlers call the API and store the session token cookie
+- [x] `GET /v1/auth/me` drives the authenticated shell (show current user, wire logout)
+
+### Stage 4b — Organizations & project creation
+
+- [ ] Dashboard home lists the user's organizations (`GET /organizations`)
+- [ ] Org switcher / org context in the shell
+- [ ] Create organization flow
+- [ ] Create project flow (scoped to an organization)
+
+### Stage 4c — Project resource mutations
+
+- [ ] Create / revoke API keys
+- [ ] Create / edit / delete webhook endpoints
+- [ ] Manage environments
+
+### Stage 4d — Member management
+
+- [ ] Organization members: list, invite by email, change role, remove
+- [ ] Project members (if needed beyond org membership)
 
 ## Done Checklist
 

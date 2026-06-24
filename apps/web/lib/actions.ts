@@ -151,3 +151,46 @@ export async function deleteEnvironment(formData: FormData): Promise<void> {
     await apiFetch(`/projects/${projectId}/environments/${environmentId}`, { method: "DELETE" }).catch(() => undefined);
     revalidatePath(`/projects/${projectId}`);
 }
+
+export async function inviteMember(_prev: FormState, formData: FormData): Promise<FormState> {
+    const organizationId = String(formData.get("organizationId") ?? "");
+    const email = String(formData.get("email") ?? "").trim();
+    const role = String(formData.get("role") ?? "MEMBER");
+
+    if (!email) {
+        return { error: "Email is required" };
+    }
+
+    try {
+        await apiFetch(`/organizations/${organizationId}/members`, {
+            method: "POST",
+            body: JSON.stringify({ email, role }),
+        });
+    } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+            return { error: "No account with that email — ask them to sign up first" };
+        }
+        return { error: humanize(error) };
+    }
+
+    revalidatePath(`/organizations/${organizationId}`);
+    return {};
+}
+
+export async function updateMemberRole(formData: FormData): Promise<void> {
+    const organizationId = String(formData.get("organizationId") ?? "");
+    const memberId = String(formData.get("memberId") ?? "");
+    const role = String(formData.get("role") ?? "MEMBER");
+    await apiFetch(`/organizations/${organizationId}/members/${memberId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+    }).catch(() => undefined);
+    revalidatePath(`/organizations/${organizationId}`);
+}
+
+export async function removeMember(formData: FormData): Promise<void> {
+    const organizationId = String(formData.get("organizationId") ?? "");
+    const memberId = String(formData.get("memberId") ?? "");
+    await apiFetch(`/organizations/${organizationId}/members/${memberId}`, { method: "DELETE" }).catch(() => undefined);
+    revalidatePath(`/organizations/${organizationId}`);
+}

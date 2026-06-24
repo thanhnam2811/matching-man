@@ -2,7 +2,7 @@
 
 ## Status
 
-- [ ] In progress
+- [x] Done
 
 ## Objective
 
@@ -86,15 +86,15 @@ Broken into shippable slices, each its own commit.
 
 ### Stage 4d — Member management
 
-- [ ] Organization members: list, invite by email, change role, remove
-- [ ] Project members (if needed beyond org membership)
+- [x] Organization members: list, invite by email, change role, remove (role-gated to ADMIN+)
+- [~] Project members deferred — org membership is the tenant boundary in V1
 
 ## Done Checklist
 
-- [ ] A new user can register, land in their own tenant, and create a project from the UI
-- [ ] A user only sees organizations and projects they belong to
-- [ ] Roles gate destructive actions
-- [ ] The shared admin token still works for break-glass access
+- [x] A new user can register, land in their own tenant, and create a project from the UI
+- [x] A user only sees organizations and projects they belong to
+- [x] Roles gate destructive actions (member management is ADMIN+; last-owner protected)
+- [x] The shared admin token still works for break-glass access
 
 ## Notes
 

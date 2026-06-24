@@ -86,6 +86,13 @@ export type OrganizationDetail = {
     projects: Project[];
 };
 
+export type OrganizationMember = {
+    id: string;
+    role: string;
+    createdAt: string;
+    user: { id: string; email: string; name: string | null };
+};
+
 export type Pool = {
     id: string;
     gameModeId: string;

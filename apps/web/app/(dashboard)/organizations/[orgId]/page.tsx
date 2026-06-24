@@ -1,13 +1,21 @@
 import Link from "next/link";
 import { ArrowLeft, ChevronRight } from "lucide-react";
-import { apiFetch, type OrganizationDetail } from "@/lib/api";
+import { apiFetch, getCurrentUser, type OrganizationDetail, type OrganizationMember } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateProjectForm } from "@/components/create-project-form";
+import { MembersManager } from "@/components/members-manager";
 import { formatDateTime } from "@/lib/utils";
 
 export default async function OrganizationPage({ params }: { params: Promise<{ orgId: string }> }) {
     const { orgId } = await params;
-    const organization = await apiFetch<OrganizationDetail>(`/organizations/${orgId}`);
+    const [organization, members, me] = await Promise.all([
+        apiFetch<OrganizationDetail>(`/organizations/${orgId}`),
+        apiFetch<OrganizationMember[]>(`/organizations/${orgId}/members`),
+        getCurrentUser(),
+    ]);
+
+    const myRole = me.organizations.find((membership) => membership.id === orgId)?.role;
+    const canManage = myRole === "OWNER" || myRole === "ADMIN";
 
     return (
         <div className="mx-auto max-w-5xl space-y-6">
@@ -63,6 +71,16 @@ export default async function OrganizationPage({ params }: { params: Promise<{ o
                     </div>
                 )}
             </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base">Members</CardTitle>
+                    <CardDescription>{members.length} in this organization</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <MembersManager organizationId={organization.id} members={members} canManage={canManage} />
+                </CardContent>
+            </Card>
         </div>
     );
 }

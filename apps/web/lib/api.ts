@@ -69,6 +69,23 @@ export type Project = {
     createdAt: string;
 };
 
+export type OrganizationSummary = {
+    id: string;
+    name: string;
+    slug: string;
+    projectCount: number;
+    memberCount: number;
+    createdAt: string;
+};
+
+export type OrganizationDetail = {
+    id: string;
+    name: string;
+    slug: string;
+    createdAt: string;
+    projects: Project[];
+};
+
 export type Pool = {
     id: string;
     gameModeId: string;

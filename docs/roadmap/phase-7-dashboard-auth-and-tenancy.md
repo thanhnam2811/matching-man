@@ -73,10 +73,10 @@ Broken into shippable slices, each its own commit.
 
 ### Stage 4b — Organizations & project creation
 
-- [ ] Dashboard home lists the user's organizations (`GET /organizations`)
-- [ ] Org switcher / org context in the shell
-- [ ] Create organization flow
-- [ ] Create project flow (scoped to an organization)
+- [x] Dashboard home lists the user's organizations (`GET /organizations`)
+- [x] Organization detail page lists its projects; project pages link back to the org
+- [x] Create organization flow (server action)
+- [x] Create project flow scoped to an organization (server action)
 
 ### Stage 4c — Project resource mutations
 

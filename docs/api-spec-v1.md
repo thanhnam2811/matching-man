@@ -4,9 +4,36 @@
 
 - Base path: `/v1`
 - Authentication for game servers: `Authorization: Bearer <project_api_key>`
-- Authentication for dashboard users: `Authorization: Bearer <dashboard_admin_token>`
+- Authentication for dashboard users: `Authorization: Bearer <session_token>` (from register/login) or `Authorization: Bearer <dashboard_admin_token>` (break-glass super-admin)
+- Dashboard routes are tenant-scoped: a user only sees organizations and projects they are a member of; the admin token sees everything
 - All write endpoints should support `idempotency_key`
 - Timestamps use ISO 8601 UTC
+
+## Dashboard Auth
+
+### `POST /v1/auth/register`
+
+Creates a user, seeds a personal organization (caller becomes `OWNER`), and returns a session token.
+
+Request: `{ "email": "owner@example.com", "password": "********", "name": "Owner", "organizationName": "Acme" }`
+Response: `{ "token": "<session_token>", "expiresAt": "...", "user": { "id": "...", "email": "...", "name": "..." } }`
+
+### `POST /v1/auth/login`
+
+Verifies the password and returns a session token (same shape as register).
+
+### `GET /v1/auth/me`
+
+Requires a session token. Returns the current user and their organization memberships with roles.
+
+### Organization membership
+
+- `GET /v1/organizations/:organizationId/members`
+- `POST /v1/organizations/:organizationId/members` — `{ "email", "role" }`; the invitee must already be registered
+- `PATCH /v1/organizations/:organizationId/members/:memberId` — `{ "role" }`
+- `DELETE /v1/organizations/:organizationId/members/:memberId`
+
+Managing members requires `ADMIN` or `OWNER`; an organization must keep at least one `OWNER`.
 
 ## Implementation Notes
 
@@ -35,11 +62,7 @@ Allowed values:
 
 ### `POST /v1/projects`
 
-Creates a new project.
-
-Current implementation note:
-
-- until dashboard auth exists, project creation bootstraps the first owner and organization in the same request
+Creates a project inside an organization the caller belongs to. The caller is added as the project `OWNER`. Requires a session token (or admin token).
 
 Request:
 
@@ -47,15 +70,8 @@ Request:
 {
     "name": "Arena VN",
     "slug": "arena-vn",
+    "organizationId": "org_123",
     "defaultRegion": "ap-southeast-1",
-    "owner": {
-        "email": "owner@example.com",
-        "name": "Arena Owner"
-    },
-    "organization": {
-        "name": "Arena Studio",
-        "slug": "arena-studio"
-    },
     "environments": ["development", "production"]
 }
 ```
@@ -68,9 +84,15 @@ Response:
     "name": "Arena VN",
     "slug": "arena-vn",
     "defaultRegion": "ap-southeast-1",
+    "organization": { "id": "org_123", "name": "Arena Studio", "slug": "arena-studio" },
+    "environments": [{ "id": "env_1", "name": "development", "isDefault": true }],
     "createdAt": "2026-06-12T00:00:00Z"
 }
 ```
+
+### `POST /v1/organizations`
+
+Creates a tenant owned by the caller. Request: `{ "name": "Arena Studio", "slug": "arena-studio" }` (`slug` optional, derived from name). `GET /v1/organizations` returns only the caller's organizations.
 
 ### `POST /v1/projects/:projectId/api-keys`
 

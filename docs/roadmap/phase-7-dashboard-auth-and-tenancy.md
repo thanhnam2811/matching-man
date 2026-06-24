@@ -45,18 +45,20 @@ projects inside it, and invites teammates with roles.
 
 - [x] `organization_members` table (orgId, userId, role) — reuses the `ProjectMemberRole` enum
 - [x] Register seeds a personal organization with the user as `OWNER`
-- [ ] `GET /v1/organizations` returns only the caller's organizations
-- [ ] `POST /v1/organizations` creates a tenant owned by the caller
-- [ ] Project creation requires caller membership in the target organization
-- [ ] `GET /v1/projects` returns only projects in the caller's organizations
-- [ ] Member invite / role change / removal at the organization level
+- [x] `GET /v1/organizations` returns only the caller's organizations
+- [x] `POST /v1/organizations` creates a tenant owned by the caller
+- [x] Project creation requires caller membership in the target organization
+- [x] `GET /v1/projects` returns only projects in the caller's organizations
+- [x] Member invite / role change / removal at the organization level
 
 ## Stage 3 — Authorization rebind
 
-- [ ] Control-plane and dashboard read routes accept a user session
-- [ ] Project-scoped routes assert the caller is a member of the project's org
-- [ ] `DASHBOARD_ADMIN_TOKEN` still works as super-admin
-- [ ] Game-server routes keep using `ProjectApiKeyGuard` unchanged
+- [x] Combined `DashboardAuthGuard` (admin token super-admin OR user session) landed in Stage 2
+- [x] `DASHBOARD_ADMIN_TOKEN` still works as super-admin
+- [x] `organizations` and `projects` routes rebound to `DashboardAuthGuard` + org membership
+- [ ] Remaining control-plane routes (api-keys, webhooks, environments, project-members) rebound
+- [ ] Dashboard read routes (pools, matches, deliveries, rating-history) rebound + membership-scoped
+- [x] Game-server routes keep using `ProjectApiKeyGuard` unchanged
 
 ## Stage 4 — Frontend (apps/web)
 

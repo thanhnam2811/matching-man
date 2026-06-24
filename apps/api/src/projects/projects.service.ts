@@ -2,13 +2,20 @@ import { ConflictException, Injectable, NotFoundException } from "@nestjs/common
 import { Prisma, ProjectMemberRole } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { normalizeSlug } from "../common/utils/slug.util";
+import type { DashboardAuthContext } from "../common/interfaces/dashboard-auth-request";
+import { OrganizationsService } from "../organizations/organizations.service";
 import { CreateProjectDto } from "./dto/create-project.dto";
 
 @Injectable()
 export class ProjectsService {
-    constructor(private readonly prismaService: PrismaService) {}
+    constructor(
+        private readonly prismaService: PrismaService,
+        private readonly organizationsService: OrganizationsService,
+    ) {}
 
-    async create(createProjectDto: CreateProjectDto) {
+    async create(context: DashboardAuthContext, createProjectDto: CreateProjectDto) {
+        await this.organizationsService.assertAccess(context, createProjectDto.organizationId);
+
         const projectSlug = normalizeSlug(createProjectDto.slug);
         const environmentNames = Array.from(
             new Set(
@@ -20,69 +27,23 @@ export class ProjectsService {
         );
 
         try {
-            const created = await this.prismaService.client.$transaction(async (tx) => {
-                const owner = await tx.user.upsert({
-                    where: {
-                        email: createProjectDto.owner.email.toLowerCase(),
+            const created = await this.prismaService.client.project.create({
+                data: {
+                    name: createProjectDto.name,
+                    slug: projectSlug,
+                    defaultRegion: createProjectDto.defaultRegion,
+                    organizationId: createProjectDto.organizationId,
+                    environments: {
+                        create: environmentNames.map((name, index) => ({ name, isDefault: index === 0 })),
                     },
-                    update: {
-                        name: createProjectDto.owner.name ?? undefined,
-                    },
-                    create: {
-                        email: createProjectDto.owner.email.toLowerCase(),
-                        name: createProjectDto.owner.name,
-                    },
-                });
-
-                const organization = createProjectDto.organizationId
-                    ? await tx.organization.findUnique({
-                          where: {
-                              id: createProjectDto.organizationId,
-                          },
-                      })
-                    : await tx.organization.create({
-                          data: {
-                              name: createProjectDto.organization?.name ?? "organization",
-                              slug: normalizeSlug(createProjectDto.organization?.slug ?? "organization"),
-                              createdById: owner.id,
-                          },
-                      });
-
-                if (!organization) {
-                    throw new NotFoundException("Organization not found");
-                }
-
-                const project = await tx.project.create({
-                    data: {
-                        name: createProjectDto.name,
-                        slug: projectSlug,
-                        defaultRegion: createProjectDto.defaultRegion,
-                        organizationId: organization.id,
-                        environments: {
-                            create: environmentNames.map((name, index) => ({
-                                name,
-                                isDefault: index === 0,
-                            })),
-                        },
-                        members: {
-                            create: {
-                                userId: owner.id,
-                                role: ProjectMemberRole.OWNER,
-                            },
-                        },
-                    },
-                    include: {
-                        organization: true,
-                        environments: true,
-                        members: {
-                            include: {
-                                user: true,
-                            },
-                        },
-                    },
-                });
-
-                return project;
+                    ...(context.authUserId
+                        ? { members: { create: { userId: context.authUserId, role: ProjectMemberRole.OWNER } } }
+                        : {}),
+                },
+                include: {
+                    organization: { select: { id: true, name: true, slug: true } },
+                    environments: true,
+                },
             });
 
             return {
@@ -91,19 +52,7 @@ export class ProjectsService {
                 slug: created.slug,
                 defaultRegion: created.defaultRegion,
                 createdAt: created.createdAt,
-                organization: {
-                    id: created.organization.id,
-                    name: created.organization.name,
-                    slug: created.organization.slug,
-                },
-                owner: created.members[0]
-                    ? {
-                          id: created.members[0].user.id,
-                          email: created.members[0].user.email,
-                          name: created.members[0].user.name,
-                          role: created.members[0].role,
-                      }
-                    : null,
+                organization: created.organization,
                 environments: created.environments.map((environment) => ({
                     id: environment.id,
                     name: environment.name,
@@ -111,83 +60,46 @@ export class ProjectsService {
                 })),
             };
         } catch (error) {
-            if (error instanceof Prisma.PrismaClientKnownRequestError) {
-                if (error.code === "P2002") {
-                    throw new ConflictException("Project or organization slug already exists");
-                }
+            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+                throw new ConflictException("Project slug already exists");
             }
-
             throw error;
         }
     }
 
-    findAll() {
+    findAll(context: DashboardAuthContext) {
         return this.prismaService.client.project.findMany({
-            orderBy: {
-                createdAt: "desc",
-            },
-            include: {
-                organization: {
-                    select: {
-                        id: true,
-                        name: true,
-                        slug: true,
-                    },
-                },
-                environments: {
-                    orderBy: {
-                        name: "asc",
-                    },
-                },
-                members: {
-                    include: {
-                        user: {
-                            select: {
-                                id: true,
-                                email: true,
-                                name: true,
-                            },
-                        },
-                    },
-                },
+            where: context.isSuperAdmin ? {} : { organization: { members: { some: { userId: context.authUserId } } } },
+            orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                name: true,
+                slug: true,
+                defaultRegion: true,
+                createdAt: true,
+                organization: { select: { id: true, name: true, slug: true } },
             },
         });
     }
 
-    async findOne(projectId: string) {
+    async findOne(context: DashboardAuthContext, projectId: string) {
         const project = await this.prismaService.client.project.findUnique({
-            where: {
-                id: projectId,
-            },
+            where: { id: projectId },
             include: {
                 organization: true,
-                environments: {
-                    orderBy: {
-                        name: "asc",
-                    },
-                },
+                environments: { orderBy: { name: "asc" } },
                 members: {
-                    include: {
-                        user: {
-                            select: {
-                                id: true,
-                                email: true,
-                                name: true,
-                            },
-                        },
-                    },
+                    include: { user: { select: { id: true, email: true, name: true } } },
                 },
-                webhookEndpoints: {
-                    orderBy: {
-                        createdAt: "desc",
-                    },
-                },
+                webhookEndpoints: { orderBy: { createdAt: "desc" } },
             },
         });
 
         if (!project) {
             throw new NotFoundException("Project not found");
         }
+
+        await this.organizationsService.assertAccess(context, project.organizationId);
 
         return {
             id: project.id,

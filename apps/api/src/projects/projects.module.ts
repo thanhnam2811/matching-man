@@ -6,9 +6,10 @@ import { ProjectsController } from "./projects.controller";
 import { ProjectEnvironmentsController } from "./project-environments.controller";
 import { ProjectMembersController } from "./project-members.controller";
 import { PrismaModule } from "../prisma/prisma.module";
+import { OrganizationsModule } from "../organizations/organizations.module";
 
 @Module({
-    imports: [PrismaModule],
+    imports: [PrismaModule, OrganizationsModule],
     providers: [ProjectsService, ProjectEnvironmentsService, ProjectMembersService],
     exports: [ProjectEnvironmentsService],
     controllers: [ProjectsController, ProjectEnvironmentsController, ProjectMembersController],

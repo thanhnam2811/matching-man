@@ -1,10 +1,11 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
-import { DashboardAdminGuard } from "../common/guards/dashboard-admin/dashboard-admin.guard";
+import { DashboardAuthGuard } from "../common/guards/dashboard-auth/dashboard-auth.guard";
+import { ProjectAccessGuard } from "../common/guards/project-access/project-access.guard";
 import { CreateProjectEnvironmentDto } from "./dto/create-project-environment.dto";
 import { UpdateProjectEnvironmentDto } from "./dto/update-project-environment.dto";
 import { ProjectEnvironmentsService } from "./project-environments.service";
 
-@UseGuards(DashboardAdminGuard)
+@UseGuards(DashboardAuthGuard, ProjectAccessGuard)
 @Controller("projects/:projectId/environments")
 export class ProjectEnvironmentsController {
     constructor(private readonly projectEnvironmentsService: ProjectEnvironmentsService) {}

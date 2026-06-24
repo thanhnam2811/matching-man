@@ -56,8 +56,8 @@ projects inside it, and invites teammates with roles.
 - [x] Combined `DashboardAuthGuard` (admin token super-admin OR user session) landed in Stage 2
 - [x] `DASHBOARD_ADMIN_TOKEN` still works as super-admin
 - [x] `organizations` and `projects` routes rebound to `DashboardAuthGuard` + org membership
-- [ ] Remaining control-plane routes (api-keys, webhooks, environments, project-members) rebound
-- [ ] Dashboard read routes (pools, matches, deliveries, rating-history) rebound + membership-scoped
+- [x] Remaining control-plane routes (api-keys, webhooks, environments, project-members) rebound via `ProjectAccessGuard`
+- [x] Dashboard read routes (pools, matches, deliveries, rating-history) rebound + membership-scoped
 - [x] Game-server routes keep using `ProjectApiKeyGuard` unchanged
 
 ## Stage 4 — Frontend (apps/web)
@@ -77,5 +77,9 @@ projects inside it, and invites teammates with roles.
 
 ## Notes
 
+- Project-scoped routes (`projects/:projectId/...`) are guarded by `ProjectAccessGuard`,
+  which resolves the project's organization and checks membership. It runs after
+  `DashboardAuthGuard` and is a pure guard swap — no service or DTO changes. `PrismaModule`
+  was made `@Global` so the guard resolves `PrismaService` in any module's context.
 - Scale and advanced-matchmaking work that previously lived in Phase 7 moved to
   `backlog.md`.

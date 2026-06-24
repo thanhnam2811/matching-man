@@ -28,9 +28,13 @@ Project-level instructions for coding agents working in this repository.
 - Prisma generate: `pnpm --dir apps/api prisma:generate`
 - Prisma migrate (dev): `pnpm --dir apps/api prisma:migrate:dev`
 - Prisma Studio: `pnpm --dir apps/api prisma:studio`
+- Web dev: `pnpm --dir apps/web dev` (port 3001)
+- Web build: `pnpm --dir apps/web build`
+- Web typecheck: `pnpm --dir apps/web typecheck`
 
 Run workspace commands from [matching-man](D:/Documents/matching-man).
 Run NestJS dev server commands from [apps/api](D:/Documents/matching-man/apps/api).
+The admin UI (`apps/web`) reads the API base URL from `API_BASE_URL` (default `http://localhost:3000/v1`) and authenticates with the dashboard admin token via an httpOnly cookie.
 
 ## Decision Rules
 
@@ -72,6 +76,7 @@ Run NestJS dev server commands from [apps/api](D:/Documents/matching-man/apps/ap
 ## Repo Structure
 
 - `apps/api`: NestJS API service
+- `apps/web`: Next.js admin/operator dashboard (App Router, Tailwind, shadcn-style components)
 - `docs`: product, architecture, API, and roadmap documents
 
 ## Skills

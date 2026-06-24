@@ -38,7 +38,7 @@ describe("MatchesService", () => {
     let service: MatchesService;
     let prismaService: {
         client: {
-            match: { findFirst: jest.Mock; update: jest.Mock };
+            match: { findFirst: jest.Mock; update: jest.Mock; findMany: jest.Mock; count: jest.Mock };
             matchResult: { create: jest.Mock };
             $transaction: jest.Mock;
         };
@@ -52,6 +52,8 @@ describe("MatchesService", () => {
                 match: {
                     findFirst: jest.fn(),
                     update: jest.fn(),
+                    findMany: jest.fn(),
+                    count: jest.fn(),
                 },
                 matchResult: {
                     create: jest.fn(),
@@ -83,6 +85,90 @@ describe("MatchesService", () => {
             prismaService.client.match.findFirst.mockResolvedValue(null);
 
             await expect(service.findOne("project_1", "missing")).rejects.toBeInstanceOf(NotFoundException);
+        });
+    });
+
+    describe("listMatches", () => {
+        it("scopes the query to the project and lowercases enum fields", async () => {
+            prismaService.client.match.findMany.mockResolvedValue([
+                {
+                    id: "match_1",
+                    gameModeId: "mode_1",
+                    status: MatchStatus.COMPLETED,
+                    environment: "production",
+                    regionKey: "global",
+                    requiredSlots: 2,
+                    groupCount: 2,
+                    ratingMode: RatingMode.INTERNAL_ELO,
+                    createdAt: new Date("2026-06-12T00:00:00.000Z"),
+                    result: { winnerGroupIndex: 1, endedAt: new Date("2026-06-12T00:25:00.000Z") },
+                },
+            ]);
+            prismaService.client.match.count.mockResolvedValue(1);
+
+            const result = await service.listMatches("project_1", {});
+
+            expect(prismaService.client.match.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({ where: expect.objectContaining({ projectId: "project_1" }) }),
+            );
+            expect(result.total).toBe(1);
+            expect(result.data[0]).toEqual(
+                expect.objectContaining({
+                    id: "match_1",
+                    status: "completed",
+                    ratingMode: "internal_elo",
+                    region: "global",
+                    result: { winnerGroupIndex: 1, endedAt: new Date("2026-06-12T00:25:00.000Z") },
+                }),
+            );
+        });
+
+        it("applies status, gameMode, and time-range filters", async () => {
+            prismaService.client.match.findMany.mockResolvedValue([]);
+            prismaService.client.match.count.mockResolvedValue(0);
+
+            await service.listMatches("project_1", {
+                gameModeId: "mode_1",
+                status: MatchStatus.CREATED,
+                from: "2026-06-01T00:00:00.000Z",
+                to: "2026-06-30T00:00:00.000Z",
+            });
+
+            expect(prismaService.client.match.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: {
+                        projectId: "project_1",
+                        gameModeId: "mode_1",
+                        status: MatchStatus.CREATED,
+                        createdAt: {
+                            gte: new Date("2026-06-01T00:00:00.000Z"),
+                            lte: new Date("2026-06-30T00:00:00.000Z"),
+                        },
+                    },
+                }),
+            );
+        });
+
+        it("returns null result for matches without a recorded outcome", async () => {
+            prismaService.client.match.findMany.mockResolvedValue([
+                {
+                    id: "match_2",
+                    gameModeId: "mode_1",
+                    status: MatchStatus.CREATED,
+                    environment: "production",
+                    regionKey: "global",
+                    requiredSlots: 2,
+                    groupCount: 2,
+                    ratingMode: RatingMode.DISABLED,
+                    createdAt: new Date("2026-06-12T00:00:00.000Z"),
+                    result: null,
+                },
+            ]);
+            prismaService.client.match.count.mockResolvedValue(1);
+
+            const result = await service.listMatches("project_1", {});
+
+            expect(result.data[0].result).toBeNull();
         });
     });
 

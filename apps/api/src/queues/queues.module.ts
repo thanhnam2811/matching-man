@@ -12,5 +12,6 @@ import { QueueTimeoutProcessor } from "./queue-timeout.processor";
     imports: [PrismaModule, GameModesModule, ProjectsModule, DeliveriesModule],
     providers: [QueuesService, QueueTimeoutProcessor, ProjectApiKeyGuard],
     controllers: [QueuesController],
+    exports: [QueuesService],
 })
 export class QueuesModule {}

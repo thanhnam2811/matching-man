@@ -256,21 +256,23 @@ Response:
 
 ## Dashboard Read APIs
 
+All dashboard read endpoints require the dashboard admin bearer token (`DashboardAdminGuard`) and are scoped by the `:projectId` path parameter.
+
 ### `GET /v1/projects/:projectId/pools`
 
 Returns active pools and waiting counts.
 
 ### `GET /v1/projects/:projectId/matches`
 
-Returns match history with filters for mode, status, and time range.
+Returns paginated match history. Query filters: `gameModeId`, `status`, `from`, `to` (ISO 8601, applied to `createdAt`), `limit` (1-100, default 50), `offset`. Each item includes the recorded `result` (`winnerGroupIndex`, `endedAt`) or `null` when the match has no outcome yet.
 
 ### `GET /v1/projects/:projectId/rating-history`
 
-Returns rating history when `internal_elo` is enabled.
+Returns paginated rating history when `internal_elo` is enabled. Query filters: `playerId`, `gameModeId`, `limit` (1-200, default 50), `offset`.
 
 ### `GET /v1/projects/:projectId/webhook-deliveries`
 
-Returns webhook delivery attempts and statuses.
+Returns paginated webhook delivery attempts and statuses. Query filters: `status`, `endpointId`, `limit` (1-100, default 50), `offset`.
 
 ## Webhook Events
 

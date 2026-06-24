@@ -10,5 +10,6 @@ import { MatchesService } from "./matches.service";
     imports: [PrismaModule, DeliveriesModule, RatingsModule],
     providers: [MatchesService, ProjectApiKeyGuard],
     controllers: [MatchesController],
+    exports: [MatchesService],
 })
 export class MatchesModule {}

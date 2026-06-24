@@ -2,7 +2,7 @@
 
 ## Status
 
-- [ ] Not started
+- [x] In progress (backend dashboard read API complete; Next.js UI pending)
 
 ## Objective
 
@@ -30,19 +30,24 @@ Deliver a usable management surface for project owners.
 
 ## NestJS Modules
 
-- [ ] No new backend module list required here
+- [x] `dashboard` — aggregates operator read surface behind `DashboardAdminGuard`
 
 ## Database Work
 
-- [ ] No new phase-specific database table list yet
+- [x] No new phase-specific database tables required
 
 ## API Endpoints
 
-- [ ] Reuse and extend existing control plane and operations APIs as needed
+Dashboard read APIs (all behind `DashboardAdminGuard`, scoped by `:projectId` path param):
+
+- [x] `GET /v1/projects/:projectId/pools`
+- [x] `GET /v1/projects/:projectId/matches` (filters: gameModeId, status, from, to, limit, offset)
+- [x] `GET /v1/projects/:projectId/webhook-deliveries` (filters: status, endpointId, limit, offset)
+- [x] `GET /v1/projects/:projectId/rating-history` (filters: playerId, gameModeId, limit, offset)
 
 ## Internal Services
 
-- [ ] No phase-specific internal service list yet
+- [x] Reuses `QueuesService.listPools`, `MatchesService.listMatches`, `WebhookDeliveryService.listDeliveries`, `RatingsService.listHistory`
 
 ## Done Checklist
 
@@ -51,4 +56,7 @@ Deliver a usable management surface for project owners.
 
 ## Notes
 
-- No admin UI source tree exists in the repository yet.
+- This session delivered only the backend prerequisite: dashboard-auth read endpoints. Previously these reads existed only under `ProjectApiKeyGuard` (game-server auth); the dashboard admin token could not reach them.
+- New `DashboardModule` imports the four feature modules and exposes a single `DashboardController` under `projects/:projectId`. `MatchesService.listMatches` is new; the other three list methods were reused from earlier phases.
+- The dashboard admin token is global (not tenant-scoped) in V1, so any valid admin token can read any project. Per-tenant authorization remains a future upgrade.
+- Pending: Next.js + Tailwind + shadcn/ui admin app (login, dashboard home, project settings, pool monitor, match history, webhook deliveries, rating history). To be built in a follow-up session.

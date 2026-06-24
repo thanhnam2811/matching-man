@@ -3,6 +3,7 @@ import { MatchStatus, Prisma, RatingMode } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { WebhookDeliveryService } from "../deliveries/deliveries.service";
 import { RatingsService } from "../ratings/ratings.service";
+import type { ListMatchesQueryDto } from "./dto/list-matches-query.dto";
 import type { ReportResultDto } from "./dto/report-result.dto";
 
 @Injectable()
@@ -44,6 +45,67 @@ export class MatchesService {
                     rating: member.rating,
                 })),
             })),
+        };
+    }
+
+    async listMatches(projectId: string, query: ListMatchesQueryDto) {
+        const limit = query.limit ?? 50;
+        const offset = query.offset ?? 0;
+
+        const where: Prisma.MatchWhereInput = {
+            projectId,
+            ...(query.gameModeId ? { gameModeId: query.gameModeId } : {}),
+            ...(query.status ? { status: query.status } : {}),
+            ...(query.from || query.to
+                ? {
+                      createdAt: {
+                          ...(query.from ? { gte: new Date(query.from) } : {}),
+                          ...(query.to ? { lte: new Date(query.to) } : {}),
+                      },
+                  }
+                : {}),
+        };
+
+        const [matches, total] = await Promise.all([
+            this.prismaService.client.match.findMany({
+                where,
+                orderBy: { createdAt: "desc" },
+                take: limit,
+                skip: offset,
+                select: {
+                    id: true,
+                    gameModeId: true,
+                    status: true,
+                    environment: true,
+                    regionKey: true,
+                    requiredSlots: true,
+                    groupCount: true,
+                    ratingMode: true,
+                    createdAt: true,
+                    result: {
+                        select: { winnerGroupIndex: true, endedAt: true },
+                    },
+                },
+            }),
+            this.prismaService.client.match.count({ where }),
+        ]);
+
+        return {
+            data: matches.map((match) => ({
+                id: match.id,
+                gameModeId: match.gameModeId,
+                status: match.status.toLowerCase(),
+                environment: match.environment,
+                region: match.regionKey,
+                requiredSlots: match.requiredSlots,
+                groupCount: match.groupCount,
+                ratingMode: match.ratingMode.toLowerCase(),
+                createdAt: match.createdAt,
+                result: match.result
+                    ? { winnerGroupIndex: match.result.winnerGroupIndex, endedAt: match.result.endedAt }
+                    : null,
+            })),
+            total,
         };
     }
 

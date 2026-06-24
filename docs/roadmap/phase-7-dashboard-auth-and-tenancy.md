@@ -80,9 +80,9 @@ Broken into shippable slices, each its own commit.
 
 ### Stage 4c — Project resource mutations
 
-- [ ] Create / revoke API keys
-- [ ] Create / edit / delete webhook endpoints
-- [ ] Manage environments
+- [x] Create / revoke API keys (raw key shown once)
+- [x] Create / enable-disable / delete webhook endpoints
+- [x] Create / delete environments
 
 ### Stage 4d — Member management
 

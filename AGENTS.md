@@ -76,7 +76,7 @@ The admin UI (`apps/web`) reads the API base URL from `API_BASE_URL` (default `h
 ## Repo Structure
 
 - `apps/api`: NestJS API service
-- `apps/web`: Next.js admin/operator dashboard (App Router, Tailwind, shadcn-style components)
+- `apps/web`: Next.js admin/operator dashboard (App Router, Tailwind, shadcn-style components). Follow [apps/web/DESIGN.md](apps/web/DESIGN.md) for UI style, theming, and the server-action/data-fetch patterns.
 - `docs`: product, architecture, API, and roadmap documents
 
 ## Skills

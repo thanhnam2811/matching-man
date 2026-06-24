@@ -33,18 +33,18 @@ projects inside it, and invites teammates with roles.
 
 ## Stage 1 — Auth core
 
-- [ ] `users.password_hash` written on register, verified on login
-- [ ] `POST /v1/auth/register` (email, password, name) → creates user + personal org + session
-- [ ] `POST /v1/auth/login` → verify password, set session cookie
-- [ ] `POST /v1/auth/logout`
-- [ ] `GET /v1/auth/me` → current user + organization memberships
-- [ ] `PasswordService` (scrypt hash/verify) and `SessionTokenService` (sign/verify)
-- [ ] `UserSessionGuard` attaching the authenticated user to the request
+- [x] `users.password_hash` written on register, verified on login
+- [x] `POST /v1/auth/register` (email, password, name) → creates user + personal org + session
+- [x] `POST /v1/auth/login` → verify password, returns session token
+- [x] `GET /v1/auth/me` → current user + organization memberships
+- [x] `PasswordService` (scrypt hash/verify) and `SessionTokenService` (sign/verify)
+- [x] `UserSessionGuard` attaching the authenticated user to the request
+- [~] Logout is handled client-side by clearing the cookie (stateless token, nothing to revoke server-side)
 
 ## Stage 2 — Tenancy
 
-- [ ] `organization_members` table (orgId, userId, role)
-- [ ] Register seeds a personal organization with the user as `OWNER`
+- [x] `organization_members` table (orgId, userId, role) — reuses the `ProjectMemberRole` enum
+- [x] Register seeds a personal organization with the user as `OWNER`
 - [ ] `GET /v1/organizations` returns only the caller's organizations
 - [ ] `POST /v1/organizations` creates a tenant owned by the caller
 - [ ] Project creation requires caller membership in the target organization

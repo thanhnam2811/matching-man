@@ -21,6 +21,10 @@ class EnvironmentVariables {
     @IsString()
     @IsNotEmpty()
     DASHBOARD_ADMIN_TOKEN!: string;
+
+    @IsString()
+    @IsNotEmpty()
+    SESSION_SECRET!: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

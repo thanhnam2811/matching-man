@@ -66,7 +66,7 @@ export default async function DeliveriesPage({
             </Card>
 
             <Pagination
-                basePath={`/projects/${projectId}/deliveries`}
+                basePath={`/dashboard/projects/${projectId}/deliveries`}
                 offset={offset}
                 limit={LIMIT}
                 total={result.total}

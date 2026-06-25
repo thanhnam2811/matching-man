@@ -17,7 +17,7 @@ export default async function ProjectLayout({
         <div className="mx-auto max-w-6xl space-y-6">
             <div className="space-y-1">
                 <Link
-                    href={`/organizations/${project.organization.id}`}
+                    href={`/dashboard/organizations/${project.organization.id}`}
                     className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft className="size-3" />

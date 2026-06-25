@@ -15,7 +15,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <div className="min-h-screen">
             <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
                 <div className="flex h-14 items-center justify-between px-6">
-                    <Link href="/" className="flex items-center gap-2 font-semibold">
+                    <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
                         <span className="inline-block size-2 rounded-full bg-success" />
                         Matching Hub
                     </Link>

@@ -21,7 +21,7 @@ export default async function OrganizationPage({ params }: { params: Promise<{ o
         <div className="mx-auto max-w-5xl space-y-6">
             <div className="space-y-1">
                 <Link
-                    href="/"
+                    href="/dashboard"
                     className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft className="size-3" />
@@ -52,7 +52,7 @@ export default async function OrganizationPage({ params }: { params: Promise<{ o
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2">
                         {organization.projects.map((project) => (
-                            <Link key={project.id} href={`/projects/${project.id}`} className="group">
+                            <Link key={project.id} href={`/dashboard/projects/${project.id}`} className="group">
                                 <Card className="transition-colors group-hover:border-foreground/20">
                                     <CardHeader>
                                         <div className="flex items-center justify-between">

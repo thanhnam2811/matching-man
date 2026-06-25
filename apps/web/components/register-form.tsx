@@ -34,7 +34,7 @@ export function RegisterForm() {
                 return;
             }
 
-            router.replace("/");
+            router.replace("/dashboard");
             router.refresh();
         } catch {
             setError("Unable to reach the server");

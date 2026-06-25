@@ -73,7 +73,7 @@ export default async function RatingsPage({
             </Card>
 
             <Pagination
-                basePath={`/projects/${projectId}/ratings`}
+                basePath={`/dashboard/projects/${projectId}/ratings`}
                 offset={offset}
                 limit={LIMIT}
                 total={result.total}

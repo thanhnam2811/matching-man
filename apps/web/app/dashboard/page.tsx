@@ -29,7 +29,11 @@ export default async function DashboardHome() {
             ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                     {organizations.map((organization) => (
-                        <Link key={organization.id} href={`/organizations/${organization.id}`} className="group">
+                        <Link
+                            key={organization.id}
+                            href={`/dashboard/organizations/${organization.id}`}
+                            className="group"
+                        >
                             <Card className="transition-colors group-hover:border-foreground/20">
                                 <CardHeader>
                                     <div className="flex items-center justify-between">

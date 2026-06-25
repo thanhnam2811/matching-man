@@ -31,8 +31,8 @@ export async function createOrganization(_prev: FormState, formData: FormData): 
         return { error: humanize(error) };
     }
 
-    revalidatePath("/");
-    redirect(`/organizations/${organization.id}`);
+    revalidatePath("/dashboard");
+    redirect(`/dashboard/organizations/${organization.id}`);
 }
 
 export async function createProject(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -55,8 +55,8 @@ export async function createProject(_prev: FormState, formData: FormData): Promi
         return { error: humanize(error) };
     }
 
-    revalidatePath(`/organizations/${organizationId}`);
-    redirect(`/projects/${project.id}`);
+    revalidatePath(`/dashboard/organizations/${organizationId}`);
+    redirect(`/dashboard/projects/${project.id}`);
 }
 
 export type ApiKeyState = { key?: string; error?: string };
@@ -70,7 +70,7 @@ export async function createApiKey(_prev: ApiKeyState, formData: FormData): Prom
             method: "POST",
             body: JSON.stringify({ name }),
         });
-        revalidatePath(`/projects/${projectId}`);
+        revalidatePath(`/dashboard/projects/${projectId}`);
         return { key: created.key };
     } catch (error) {
         return { error: humanize(error) };
@@ -81,7 +81,7 @@ export async function revokeApiKey(formData: FormData): Promise<void> {
     const projectId = String(formData.get("projectId") ?? "");
     const apiKeyId = String(formData.get("apiKeyId") ?? "");
     await apiFetch(`/projects/${projectId}/api-keys/${apiKeyId}/revoke`, { method: "POST" }).catch(() => undefined);
-    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/dashboard/projects/${projectId}`);
 }
 
 export async function createWebhook(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -102,7 +102,7 @@ export async function createWebhook(_prev: FormState, formData: FormData): Promi
         return { error: humanize(error) };
     }
 
-    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/dashboard/projects/${projectId}`);
     return {};
 }
 
@@ -114,14 +114,14 @@ export async function setWebhookActive(formData: FormData): Promise<void> {
         method: "PATCH",
         body: JSON.stringify({ isActive }),
     }).catch(() => undefined);
-    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/dashboard/projects/${projectId}`);
 }
 
 export async function deleteWebhook(formData: FormData): Promise<void> {
     const projectId = String(formData.get("projectId") ?? "");
     const webhookId = String(formData.get("webhookId") ?? "");
     await apiFetch(`/projects/${projectId}/webhooks/${webhookId}`, { method: "DELETE" }).catch(() => undefined);
-    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/dashboard/projects/${projectId}`);
 }
 
 export async function createEnvironment(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -141,7 +141,7 @@ export async function createEnvironment(_prev: FormState, formData: FormData): P
         return { error: humanize(error) };
     }
 
-    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/dashboard/projects/${projectId}`);
     return {};
 }
 
@@ -149,7 +149,7 @@ export async function deleteEnvironment(formData: FormData): Promise<void> {
     const projectId = String(formData.get("projectId") ?? "");
     const environmentId = String(formData.get("environmentId") ?? "");
     await apiFetch(`/projects/${projectId}/environments/${environmentId}`, { method: "DELETE" }).catch(() => undefined);
-    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/dashboard/projects/${projectId}`);
 }
 
 export async function inviteMember(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -173,7 +173,7 @@ export async function inviteMember(_prev: FormState, formData: FormData): Promis
         return { error: humanize(error) };
     }
 
-    revalidatePath(`/organizations/${organizationId}`);
+    revalidatePath(`/dashboard/organizations/${organizationId}`);
     return {};
 }
 
@@ -185,12 +185,12 @@ export async function updateMemberRole(formData: FormData): Promise<void> {
         method: "PATCH",
         body: JSON.stringify({ role }),
     }).catch(() => undefined);
-    revalidatePath(`/organizations/${organizationId}`);
+    revalidatePath(`/dashboard/organizations/${organizationId}`);
 }
 
 export async function removeMember(formData: FormData): Promise<void> {
     const organizationId = String(formData.get("organizationId") ?? "");
     const memberId = String(formData.get("memberId") ?? "");
     await apiFetch(`/organizations/${organizationId}/members/${memberId}`, { method: "DELETE" }).catch(() => undefined);
-    revalidatePath(`/organizations/${organizationId}`);
+    revalidatePath(`/dashboard/organizations/${organizationId}`);
 }

@@ -66,7 +66,7 @@ export default async function MatchesPage({
             </Card>
 
             <Pagination
-                basePath={`/projects/${projectId}/matches`}
+                basePath={`/dashboard/projects/${projectId}/matches`}
                 offset={offset}
                 limit={LIMIT}
                 total={result.total}

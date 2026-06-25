@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 export function ProjectNav({ projectId }: { projectId: string }) {
     const pathname = usePathname();
-    const base = `/projects/${projectId}`;
+    const base = `/dashboard/projects/${projectId}`;
 
     const items = [
         { href: base, label: "Overview" },

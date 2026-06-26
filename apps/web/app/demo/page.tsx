@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { isDemoEnabled } from "@/lib/demo";
+import { Card, CardContent } from "@/components/ui/card";
+import { DemoBoard } from "@/components/demo-board";
+
+// Matches the seeded skill-1v1 game mode (apps/api/scripts/seed-demo.mjs).
+const SKILL_WINDOW = { initial: 50, intervalSeconds: 3, step: 100 };
 
 export default function DemoPage() {
+    const enabled = isDemoEnabled();
+
     return (
-        <main className="mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-10">
+        <main className="mx-auto flex min-h-screen max-w-5xl flex-col px-6 py-10">
             <Link
                 href="/"
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
@@ -13,18 +20,25 @@ export default function DemoPage() {
                 Home
             </Link>
             <h1 className="mt-4 text-2xl font-semibold tracking-tight">Live matchmaking demo</h1>
-            <p className="text-sm text-muted-foreground">Watch the real engine pair players by skill.</p>
+            <p className="text-sm text-muted-foreground">
+                Add players and watch the real engine pair them. Each add hits a live demo project — skill mode pairs
+                within an expanding rating window, casual mode pairs anyone.
+            </p>
 
-            <Card className="mt-8">
-                <CardHeader>
-                    <CardTitle className="text-base">Coming up next</CardTitle>
-                    <CardDescription>The interactive demo lands in the next slice.</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                    It will enqueue players against a live demo project and show pools filling and matches forming in
-                    real time.
-                </CardContent>
-            </Card>
+            <div className="mt-8">
+                {enabled ? (
+                    <DemoBoard skillWindow={SKILL_WINDOW} />
+                ) : (
+                    <Card>
+                        <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                            The demo is not configured. Run{" "}
+                            <code className="font-mono">node apps/api/scripts/seed-demo.mjs</code> and set the{" "}
+                            <code className="font-mono">DEMO_*</code> variables in{" "}
+                            <code className="font-mono">apps/web/.env.local</code>.
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
         </main>
     );
 }

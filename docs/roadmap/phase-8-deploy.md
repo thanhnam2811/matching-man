@@ -25,9 +25,9 @@ Browser ──> Vercel (apps/web, Next.js) ──server-side──> Render (apps
 
 1. Create a Neon project. Pick a region (remember it — match Render's region to it).
 2. From the connection details, copy **two** strings:
-   - **Pooled** (hostname contains `-pooler`) → `DATABASE_URL`
-   - **Direct** (no `-pooler`) → `DATABASE_DIRECT_URL`
-     Both should end with `?sslmode=require`.
+    - **Pooled** (hostname contains `-pooler`) → `DATABASE_URL`
+    - **Direct** (no `-pooler`) → `DATABASE_DIRECT_URL`
+      Both should end with `?sslmode=require`.
 3. No manual schema setup needed — migrations run automatically on API deploy (Step 2).
 
 ## Step 2 — API (Render)
@@ -36,8 +36,8 @@ Browser ──> Vercel (apps/web, Next.js) ──server-side──> Render (apps
 2. Render creates the `matching-man-api` web service and auto-generates
    `DASHBOARD_ADMIN_TOKEN` and `SESSION_SECRET`.
 3. Set the two secrets it can't know — paste from Neon (Step 1):
-   - `DATABASE_URL` = Neon **pooled** string
-   - `DATABASE_DIRECT_URL` = Neon **direct** string
+    - `DATABASE_URL` = Neon **pooled** string
+    - `DATABASE_DIRECT_URL` = Neon **direct** string
 4. Deploy. On boot, `startCommand` runs `prisma migrate deploy` (applies all
    migrations in `apps/api/prisma/migrations`) then starts Nest.
 5. Verify: open `https://<your-api>.onrender.com/health` → should return `200`.
@@ -64,8 +64,8 @@ Copy the printed `DEMO_*` block — you'll paste it into Vercel next.
    Vercel also honors the root `engines.node`).
 4. Add Environment Variables (Production) — see
    [`apps/web/.env.production.example`](../../apps/web/.env.production.example):
-   - `API_BASE_URL` = `https://<your-api>.onrender.com/v1`
-   - the five `DEMO_*` values from Step 3
+    - `API_BASE_URL` = `https://<your-api>.onrender.com/v1`
+    - the five `DEMO_*` values from Step 3
 5. Deploy. Visit `/` (landing) and `/demo` (should show the live board, not the
    "demo is not configured" card).
 

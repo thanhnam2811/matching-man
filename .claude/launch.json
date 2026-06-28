@@ -1,11 +1,11 @@
 {
-  "version": "0.0.1",
-  "configurations": [
-    {
-      "name": "web",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "apps/web", "start"],
-      "port": 3001
-    }
-  ]
+    "version": "0.0.1",
+    "configurations": [
+        {
+            "name": "web",
+            "runtimeExecutable": "pnpm",
+            "runtimeArgs": ["--dir", "apps/web", "start"],
+            "port": 3001
+        }
+    ]
 }

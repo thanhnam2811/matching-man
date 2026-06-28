@@ -6,29 +6,29 @@
 # Deploy: push to your repo, then in Render -> "New +" -> "Blueprint" -> pick this repo.
 # Fill the sync:false secrets (DATABASE_URL, DATABASE_DIRECT_URL) from Neon afterwards.
 services:
-  - type: web
-    name: matching-man-api
-    runtime: node
-    plan: free # free web services sleep after ~15 min idle; first request cold-starts
-    region: oregon # match this to your Neon project's region to cut DB latency
-    rootDir: .
-    # postinstall runs `prisma generate`; build emits apps/api/dist.
-    buildCommand: pnpm install --frozen-lockfile && pnpm --dir apps/api build
-    # migrate deploy is idempotent; safe to run on every boot for a single instance.
-    startCommand: pnpm --dir apps/api prisma migrate deploy && node apps/api/dist/src/main
-    healthCheckPath: /health
-    autoDeploy: true
-    envVars:
-      - key: NODE_ENV
-        value: production
-      # Neon POOLED connection string (host contains "-pooler"). Used at runtime.
-      - key: DATABASE_URL
-        sync: false
-      # Neon DIRECT connection string (no "-pooler"). Used by Prisma migrations.
-      - key: DATABASE_DIRECT_URL
-        sync: false
-      # API-only secrets; let Render generate strong random values.
-      - key: DASHBOARD_ADMIN_TOKEN
-        generateValue: true
-      - key: SESSION_SECRET
-        generateValue: true
+    - type: web
+      name: matching-man-api
+      runtime: node
+      plan: free # free web services sleep after ~15 min idle; first request cold-starts
+      region: oregon # match this to your Neon project's region to cut DB latency
+      rootDir: .
+      # postinstall runs `prisma generate`; build emits apps/api/dist.
+      buildCommand: pnpm install --frozen-lockfile && pnpm --dir apps/api build
+      # migrate deploy is idempotent; safe to run on every boot for a single instance.
+      startCommand: pnpm --dir apps/api prisma migrate deploy && node apps/api/dist/src/main
+      healthCheckPath: /health
+      autoDeploy: true
+      envVars:
+          - key: NODE_ENV
+            value: production
+          # Neon POOLED connection string (host contains "-pooler"). Used at runtime.
+          - key: DATABASE_URL
+            sync: false
+          # Neon DIRECT connection string (no "-pooler"). Used by Prisma migrations.
+          - key: DATABASE_DIRECT_URL
+            sync: false
+          # API-only secrets; let Render generate strong random values.
+          - key: DASHBOARD_ADMIN_TOKEN
+            generateValue: true
+          - key: SESSION_SECRET
+            generateValue: true

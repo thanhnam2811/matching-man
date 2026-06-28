@@ -61,3 +61,32 @@
         @apply bg-background text-foreground;
     }
 }
+
+@layer utilities {
+    /* Scroll-reveal: hidden until <Reveal> adds .is-visible when in view. */
+    .reveal {
+        opacity: 0;
+        transform: translateY(16px);
+        transition:
+            opacity 0.6s ease,
+            transform 0.6s ease;
+    }
+    .reveal.is-visible {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reveal,
+    .reveal.is-visible {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+    }
+    .animate-float,
+    .animate-pulse-ring,
+    .animate-fade-in {
+        animation: none !important;
+    }
+}

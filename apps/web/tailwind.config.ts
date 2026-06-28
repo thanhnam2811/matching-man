@@ -58,6 +58,28 @@ const config: Config = {
                 sans: ["var(--font-geist-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
                 mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
             },
+            backgroundImage: {
+                grid: "linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px)",
+            },
+            keyframes: {
+                float: {
+                    "0%, 100%": { transform: "translateY(0)" },
+                    "50%": { transform: "translateY(-6px)" },
+                },
+                "pulse-ring": {
+                    "0%": { transform: "scale(0.8)", opacity: "0.6" },
+                    "100%": { transform: "scale(2.2)", opacity: "0" },
+                },
+                "fade-in": {
+                    from: { opacity: "0", transform: "translateY(6px)" },
+                    to: { opacity: "1", transform: "translateY(0)" },
+                },
+            },
+            animation: {
+                float: "float 5s ease-in-out infinite",
+                "pulse-ring": "pulse-ring 2.4s ease-out infinite",
+                "fade-in": "fade-in 0.4s ease-out both",
+            },
         },
     },
     plugins: [],

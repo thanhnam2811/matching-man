@@ -87,6 +87,22 @@ Copy the printed `DEMO_*` block — you'll paste it into Vercel next.
   change, write a new corrective migration and redeploy — never hand-edit applied
   migrations.
 
+## Cold starts & keep-warm
+
+The free Render service sleeps after ~15 min idle and Neon's compute auto-suspends
+after ~5 min, so the first demo request after a quiet period waits ~30s. Two layers
+mitigate this:
+
+- **Perceived**: the demo board polls `/api/demo/health` on load, warms the server,
+  and shows a "waking the server" banner with Add disabled until it returns 200.
+- **Actual**: a scheduled GitHub Action ([.github/workflows/keep-warm.yml](../../.github/workflows/keep-warm.yml))
+  pings `/health` every ~10 min. Set the repo variable `KEEP_WARM_URL` to your API
+  health URL if it differs from the default. Caveats: GitHub schedules are delayed/
+  best-effort and disable after 60 days of repo inactivity; on a private repo the
+  runs draw from the free Actions minutes.
+- **Alternatives**: an external uptime pinger (UptimeRobot / cron-job.org) every
+  5-10 min, or — the only true fix — upgrade Render to a paid always-on instance.
+
 ## Notes / future hardening
 
 - Custom domain: add in Vercel (web) and optionally Render (API); update

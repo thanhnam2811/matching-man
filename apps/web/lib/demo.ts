@@ -17,6 +17,19 @@ export function isDemoEnabled() {
     return Boolean(DEMO_API_KEY && DEMO_PROJECT_ID && GAME_MODES.skill && GAME_MODES.casual);
 }
 
+// Pings the API's /health endpoint (which lives outside the /v1 prefix) so the
+// browser can tell whether a free-tier server is still cold-starting. Kept
+// server-side because the API has no CORS and the browser can't reach it directly.
+export async function demoHealth(): Promise<boolean> {
+    const origin = API_BASE_URL.replace(/\/v1\/?$/, "");
+    try {
+        const response = await fetch(`${origin}/health`, { cache: "no-store", signal: AbortSignal.timeout(8000) });
+        return response.ok;
+    } catch {
+        return false;
+    }
+}
+
 async function demoFetch<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${path}`, {
         ...init,

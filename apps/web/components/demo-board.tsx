@@ -1,15 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { Shuffle, Swords, Trophy } from "lucide-react";
+import { Shuffle, Swords, Trophy, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 type DemoMode = "skill" | "casual";
+type ServerStatus = "checking" | "waking" | "ready";
 
-type QueuedPlayer = { queueEntryId: string; playerId: string; rating: number; addedAt: number };
+type QueuedPlayer = { queueEntryId: string; playerId: string; rating: number; addedAt: number; syncing?: boolean };
 type MatchSlot = { slotIndex: number; groupIndex: number; members: { playerId: string; rating: number | null }[] };
 type MatchView = { id: string; at: number; slots: MatchSlot[] };
 type LogLine = { at: number; text: string };
@@ -25,11 +28,44 @@ export function DemoBoard({
     const [matches, setMatches] = React.useState<MatchView[]>([]);
     const [log, setLog] = React.useState<LogLine[]>([]);
     const [pending, setPending] = React.useState(false);
+    const [server, setServer] = React.useState<ServerStatus>("checking");
     const [now, setNow] = React.useState(() => Date.now());
 
     React.useEffect(() => {
         const id = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(id);
+    }, []);
+
+    // Warm the free-tier server on mount and reflect its state, so the first
+    // "Add player" doesn't sit on a frozen-looking button during a cold start.
+    React.useEffect(() => {
+        // Wrapped in an object so the cleanup's mutation is visible to the loop
+        // (a plain `let` trips oxlint's no-unmodified-loop-condition).
+        const state = { cancelled: false };
+        let attempt = 0;
+
+        async function probe() {
+            while (!state.cancelled) {
+                try {
+                    const response = await fetch("/api/demo/health", { cache: "no-store" });
+                    const data = (await response.json()) as { ok?: boolean };
+                    if (data?.ok) {
+                        if (!state.cancelled) setServer("ready");
+                        return;
+                    }
+                } catch {
+                    // fall through to retry
+                }
+                attempt += 1;
+                if (!state.cancelled) setServer("waking");
+                await new Promise((resolve) => setTimeout(resolve, Math.min(2000 + attempt * 1000, 6000)));
+            }
+        }
+
+        void probe();
+        return () => {
+            state.cancelled = true;
+        };
     }, []);
 
     const addLog = React.useCallback((text: string) => {
@@ -47,7 +83,23 @@ export function DemoBoard({
 
     async function addPlayer(value: number) {
         if (pending) return;
+        if (server !== "ready") {
+            toast({
+                title: "Server is still warming up",
+                description: "Free-tier cold start — give it a few seconds and try again.",
+                variant: "warning",
+            });
+            return;
+        }
+
         setPending(true);
+        const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        // Optimistic insert: the player shows in the queue immediately while the request is in flight.
+        setQueued((list) => [
+            ...list,
+            { queueEntryId: tempId, playerId: "joining…", rating: value, addedAt: Date.now(), syncing: true },
+        ]);
+
         try {
             const response = await fetch("/api/demo/enqueue", {
                 method: "POST",
@@ -55,9 +107,16 @@ export function DemoBoard({
                 body: JSON.stringify({ mode, rating: value }),
             });
             if (!response.ok) {
+                setQueued((list) => list.filter((player) => player.queueEntryId !== tempId));
                 addLog("enqueue failed");
+                toast({
+                    title: "Enqueue failed",
+                    description: "The demo server didn't accept the request.",
+                    variant: "destructive",
+                });
                 return;
             }
+
             const result = (await response.json()) as {
                 queueEntryId: string;
                 status: string;
@@ -72,28 +131,41 @@ export function DemoBoard({
                 if (matchResponse.ok) {
                     const match = (await matchResponse.json()) as { id: string; slots: MatchSlot[] };
                     const matchedIds = new Set(match.slots.flatMap((slot) => slot.members.map((m) => m.playerId)));
-                    setQueued((list) => list.filter((player) => !matchedIds.has(player.playerId)));
+                    setQueued((list) =>
+                        list.filter((player) => player.queueEntryId !== tempId && !matchedIds.has(player.playerId)),
+                    );
                     setMatches((list) => [{ id: match.id, at: Date.now(), slots: match.slots }, ...list].slice(0, 12));
                     addLog(`★ match.created · ${[...matchedIds].join(" vs ")}`);
+                    toast({ title: "Match created", description: [...matchedIds].join("  vs  "), variant: "success" });
+                } else {
+                    // Enqueue succeeded but the match read failed; drop the placeholder either way.
+                    setQueued((list) => list.filter((player) => player.queueEntryId !== tempId));
                 }
             } else {
-                setQueued((list) => [
-                    ...list,
-                    {
-                        queueEntryId: result.queueEntryId,
-                        playerId: result.playerId,
-                        rating: result.rating,
-                        addedAt: Date.now(),
-                    },
-                ]);
+                // Reconcile the optimistic placeholder with the real queue entry.
+                setQueued((list) =>
+                    list.map((player) =>
+                        player.queueEntryId === tempId
+                            ? {
+                                  queueEntryId: result.queueEntryId,
+                                  playerId: result.playerId,
+                                  rating: result.rating,
+                                  addedAt: player.addedAt,
+                              }
+                            : player,
+                    ),
+                );
             }
+        } catch {
+            setQueued((list) => list.filter((player) => player.queueEntryId !== tempId));
+            toast({ title: "Network error", description: "Couldn't reach the demo server.", variant: "destructive" });
         } finally {
             setPending(false);
         }
     }
 
     async function reset() {
-        const ids = queued.map((player) => player.queueEntryId);
+        const ids = queued.filter((player) => !player.syncing).map((player) => player.queueEntryId);
         setQueued([]);
         setMatches([]);
         setLog([]);
@@ -112,8 +184,12 @@ export function DemoBoard({
         setMode(next);
     }
 
+    const ready = server === "ready";
+
     return (
         <div className="space-y-6">
+            <ServerBanner status={server} />
+
             {/* Controls */}
             <Card>
                 <CardContent className="flex flex-col gap-4 pt-6">
@@ -155,13 +231,14 @@ export function DemoBoard({
                                 className="w-28"
                             />
                         </div>
-                        <Button onClick={() => addPlayer(rating)} disabled={pending}>
+                        <Button onClick={() => addPlayer(rating)} loading={pending} disabled={!ready}>
                             Add player
                         </Button>
                         <Button
                             variant="outline"
                             onClick={() => addPlayer(800 + Math.floor(Math.random() * 1400))}
-                            disabled={pending}
+                            loading={pending}
+                            disabled={!ready}
                         >
                             <Shuffle className="size-4" />
                             Add random
@@ -189,7 +266,10 @@ export function DemoBoard({
                                     return (
                                         <li
                                             key={player.queueEntryId}
-                                            className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                                            className={cn(
+                                                "flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-opacity",
+                                                player.syncing && "opacity-60",
+                                            )}
                                         >
                                             <span className="flex items-center gap-2">
                                                 <span className="font-mono text-xs text-muted-foreground">
@@ -198,10 +278,16 @@ export function DemoBoard({
                                                 <span className="font-mono">{player.rating}</span>
                                             </span>
                                             <span className="flex items-center gap-3 text-xs text-muted-foreground">
-                                                {mode === "skill" ? (
-                                                    <span>±{effectiveWindow(player.addedAt)} window</span>
-                                                ) : null}
-                                                <span>{waited}s</span>
+                                                {player.syncing ? (
+                                                    <Spinner size="sm" />
+                                                ) : (
+                                                    <>
+                                                        {mode === "skill" ? (
+                                                            <span>±{effectiveWindow(player.addedAt)} window</span>
+                                                        ) : null}
+                                                        <span>{waited}s</span>
+                                                    </>
+                                                )}
                                             </span>
                                         </li>
                                     );
@@ -271,6 +357,26 @@ export function DemoBoard({
                     )}
                 </CardContent>
             </Card>
+        </div>
+    );
+}
+
+function ServerBanner({ status }: { status: ServerStatus }) {
+    if (status === "ready") return null;
+    return (
+        <div className="flex items-center gap-3 rounded-md border border-warning/40 bg-warning/5 px-4 py-3 text-sm">
+            <Spinner size="sm" className="text-warning" />
+            <span className="text-muted-foreground">
+                {status === "checking" ? (
+                    <>Connecting to the demo server…</>
+                ) : (
+                    <>
+                        <span className="text-foreground">Waking the demo server.</span> It sleeps on the free tier, so
+                        the first start can take ~30s. Adding is disabled until it&apos;s ready.
+                    </>
+                )}
+            </span>
+            <Wifi className="ml-auto size-4 text-muted-foreground" />
         </div>
     );
 }

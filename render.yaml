@@ -15,7 +15,7 @@ services:
       # postinstall runs `prisma generate`; build emits apps/api/dist.
       buildCommand: pnpm install --frozen-lockfile && pnpm --dir apps/api build
       # migrate deploy is idempotent; safe to run on every boot for a single instance.
-      startCommand: pnpm --dir apps/api prisma migrate deploy && node apps/api/dist/src/main
+      startCommand: pnpm --dir apps/api run prisma:migrate:deploy && node apps/api/dist/src/main
       healthCheckPath: /health
       autoDeploy: true
       envVars:

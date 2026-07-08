@@ -31,7 +31,7 @@ Add hub-owned rating updates and history.
 ## API Endpoints
 
 - [x] `POST /v1/matches/:matchId/report-result`
-- [x] `GET /v1/ratings/history` (project API key scoped; dashboard path deferred to Phase 6)
+- [x] `GET /v1/ratings/history` (project API key scoped; dashboard path shipped in Phase 6 as `GET /v1/projects/:projectId/rating-history`)
 
 ## Internal Services
 
@@ -50,4 +50,4 @@ Add hub-owned rating updates and history.
 - `ratingUpdateStatus` in the response: `skipped` when ratingMode ≠ INTERNAL_ELO or no winnerGroupIndex provided; `completed` when Elo was calculated synchronously.
 - `rating_profiles` are scoped per (projectId, gameModeId, playerId) so a player can have independent ratings across game modes.
 - FFA Elo is out of scope for V1; only VERSUS (2-group) matches trigger rating updates.
-- Dashboard-auth rating history route deferred to Phase 6.
+- Dashboard-auth rating history route was deferred to Phase 6 at the time this doc was written — it has since shipped (`apps/api/src/dashboard/dashboard.controller.ts`, consumed by `apps/web/app/dashboard/projects/[projectId]/ratings/page.tsx`).

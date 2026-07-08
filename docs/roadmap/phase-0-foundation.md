@@ -21,9 +21,12 @@ Create the repository baseline and engineering conventions.
 ## NestJS Modules
 
 - [x] `app`
-- [x] `config`
 - [x] `health`
 - [x] `prisma`
+
+Note: there is no dedicated `config` module — environment validation lives in
+`apps/api/src/config/env.validation.ts` and is wired directly into
+`ConfigModule.forRoot({ validate: validateEnv })` in `app.module.ts`.
 
 ## Database Work
 
@@ -42,7 +45,7 @@ Create the repository baseline and engineering conventions.
 
 ## Done Checklist
 
-- [x] App builds successfully with `pnpm build`
+- [x] App builds successfully with `pnpm --dir apps/api build` (there is no root `pnpm build` script)
 - [x] Database connects successfully
 - [x] Migration workflow exists in source (`prisma/migrations`)
 - [x] `/health` returns healthy state against a running database

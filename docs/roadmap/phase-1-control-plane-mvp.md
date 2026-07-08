@@ -60,4 +60,4 @@ Allow a dashboard user to create and manage projects that game servers can authe
 ## Notes
 
 - Source evidence: `projects`, `organizations`, `project members`, `project environments`, `api-keys`, `webhooks`, and `auth` control-plane surfaces are implemented.
-- Dashboard auth is intentionally minimal in V1: a shared dashboard admin bearer token protects the control-plane surface. Per-user dashboard identity and tenant-scoped authorization remain future upgrades.
+- Dashboard auth was intentionally minimal at the time this phase shipped: a shared dashboard admin bearer token protected the control-plane surface. **Superseded by Phase 7** (`phase-7-dashboard-auth-and-tenancy.md`), which replaced this with per-user email/password auth and tenant-scoped (organization-role) authorization — the shared admin token is no longer the primary dashboard auth path.

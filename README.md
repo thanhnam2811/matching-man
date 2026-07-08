@@ -90,7 +90,7 @@ docs/
 
 ## Getting Started
 
-**Prerequisites:** Node.js ≥ 22.12 (pinned via [`.node-version`](.node-version)), pnpm, Docker.
+**Prerequisites:** Node.js ≥ 22.12 (major version 24 resolved via [`.node-version`](.node-version) — not pinned to an exact patch, so any installed `24.x` works), pnpm, Docker.
 
 ```bash
 # 1. Install dependencies

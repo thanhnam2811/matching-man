@@ -16,9 +16,11 @@ Browser ──> Vercel (apps/web, Next.js) ──server-side──> VPS/Docker (
 
 - The web app calls the API **server-side only** (the demo API key never reaches the
   browser), so the API needs **no CORS** configuration.
-- Node version is pinned to **24.17.0** via [`.node-version`](../../.node-version).
-  This matters: Prisma 7's toolchain uses `require()` on an ESM module, which crashes
-  on Node < 20.19 / < 22.12. Do not downgrade Node below the `engines` floor.
+- Node version is pinned to the major version **24** via [`.node-version`](../../.node-version)
+  (not an exact patch, so `nvm`/`fnm`/`asdf`/CI can resolve whatever `24.x` is already
+  installed instead of forcing a fresh install for a specific patch). This matters:
+  Prisma 7's toolchain uses `require()` on an ESM module, which crashes on Node < 20.19 /
+  < 22.12. Do not downgrade Node below the `engines` floor.
 - The API container is stateless and disposable — Postgres stays external on Neon,
   not containerized on the VPS.
 
@@ -53,7 +55,7 @@ Browser ──> Vercel (apps/web, Next.js) ──server-side──> VPS/Docker (
 ## Step 2 — API (VPS via Docker)
 
 Deploys are driven entirely by [`.github/workflows/pipeline.yml`](../../.github/workflows/pipeline.yml)
-on every push to `master`:
+on every push to `main`:
 
 1. **`lint_test`** — installs deps, applies the schema to an ephemeral Postgres
    service container, lints, builds, and runs unit + e2e tests.
@@ -116,7 +118,7 @@ Copy the printed `DEMO_*` block — you'll paste it into Vercel next.
 - [ ] `/demo` shows the live board and pairing works (add players)
 - [ ] `/login` + `/register` work against the prod API
 - [ ] Dashboard routes redirect to `/login` when unauthenticated
-- [ ] Pushing to `master` triggers the pipeline and a new container is live on the VPS
+- [ ] Pushing to `main` triggers the pipeline and a new container is live on the VPS
       (`docker ps` on the VPS shows a fresh `CreatedAt` for `matching-man-app`)
 
 ## Rollback

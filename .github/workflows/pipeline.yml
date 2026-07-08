@@ -25,19 +25,19 @@ jobs:
             postgres:
                 image: postgres:17-alpine
                 env:
-                    POSTGRES_USER: postgres
-                    POSTGRES_PASSWORD: postgres
+                    POSTGRES_USER: admin
+                    POSTGRES_PASSWORD: password
                     POSTGRES_DB: matching_hub
                 ports:
                     - 5432:5432
                 options: >-
-                    --health-cmd "pg_isready -U postgres -d matching_hub"
+                    --health-cmd "pg_isready -U admin -d matching_hub"
                     --health-interval 5s
                     --health-timeout 3s
                     --health-retries 20
         env:
-            DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/matching_hub?schema=public
-            DATABASE_DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/matching_hub?schema=public
+            DATABASE_URL: postgresql://admin:password@127.0.0.1:5432/matching_hub?schema=public
+            DATABASE_DIRECT_URL: postgresql://admin:password@127.0.0.1:5432/matching_hub?schema=public
             DASHBOARD_ADMIN_TOKEN: test-token
             SESSION_SECRET: test-secret-test-secret-test-secret
             NODE_ENV: test

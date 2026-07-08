@@ -3,13 +3,13 @@ services:
         image: postgres:17-alpine
         container_name: matching-man-db
         environment:
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: postgres
+            POSTGRES_USER: admin
+            POSTGRES_PASSWORD: password
             POSTGRES_DB: matching_hub
         ports: ["5432:5432"]
         volumes: [postgres_data:/var/lib/postgresql/data]
         healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U postgres -d matching_hub"]
+            test: ["CMD-SHELL", "pg_isready -U admin -d matching_hub"]
             interval: 5s
             timeout: 3s
             retries: 10
@@ -20,7 +20,7 @@ services:
         container_name: matching-man-app
         ports: ["3000:3000"]
         environment:
-            DATABASE_URL: postgresql://postgres:postgres@postgres:5432/matching_hub?schema=public
+            DATABASE_URL: postgresql://admin:password@postgres:5432/matching_hub?schema=public
             NODE_ENV: production
             PORT: 3000
             DASHBOARD_ADMIN_TOKEN: dashboard-admin-token

@@ -1,0 +1,20 @@
+.git
+.gitignore
+.husky
+.vscode
+node_modules
+**/node_modules
+dist
+**/dist
+.env
+.env.*
+apps/api/.env
+apps/api/.env.*
+apps/web/.env
+apps/web/.env.*
+coverage
+**/coverage
+test
+**/test
+*.log
+# apps/api/src/generated/prisma (MUST NOT BE IGNORED for builder stage)

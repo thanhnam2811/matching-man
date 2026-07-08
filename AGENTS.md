@@ -36,6 +36,27 @@ Run workspace commands from [matching-man](D:/Documents/matching-man).
 Run NestJS dev server commands from [apps/api](D:/Documents/matching-man/apps/api).
 The admin UI (`apps/web`) reads the API base URL from `API_BASE_URL` (default `http://localhost:3000/v1`) and authenticates with the dashboard admin token via an httpOnly cookie.
 
+## Deployment
+
+The API (`apps/api`) deploys as a Docker container to a self-hosted VPS; the admin UI
+(`apps/web`) deploys separately to Vercel. Full runbook: `docs/roadmap/phase-8-deploy.md`.
+
+- `pnpm docker:build` — build the API image locally (`Dockerfile`)
+- `pnpm docker:up` — run Postgres only, for local dev against `pnpm start:dev`
+- `docker compose up` — full stack (Postgres + built API image) via `docker-compose.yml`
+- CI/CD (`.github/workflows/pipeline.yml`, push to `master`): lint/test → `prisma migrate
+deploy` against Neon → build & push image to `ghcr.io/thanhnam2811/matching-man` →
+  SSH into the VPS over a Cloudflare Tunnel and restart via `docker-compose.prod.yml`.
+- **DB migrations run in CI, not in the container.** If you change
+  `apps/api/prisma/schema.prisma`, generate a real migration
+  (`pnpm --dir apps/api prisma:migrate:dev --name <name>`) and commit it — the
+  `db_migrate` CI job only replays committed migration files, it does not diff the
+  schema.
+- `apps/api/.env.production` (real secrets, VPS-only) is never committed or copied by
+  CI — it's expected to already exist at `/root/apps/matching-man/apps/api/.env.production`
+  on the VPS. `entrypoint.sh` does not run migrations at container boot, only a Neon
+  cold-start wakeup retry loop, then starts `node dist/src/main`.
+
 ## Decision Rules
 
 - Keep one canonical implementation path. Avoid adding parallel frameworks, duplicate configs, or multiple package managers.

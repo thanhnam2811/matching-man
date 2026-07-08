@@ -16,3 +16,5 @@ npm-debug.log*
 !**/.env.production.example
 
 **/src/generated/prisma/
+.vercel
+.env*

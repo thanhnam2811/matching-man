@@ -25,7 +25,7 @@ The platform also includes an admin UI for operators to:
 - Primary database: `PostgreSQL`
 - ORM: `Prisma`
 - Admin UI: `Next.js`
-- MVP deployment posture: `free-tier-first`
+- Deployment: API on a self-hosted VPS (Docker + GitHub Actions + Cloudflare Tunnel), admin UI on Vercel, Postgres on Neon — see [`docs/roadmap/phase-8-deploy.md`](docs/roadmap/phase-8-deploy.md)
 
 The MVP should avoid hard dependency on an always-on Redis worker. Matching scans and webhook retries should initially work with PostgreSQL-backed jobs and NestJS scheduled or triggered processors. Redis and BullMQ can be added later when throughput justifies the extra moving parts.
 

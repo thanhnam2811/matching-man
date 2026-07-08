@@ -311,12 +311,16 @@ For the first usable version:
 - `health`
 - `prisma`
 
-## Deployment Shape for Side Project
+## Deployment Shape
 
-Recommended initial deployment:
+Current deployment (see [`docs/roadmap/phase-8-deploy.md`](roadmap/phase-8-deploy.md) for the full runbook):
 
-- `Next.js admin UI` on Vercel Hobby
-- `NestJS API` on a small or free web service host
-- `Neon Postgres` as the primary database
+- `Next.js admin UI` (`apps/web`) on Vercel
+- `NestJS API` (`apps/api`) as a Docker container on a self-hosted VPS, built and
+  deployed via GitHub Actions (lint/test → migrate → build & push to GHCR → SSH deploy
+  over a Cloudflare Tunnel) — mirrors the sibling `tiny-link` project's setup
+- `Neon Postgres` as the primary database (external, not containerized)
 
-This split keeps the UI cheap to host and avoids forcing the API into a serverless shape that is awkward for periodic processors.
+This split keeps the UI cheap to host on Vercel while giving the API a persistent,
+always-on process — no cold starts, and no serverless constraints on the periodic
+matchmaking/webhook processors.

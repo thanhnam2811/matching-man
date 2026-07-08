@@ -1,8 +1,12 @@
 -- CreateEnum
-CREATE TYPE "WebhookDeliveryStatus" AS ENUM ('PENDING', 'DELIVERED', 'FAILED', 'EXHAUSTED');
+DO $$ BEGIN
+    CREATE TYPE "WebhookDeliveryStatus" AS ENUM ('PENDING', 'DELIVERED', 'FAILED', 'EXHAUSTED');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- AlterTable
-ALTER TABLE "game_modes" ADD COLUMN     "max_queue_seconds" INTEGER NOT NULL DEFAULT 300;
+ALTER TABLE "game_modes" ADD COLUMN IF NOT EXISTS "max_queue_seconds" INTEGER NOT NULL DEFAULT 300;
 
 -- AlterTable
 ALTER TABLE "match_slots" ALTER COLUMN "team_snapshot" DROP DEFAULT;

@@ -7,6 +7,7 @@
         "lint": "oxlint apps --import-plugin --jest-plugin --node-plugin --deny suspicious --fix",
         "api:build": "pnpm --dir apps/api build",
         "api:test": "pnpm --dir apps/api test",
+        "api:test:cov": "pnpm --dir apps/api test:cov",
         "api:test:e2e": "pnpm --dir apps/api test:e2e",
         "docker:up": "docker compose up -d postgres",
         "docker:down": "docker compose down",

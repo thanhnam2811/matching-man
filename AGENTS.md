@@ -24,6 +24,7 @@ Project-level instructions for coding agents working in this repository.
 - API dev: `pnpm start:dev`
 - API build: `pnpm api:build`
 - API test: `pnpm api:test`
+- API test with coverage: `pnpm api:test:cov`
 - API e2e test: `pnpm api:test:e2e`
 - API OpenAPI export: `pnpm --dir apps/api openapi:generate` (writes `docs/openapi.json`; needs `DATABASE_URL`, `DASHBOARD_ADMIN_TOKEN`, `SESSION_SECRET` set to any value, no live DB required)
 - Prisma generate: `pnpm --dir apps/api prisma:generate`

@@ -250,6 +250,34 @@ describe("MatchesService", () => {
             expect(ratingsService.applyEloForVersusMatch).not.toHaveBeenCalled();
         });
 
+        it("skips Elo recalculation for a draw (no winnerGroupIndex) even under INTERNAL_ELO", async () => {
+            prismaService.client.match.findFirst.mockResolvedValue(makeMatch({ ratingMode: RatingMode.INTERNAL_ELO }));
+            const createdResult = {
+                matchId: "match_1",
+                winnerGroupIndex: null,
+                endedAt: new Date("2026-06-12T01:00:00Z"),
+                createdAt: new Date(),
+            };
+            prismaService.client.$transaction.mockImplementation(
+                async (fn: (tx: typeof prismaService.client) => unknown) => {
+                    prismaService.client.matchResult.create.mockResolvedValue(createdResult);
+                    return fn(prismaService.client);
+                },
+            );
+
+            const response = await service.reportResult("project_1", "match_1", {
+                endedAt: "2026-06-12T01:00:00Z",
+            });
+
+            expect(response.ratingUpdateStatus).toBe("skipped");
+            expect(ratingsService.applyEloForVersusMatch).not.toHaveBeenCalled();
+            expect(webhookDeliveryService.scheduleDelivery).not.toHaveBeenCalledWith(
+                "project_1",
+                "rating.updated",
+                expect.anything(),
+            );
+        });
+
         it("applies Elo and fires rating.updated when ratingMode is INTERNAL_ELO", async () => {
             prismaService.client.match.findFirst.mockResolvedValue(makeMatch({ ratingMode: RatingMode.INTERNAL_ELO }));
             const createdResult = {

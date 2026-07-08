@@ -26,12 +26,12 @@ Make the public API self-documenting and explorable without reading source.
 
 The domain logic worth testing is the logic that differentiates the project.
 
-- [ ] Unit tests for candidate selection and rating-window filtering
-- [ ] Unit tests for Elo recalculation (win/loss/draw, K-factor edge cases)
-- [ ] Unit tests for webhook HMAC signing and signature verification
-- [ ] E2e test for the happy path: enqueue → match → webhook delivered
-- [ ] E2e test for retry/backoff on a failing webhook endpoint
-- [ ] Run `test:cov` in CI and publish the coverage summary in the job output
+- [x] Unit tests for candidate selection and rating-window filtering
+- [x] Unit tests for Elo recalculation (win/loss/draw, K-factor edge cases)
+- [x] Unit tests for webhook HMAC signing and signature verification
+- [x] E2e test for the happy path: enqueue → match → webhook delivered
+- [x] E2e test for retry/backoff on a failing webhook endpoint
+- [x] Run `test:cov` in CI and publish the coverage summary in the job output
 
 **Exit criteria:** core matchmaking/rating/delivery logic covered; coverage visible in CI.
 

@@ -1,7 +1,9 @@
 # Web Design System (`apps/web`)
 
-The conventions every change in the admin dashboard must follow so the UI stays
-consistent. This describes what the app already does — match it, don't reinvent it.
+Conventions every change in this app must follow so the UI stays consistent. Written for
+both human contributors and coding agents. **This describes what the app already does —
+match it, don't reinvent it.** When code and this document disagree, the code wins; update
+this file in the same change.
 
 ## Stack
 
@@ -11,6 +13,26 @@ consistent. This describes what the app already does — match it, don't reinven
   kept out deliberately to minimize deps; use native elements styled with tokens instead.
 - Geist Sans / Geist Mono via the `geist` package; icons from `lucide-react`.
 - Lint/format: the repo's `oxlint` + `oxfmt`. **No eslint, no `create-next-app` configs.**
+
+## Route map
+
+Two distinct surfaces share this app:
+
+| Route                                                                | Access | Purpose                                                    |
+| -------------------------------------------------------------------- | ------ | ---------------------------------------------------------- |
+| `/`                                                                   | public | Marketing landing page (`components/landing/`)             |
+| `/demo`                                                               | public | Interactive live matchmaking demo (`demo-board.tsx`)       |
+| `/login`, `/register`                                                 | public | Auth screens (redirect to `/dashboard` if signed in)       |
+| `/dashboard`                                                          | gated  | User's organizations + create-org form                     |
+| `/dashboard/organizations/[orgId]`                                    | gated  | Org's projects (+ create) and members                      |
+| `/dashboard/projects/[projectId]`                                     | gated  | Project overview: environments, API keys, webhooks         |
+| `/dashboard/projects/[projectId]/{pools,matches,deliveries,ratings}` | gated  | Operational views via project sub-nav (`project-nav.tsx`)  |
+
+`middleware.ts` enforces this: no session cookie + `/dashboard/**` → redirect to `/login`;
+session cookie + auth page → redirect to `/dashboard`. Everything else is public.
+
+Navigation is tenant-shaped — **Organization → Project → resource** — and every project
+page links back to its organization.
 
 ## Theme tokens
 
@@ -28,15 +50,21 @@ hard-code hex or use ad-hoc Tailwind palette classes for foundational surfaces.*
 
 ## Component primitives (`components/ui/`)
 
-`button`, `card` (Card/Header/Title/Description/Content), `table`, `badge`, `input`, `label`,
-`separator`. Pattern for every primitive: `React.forwardRef`, `cn()` for class merge, `cva`
-for variants.
+Pattern for every primitive: `React.forwardRef`, `cn()` for class merge, `cva` for variants.
+Sizing is via Tailwind classes, not variant props (icons `size-4` / `size-3`).
 
-- `Button` variants: `default | destructive | outline | secondary | ghost | link`;
-  sizes `default | sm | lg | icon`.
-- `Badge` variants: `default | secondary | destructive | success | warning | outline`.
-- Map a domain status to a badge with `components/status-badge.tsx` (`StatusBadge`).
-- Sizing is via Tailwind classes, not variant props (icons `size-4` / `size-3`).
+| Primitive                     | Notes                                                                                        |
+| ----------------------------- | -------------------------------------------------------------------------------------------- |
+| `button`                      | Variants `default \| destructive \| outline \| secondary \| ghost \| link`; sizes `default \| sm \| lg \| icon` |
+| `badge`                       | Variants `default \| secondary \| destructive \| success \| warning \| outline`               |
+| `card`                        | Compound: `Card / CardHeader / CardTitle / CardDescription / CardContent`                     |
+| `table`                       | Compound table parts                                                                          |
+| `input`, `label`, `separator` | Form and layout basics                                                                        |
+| `spinner`                     | `cva`-sized `Loader2`, `text-muted-foreground`                                                |
+| `toast`                       | Dependency-free pub/sub toaster; call `toast(...)` from any client component; a single `<Toaster />` is mounted in the root layout |
+
+Domain helpers on top of primitives: `status-badge.tsx` maps a domain status to a badge
+variant (`StatusBadge`); `pagination.tsx` for list paging.
 
 Adding a primitive: copy the shadcn source shape, theme it with tokens only, drop it in
 `components/ui/`. Don't pull in a component library.
@@ -46,7 +74,7 @@ Adding a primitive: copy the shadcn source shape, theme it with tokens only, dro
 ### Auth & data fetching
 
 - The session token lives in an httpOnly cookie (`dashboard_token`); `middleware.ts` gates
-  every route and keeps `/login` + `/register` public.
+  `/dashboard/**` as described in the route map.
 - **Reads**: Server Components call `apiFetch<T>(path)` from `lib/api.ts`. It runs server-side,
   attaches the cookie token as a Bearer header, and uses `cache: "no-store"`. The token never
   reaches the browser; there are no client-side `fetch`es to the API.
@@ -81,21 +109,30 @@ only — the API enforces authorization regardless.
 Use a native `<select>` styled with token classes for dropdowns. Prefer dedicated pages or
 inline forms over modals; there is no Dialog primitive.
 
-## Information architecture
+### Landing & demo (public surface)
 
-Tenant-shaped navigation: **Organization → Project → resource**.
-
-- `/` — the user's organizations + create-org form.
-- `/organizations/[orgId]` — the org's projects (+ create) and members.
-- `/projects/[projectId]` — overview (environments, API keys, webhooks) with a sub-nav to
-  pools / matches / deliveries / ratings. Pages link back to their organization.
+- Landing sections live in `components/landing/` (`hero-matchmaking`, `code-window`, `faq`,
+  `reveal` for scroll animation). They follow the same tokens and primitives as the dashboard.
+- The `/demo` page drives `demo-board.tsx` against server-side plumbing in `lib/demo.ts`; the
+  demo API key stays server-side like every other credential.
 
 ## Do / Don't
 
-- Do: reuse `ui/` primitives; theme tokens only; `font-mono` for identifiers; server actions
-  for every mutation; give empty/error states a real treatment.
-- Don't: add Radix or eslint; use ad-hoc hex/palette colors for surfaces; fetch the API from
-  the client or expose the token; nest cards inside cards.
+**Do**
+
+- Reuse `ui/` primitives and theme tokens only.
+- Use `font-mono` for identifiers (IDs, keys, slugs, timestamps).
+- Route every mutation through a server action.
+- Give empty and error states a real treatment, not a blank space.
+- Update this document when a pattern changes.
+
+**Don't**
+
+- Add Radix, eslint, or any component library.
+- Use ad-hoc hex or Tailwind palette colors for surfaces.
+- Fetch the API from the client or expose any token to the browser.
+- Nest cards inside cards.
+- Add modals — prefer dedicated pages or inline forms.
 
 ## Build gotcha
 

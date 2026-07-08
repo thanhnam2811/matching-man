@@ -44,4 +44,9 @@ sufficient for hobby-scale traffic.
 
 - This file replaced the former "Phase 7: Advanced Matchmaking and Scale" doc. Phase 7
   is now "Dashboard Auth and Tenancy" — see `phase-7-dashboard-auth-and-tenancy.md`.
+- Production-hardening items (OpenAPI docs, coverage reporting, rate limiting,
+  observability, performance baseline) graduated to
+  [`phase-9-production-hardening.md`](phase-9-production-hardening.md) — the active phase.
+- The Redis/BullMQ decision above should be revisited with real numbers once Phase 9
+  Stage 6 (performance baseline) lands.
 - No source evidence yet for any item in this file.

@@ -15,10 +15,10 @@ repository in a demonstrably better state.
 
 Make the public API self-documenting and explorable without reading source.
 
-- [ ] Add `@nestjs/swagger` and decorate existing DTOs/controllers
-- [ ] Serve Swagger UI at `/v1/docs` (disabled or auth-gated in production if needed)
-- [ ] Export the generated `openapi.json` and link it from `docs/api-spec-v1.md`
-- [ ] Document auth schemes: project API key (public API) vs session cookie (dashboard)
+- [x] Add `@nestjs/swagger` and decorate existing DTOs/controllers
+- [x] Serve Swagger UI at `/v1/docs` (disabled or auth-gated in production if needed)
+- [x] Export the generated `openapi.json` and link it from `docs/api-spec-v1.md`
+- [x] Document auth schemes: project API key (public API) vs session cookie (dashboard)
 
 **Exit criteria:** a newcomer can integrate a game server using only Swagger UI.
 

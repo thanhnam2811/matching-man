@@ -1,10 +1,16 @@
 # API Spec v1
 
+## Interactive Docs
+
+- Swagger UI: `GET /v1/docs` (run the API locally, e.g. `pnpm start:dev`, then open `http://localhost:3000/v1/docs`)
+- Raw OpenAPI document: [openapi.json](./openapi.json), regenerated with `pnpm --dir apps/api openapi:generate`
+- The generator only needs `DATABASE_URL`, `DASHBOARD_ADMIN_TOKEN`, and `SESSION_SECRET` to be set (any value works — it inspects route metadata and never opens a DB connection)
+
 ## Conventions
 
 - Base path: `/v1`
-- Authentication for game servers: `Authorization: Bearer <project_api_key>`
-- Authentication for dashboard users: `Authorization: Bearer <session_token>` (from register/login) or `Authorization: Bearer <dashboard_admin_token>` (break-glass super-admin)
+- Authentication for game servers: `Authorization: Bearer <project_api_key>` (Swagger security scheme `projectApiKey`) — used by the queues, matches, deliveries, and ratings endpoints
+- Authentication for dashboard users: `Authorization: Bearer <session_token>` (from register/login) or `Authorization: Bearer <dashboard_admin_token>` (break-glass super-admin) — both map to the Swagger security scheme `sessionToken`
 - Dashboard routes are tenant-scoped: a user only sees organizations and projects they are a member of; the admin token sees everything
 - All write endpoints should support `idempotency_key`
 - Timestamps use ISO 8601 UTC

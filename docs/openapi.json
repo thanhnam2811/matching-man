@@ -1,0 +1,1914 @@
+{
+    "openapi": "3.0.0",
+    "paths": {
+        "/v1": {
+            "get": {
+                "operationId": "AppController_getInfo",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "summary": "Return basic service info.",
+                "tags": ["Info"]
+            }
+        },
+        "/health": {
+            "get": {
+                "operationId": "HealthController_getHealth",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "summary": "Report service liveness, DB connectivity, and scheduler status.",
+                "tags": ["Health"]
+            }
+        },
+        "/v1/auth/contract": {
+            "get": {
+                "operationId": "AuthController_getContract",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "summary": "Return the dashboard API contract (routes and auth schemes).",
+                "tags": ["Auth"]
+            }
+        },
+        "/v1/auth/register": {
+            "post": {
+                "operationId": "AuthController_register",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "summary": "Register a user, seed a personal organization, and return a session token.",
+                "tags": ["Auth"]
+            }
+        },
+        "/v1/auth/login": {
+            "post": {
+                "operationId": "AuthController_login",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "summary": "Verify credentials and return a session token.",
+                "tags": ["Auth"]
+            }
+        },
+        "/v1/auth/me": {
+            "get": {
+                "operationId": "AuthController_me",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Return the current user and their organization memberships.",
+                "tags": ["Auth"]
+            }
+        },
+        "/v1/organizations": {
+            "post": {
+                "operationId": "OrganizationsController_create",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateOrganizationDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Create a tenant owned by the caller.",
+                "tags": ["Organizations"]
+            },
+            "get": {
+                "operationId": "OrganizationsController_findAll",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "List organizations the caller belongs to.",
+                "tags": ["Organizations"]
+            }
+        },
+        "/v1/organizations/{organizationId}": {
+            "get": {
+                "operationId": "OrganizationsController_findOne",
+                "parameters": [
+                    {
+                        "name": "organizationId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Get a single organization.",
+                "tags": ["Organizations"]
+            }
+        },
+        "/v1/organizations/{organizationId}/members": {
+            "get": {
+                "operationId": "OrganizationMembersController_findAll",
+                "parameters": [
+                    {
+                        "name": "organizationId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "List organization members.",
+                "tags": ["Organization Members"]
+            },
+            "post": {
+                "operationId": "OrganizationMembersController_add",
+                "parameters": [
+                    {
+                        "name": "organizationId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddOrganizationMemberDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Add an already-registered user as an organization member. Requires ADMIN or OWNER.",
+                "tags": ["Organization Members"]
+            }
+        },
+        "/v1/organizations/{organizationId}/members/{memberId}": {
+            "patch": {
+                "operationId": "OrganizationMembersController_update",
+                "parameters": [
+                    {
+                        "name": "organizationId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "memberId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateOrganizationMemberDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Change a member's role. Requires ADMIN or OWNER.",
+                "tags": ["Organization Members"]
+            },
+            "delete": {
+                "operationId": "OrganizationMembersController_remove",
+                "parameters": [
+                    {
+                        "name": "organizationId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "memberId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Remove a member. Requires ADMIN or OWNER; an organization must keep at least one OWNER.",
+                "tags": ["Organization Members"]
+            }
+        },
+        "/v1/projects": {
+            "post": {
+                "operationId": "ProjectsController_create",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateProjectDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Create a project inside an organization the caller belongs to.",
+                "tags": ["Projects"]
+            },
+            "get": {
+                "operationId": "ProjectsController_findAll",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "List projects visible to the caller.",
+                "tags": ["Projects"]
+            }
+        },
+        "/v1/projects/{projectId}": {
+            "get": {
+                "operationId": "ProjectsController_findOne",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Get a single project.",
+                "tags": ["Projects"]
+            }
+        },
+        "/v1/projects/{projectId}/environments": {
+            "get": {
+                "operationId": "ProjectEnvironmentsController_findAll",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "List project environments.",
+                "tags": ["Project Environments"]
+            },
+            "post": {
+                "operationId": "ProjectEnvironmentsController_create",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateProjectEnvironmentDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Create a project environment.",
+                "tags": ["Project Environments"]
+            }
+        },
+        "/v1/projects/{projectId}/environments/{environmentId}": {
+            "patch": {
+                "operationId": "ProjectEnvironmentsController_update",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "environmentId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProjectEnvironmentDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Update a project environment.",
+                "tags": ["Project Environments"]
+            },
+            "delete": {
+                "operationId": "ProjectEnvironmentsController_remove",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "environmentId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Delete a project environment.",
+                "tags": ["Project Environments"]
+            }
+        },
+        "/v1/projects/{projectId}/members": {
+            "get": {
+                "operationId": "ProjectMembersController_findAll",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "List project members.",
+                "tags": ["Project Members"]
+            },
+            "post": {
+                "operationId": "ProjectMembersController_create",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateProjectMemberDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Add a project member.",
+                "tags": ["Project Members"]
+            }
+        },
+        "/v1/projects/{projectId}/members/{memberId}": {
+            "patch": {
+                "operationId": "ProjectMembersController_update",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "memberId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProjectMemberDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Change a project member's role.",
+                "tags": ["Project Members"]
+            },
+            "delete": {
+                "operationId": "ProjectMembersController_remove",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "memberId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Remove a project member.",
+                "tags": ["Project Members"]
+            }
+        },
+        "/v1/projects/{projectId}/api-keys": {
+            "post": {
+                "operationId": "ApiKeysController_create",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateApiKeyDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Create a project API key. The raw key is only returned once, at creation.",
+                "tags": ["API Keys"]
+            },
+            "get": {
+                "operationId": "ApiKeysController_findAll",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "List project API keys (raw keys are never returned after creation).",
+                "tags": ["API Keys"]
+            }
+        },
+        "/v1/projects/{projectId}/api-keys/{apiKeyId}/revoke": {
+            "post": {
+                "operationId": "ApiKeysController_revoke",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "apiKeyId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Revoke a project API key.",
+                "tags": ["API Keys"]
+            }
+        },
+        "/v1/projects/{projectId}/webhooks": {
+            "post": {
+                "operationId": "WebhooksController_create",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateWebhookDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Register a webhook endpoint for a project.",
+                "tags": ["Webhooks"]
+            },
+            "get": {
+                "operationId": "WebhooksController_findAll",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "List webhook endpoints. Signing secrets are not exposed after creation.",
+                "tags": ["Webhooks"]
+            }
+        },
+        "/v1/projects/{projectId}/webhooks/{webhookId}": {
+            "patch": {
+                "operationId": "WebhooksController_update",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "webhookId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateWebhookDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Update a webhook endpoint.",
+                "tags": ["Webhooks"]
+            },
+            "delete": {
+                "operationId": "WebhooksController_remove",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "webhookId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Delete a webhook endpoint.",
+                "tags": ["Webhooks"]
+            }
+        },
+        "/v1/projects/{projectId}/game-modes": {
+            "post": {
+                "operationId": "GameModesController_create",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateGameModeDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Create a game mode for a project.",
+                "tags": ["Game Modes"]
+            },
+            "get": {
+                "operationId": "GameModesController_findAll",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "List game modes for a project.",
+                "tags": ["Game Modes"]
+            }
+        },
+        "/v1/queues/enqueue": {
+            "post": {
+                "operationId": "QueuesController_enqueue",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EnqueueDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "projectApiKey": []
+                    }
+                ],
+                "summary": "Add a team or solo player to a matchmaking pool.",
+                "tags": ["Queues"]
+            }
+        },
+        "/v1/queues/dequeue": {
+            "post": {
+                "operationId": "QueuesController_dequeue",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DequeueDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "projectApiKey": []
+                    }
+                ],
+                "summary": "Remove a waiting entry from the queue.",
+                "tags": ["Queues"]
+            }
+        },
+        "/v1/queues/pools": {
+            "get": {
+                "operationId": "QueuesController_listPools",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "projectApiKey": []
+                    }
+                ],
+                "summary": "List active pools and waiting counts for the authenticated project.",
+                "tags": ["Queues"]
+            }
+        },
+        "/v1/deliveries": {
+            "get": {
+                "operationId": "DeliveriesController_listDeliveries",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["PENDING", "DELIVERED", "FAILED", "EXHAUSTED"]
+                        }
+                    },
+                    {
+                        "name": "endpointId",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 50,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "default": 0,
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "projectApiKey": []
+                    }
+                ],
+                "summary": "List webhook delivery attempts for the authenticated project.",
+                "tags": ["Webhook Deliveries"]
+            }
+        },
+        "/v1/matches/{matchId}": {
+            "get": {
+                "operationId": "MatchesController_findOne",
+                "parameters": [
+                    {
+                        "name": "matchId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "projectApiKey": []
+                    }
+                ],
+                "summary": "Return the current match state.",
+                "tags": ["Matches"]
+            }
+        },
+        "/v1/matches/{matchId}/report-result": {
+            "post": {
+                "operationId": "MatchesController_reportResult",
+                "parameters": [
+                    {
+                        "name": "matchId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReportResultDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "projectApiKey": []
+                    }
+                ],
+                "summary": "Report the final outcome of a match.",
+                "tags": ["Matches"]
+            }
+        },
+        "/v1/ratings/history": {
+            "get": {
+                "operationId": "RatingsController_listHistory",
+                "parameters": [
+                    {
+                        "name": "playerId",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "maxLength": 120,
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "gameModeId",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "maxLength": 64,
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 200,
+                            "default": 50,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "default": 0,
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "projectApiKey": []
+                    }
+                ],
+                "summary": "Return paginated rating history (when internal_elo is enabled).",
+                "tags": ["Ratings"]
+            }
+        },
+        "/v1/projects/{projectId}/pools": {
+            "get": {
+                "operationId": "DashboardController_listPools",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Return active pools and waiting counts.",
+                "tags": ["Dashboard Reads"]
+            }
+        },
+        "/v1/projects/{projectId}/matches": {
+            "get": {
+                "operationId": "DashboardController_listMatches",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "gameModeId",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "maxLength": 64,
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["CREATED", "IN_PROGRESS", "COMPLETED", "FAILED", "EXPIRED", "DISPUTED"]
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "required": false,
+                        "in": "query",
+                        "description": "ISO 8601, applied to createdAt.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "required": false,
+                        "in": "query",
+                        "description": "ISO 8601, applied to createdAt.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 50,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "default": 0,
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Return paginated match history.",
+                "tags": ["Dashboard Reads"]
+            }
+        },
+        "/v1/projects/{projectId}/webhook-deliveries": {
+            "get": {
+                "operationId": "DashboardController_listDeliveries",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["PENDING", "DELIVERED", "FAILED", "EXHAUSTED"]
+                        }
+                    },
+                    {
+                        "name": "endpointId",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 50,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "default": 0,
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Return paginated webhook delivery attempts and statuses.",
+                "tags": ["Dashboard Reads"]
+            }
+        },
+        "/v1/projects/{projectId}/rating-history": {
+            "get": {
+                "operationId": "DashboardController_listRatingHistory",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "playerId",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "maxLength": 120,
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "gameModeId",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "maxLength": 64,
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 200,
+                            "default": 50,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "default": 0,
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Return paginated rating history (when internal_elo is enabled).",
+                "tags": ["Dashboard Reads"]
+            }
+        }
+    },
+    "info": {
+        "title": "Matching Man API",
+        "description": "Multi-tenant matchmaking platform API.\n\nGame servers authenticate with a project API key (`projectApiKey`) issued via `POST /v1/projects/:projectId/api-keys`.\nThe admin dashboard authenticates with a per-user session token from `/v1/auth/login` or `/v1/auth/register`, or the break-glass `DASHBOARD_ADMIN_TOKEN` (`sessionToken`).",
+        "version": "1",
+        "contact": {}
+    },
+    "tags": [],
+    "servers": [],
+    "components": {
+        "securitySchemes": {
+            "projectApiKey": {
+                "scheme": "bearer",
+                "bearerFormat": "token",
+                "type": "http",
+                "description": "Project API key, e.g. `Authorization: Bearer <project_api_key>`."
+            },
+            "sessionToken": {
+                "scheme": "bearer",
+                "bearerFormat": "token",
+                "type": "http",
+                "description": "Dashboard session token or admin token, e.g. `Authorization: Bearer <session_token>`."
+            }
+        },
+        "schemas": {
+            "RegisterDto": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "example": "owner@example.com",
+                        "maxLength": 160
+                    },
+                    "password": {
+                        "type": "string",
+                        "minLength": 8,
+                        "maxLength": 200,
+                        "writeOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "organizationName": {
+                        "type": "string",
+                        "description": "Personal organization created for this user.",
+                        "maxLength": 120
+                    },
+                    "organizationSlug": {
+                        "type": "string",
+                        "description": "Derived from organizationName when omitted.",
+                        "maxLength": 120
+                    }
+                },
+                "required": ["email", "password"]
+            },
+            "LoginDto": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "example": "owner@example.com",
+                        "maxLength": 160
+                    },
+                    "password": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "writeOnly": true
+                    }
+                },
+                "required": ["email", "password"]
+            },
+            "CreateOrganizationDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "Arena Studio",
+                        "maxLength": 120
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Derived from name when omitted.",
+                        "example": "arena-studio",
+                        "maxLength": 120
+                    }
+                },
+                "required": ["name"]
+            },
+            "AddOrganizationMemberDto": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "description": "The invitee must already be registered.",
+                        "maxLength": 160
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": ["OWNER", "ADMIN", "MEMBER"]
+                    }
+                },
+                "required": ["email", "role"]
+            },
+            "UpdateOrganizationMemberDto": {
+                "type": "object",
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "enum": ["OWNER", "ADMIN", "MEMBER"]
+                    }
+                },
+                "required": ["role"]
+            },
+            "CreateProjectDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "Arena VN",
+                        "maxLength": 120
+                    },
+                    "slug": {
+                        "type": "string",
+                        "example": "arena-vn",
+                        "maxLength": 120
+                    },
+                    "organizationId": {
+                        "type": "string",
+                        "description": "Organization the caller belongs to.",
+                        "maxLength": 64
+                    },
+                    "defaultRegion": {
+                        "type": "string",
+                        "example": "ap-southeast-1",
+                        "maxLength": 64
+                    },
+                    "environments": {
+                        "example": ["development", "production"],
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": ["name", "slug", "organizationId"]
+            },
+            "CreateProjectEnvironmentDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "production",
+                        "maxLength": 64
+                    },
+                    "isDefault": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["name"]
+            },
+            "UpdateProjectEnvironmentDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "isDefault": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "CreateProjectMemberDto": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": ["OWNER", "ADMIN", "MEMBER"]
+                    }
+                },
+                "required": ["email", "role"]
+            },
+            "UpdateProjectMemberDto": {
+                "type": "object",
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "enum": ["OWNER", "ADMIN", "MEMBER"]
+                    }
+                },
+                "required": ["role"]
+            },
+            "CreateApiKeyDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "production server key",
+                        "maxLength": 120
+                    }
+                }
+            },
+            "CreateWebhookDto": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "example": "https://game.example.com/match-callback"
+                    },
+                    "events": {
+                        "example": [
+                            "match.created",
+                            "match.failed",
+                            "queue.timeout",
+                            "match.completed",
+                            "rating.updated"
+                        ],
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "secret": {
+                        "type": "string",
+                        "description": "Signing secret; auto-generated when omitted.",
+                        "maxLength": 255
+                    }
+                },
+                "required": ["url", "events"]
+            },
+            "UpdateWebhookDto": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "example": "https://game.example.com/match-callback"
+                    },
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "secret": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "isActive": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "CreateGameModeDto": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "example": "ranked-5v5",
+                        "maxLength": 120
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Ranked 5v5",
+                        "maxLength": 120
+                    },
+                    "matchStructure": {
+                        "type": "string",
+                        "enum": ["VERSUS", "FFA"]
+                    },
+                    "requiredSlots": {
+                        "type": "number",
+                        "minimum": 2,
+                        "maximum": 64,
+                        "description": "Total player slots across the match."
+                    },
+                    "groupCount": {
+                        "type": "number",
+                        "minimum": 2,
+                        "maximum": 64,
+                        "description": "Number of opposing groups (e.g. 2 for teams A/B)."
+                    },
+                    "teamSizeMin": {
+                        "type": "number",
+                        "minimum": 1,
+                        "maximum": 64
+                    },
+                    "teamSizeMax": {
+                        "type": "number",
+                        "minimum": 1,
+                        "maximum": 64
+                    },
+                    "ratingMode": {
+                        "type": "string",
+                        "enum": ["INTERNAL_ELO", "EXTERNAL_RATING", "DISABLED"]
+                    },
+                    "initialRatingWindow": {
+                        "type": "number",
+                        "minimum": 1,
+                        "description": "Initial rating band width for candidate matching."
+                    },
+                    "windowExpandIntervalSeconds": {
+                        "type": "number",
+                        "minimum": 1,
+                        "description": "Seconds between each rating window expansion."
+                    },
+                    "windowExpandStep": {
+                        "type": "number",
+                        "minimum": 1
+                    }
+                },
+                "required": [
+                    "key",
+                    "name",
+                    "matchStructure",
+                    "requiredSlots",
+                    "groupCount",
+                    "teamSizeMin",
+                    "teamSizeMax"
+                ]
+            },
+            "EnqueueTeamMemberDto": {
+                "type": "object",
+                "properties": {
+                    "playerId": {
+                        "type": "string",
+                        "example": "p1",
+                        "maxLength": 120
+                    },
+                    "rating": {
+                        "type": "number",
+                        "example": 1510
+                    }
+                },
+                "required": ["playerId"]
+            },
+            "EnqueueTeamDto": {
+                "type": "object",
+                "properties": {
+                    "externalTeamId": {
+                        "type": "string",
+                        "example": "team_1001",
+                        "maxLength": 120
+                    },
+                    "members": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/EnqueueTeamMemberDto"
+                        }
+                    }
+                },
+                "required": ["members"]
+            },
+            "EnqueueDto": {
+                "type": "object",
+                "properties": {
+                    "idempotencyKey": {
+                        "type": "string",
+                        "example": "enq_001",
+                        "maxLength": 120
+                    },
+                    "projectId": {
+                        "type": "string",
+                        "example": "proj_123",
+                        "maxLength": 64
+                    },
+                    "gameModeId": {
+                        "type": "string",
+                        "example": "mode_ranked_5v5",
+                        "maxLength": 64
+                    },
+                    "environment": {
+                        "type": "string",
+                        "example": "production",
+                        "maxLength": 64
+                    },
+                    "region": {
+                        "type": "string",
+                        "example": "ap-southeast-1",
+                        "maxLength": 64
+                    },
+                    "team": {
+                        "$ref": "#/components/schemas/EnqueueTeamDto"
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "additionalProperties": true,
+                        "example": {
+                            "party_size": 2
+                        }
+                    }
+                },
+                "required": ["projectId", "gameModeId", "environment", "team"]
+            },
+            "DequeueDto": {
+                "type": "object",
+                "properties": {
+                    "idempotencyKey": {
+                        "type": "string",
+                        "example": "deq_001",
+                        "maxLength": 120
+                    },
+                    "queueEntryId": {
+                        "type": "string",
+                        "example": "qe_123",
+                        "maxLength": 64
+                    },
+                    "reason": {
+                        "type": "string",
+                        "example": "party_cancelled",
+                        "maxLength": 255
+                    }
+                },
+                "required": ["queueEntryId"]
+            },
+            "ReportResultDto": {
+                "type": "object",
+                "properties": {
+                    "idempotencyKey": {
+                        "type": "string",
+                        "example": "result_001"
+                    },
+                    "winnerGroupIndex": {
+                        "type": "number",
+                        "minimum": 1,
+                        "description": "Index of the winning group; omit for a draw."
+                    },
+                    "endedAt": {
+                        "type": "string",
+                        "example": "2026-06-12T00:25:00Z"
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "additionalProperties": true,
+                        "example": {
+                            "duration_seconds": 1490,
+                            "server_match_id": "gs_abc_999"
+                        }
+                    }
+                },
+                "required": ["endedAt"]
+            }
+        }
+    }
+}

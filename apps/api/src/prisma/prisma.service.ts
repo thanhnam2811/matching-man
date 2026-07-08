@@ -10,7 +10,16 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
     constructor(configService: ConfigService) {
         const connectionString = configService.getOrThrow<string>("DATABASE_URL");
-        const adapter = new PrismaPg({ connectionString });
+        // The VPS is ~260ms round-trip from Neon (us-east-1), so a TLS+SCRAM
+        // handshake costs ~750ms-2s. The pg default idleTimeoutMillis (10s) is
+        // shorter than the gaps between health checks/cron ticks, forcing a
+        // fresh handshake on almost every query. Keep idle connections around
+        // long enough to actually get reused.
+        const adapter = new PrismaPg({
+            connectionString,
+            idleTimeoutMillis: 60_000,
+            connectionTimeoutMillis: 10_000,
+        });
 
         this.client = new PrismaClient({
             adapter,

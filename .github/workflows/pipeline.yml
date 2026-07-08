@@ -68,8 +68,21 @@ jobs:
             - name: Build
               run: pnpm api:build
 
-            - name: Run tests
-              run: pnpm api:test
+            - name: Run tests with coverage
+              run: pnpm api:test:cov | tee coverage-output.txt
+
+            - name: Publish coverage summary
+              if: always()
+              run: |
+                  {
+                    echo "## API test coverage"
+                    echo '<details><summary>Full coverage report</summary>'
+                    echo
+                    echo '```'
+                    cat coverage-output.txt
+                    echo '```'
+                    echo '</details>'
+                  } >> "$GITHUB_STEP_SUMMARY"
 
             - name: Run e2e tests
               run: pnpm api:test:e2e

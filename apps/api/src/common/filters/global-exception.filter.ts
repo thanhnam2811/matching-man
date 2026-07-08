@@ -118,6 +118,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
             return exception.getStatus();
         }
 
+        // Express/body-parser errors (e.g. PayloadTooLargeError) carry a
+        // numeric `status` or `statusCode` property but are not HttpExceptions.
+        if (exception instanceof Error) {
+            const status =
+                (exception as Record<string, unknown>).status ?? (exception as Record<string, unknown>).statusCode;
+
+            if (typeof status === "number" && status >= 400 && status < 600) {
+                return status;
+            }
+        }
+
         return HttpStatus.INTERNAL_SERVER_ERROR;
     }
 

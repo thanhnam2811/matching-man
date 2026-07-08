@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
-import { createHash } from "node:crypto";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { hashToken } from "../../utils/hash-token.util";
 import type { AuthenticatedProjectRequest } from "../../interfaces/authenticated-project-request";
 
 @Injectable()
@@ -21,7 +21,7 @@ export class ProjectApiKeyGuard implements CanActivate {
             throw new UnauthorizedException("Missing bearer API key");
         }
 
-        const hashedKey = createHash("sha256").update(token).digest("hex");
+        const hashedKey = hashToken(token);
         const apiKey = await this.prismaService.client.apiKey.findFirst({
             where: {
                 hashedKey,

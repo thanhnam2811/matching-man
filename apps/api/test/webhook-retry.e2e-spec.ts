@@ -115,6 +115,7 @@ describe("Webhook delivery retry/backoff (e2e)", () => {
 
         // Even though the endpoint is healthy again, sendPendingDeliveries only polls
         // PENDING/FAILED rows, so an EXHAUSTED delivery is never retried.
+        fetchSpy.mockClear();
         fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
         await deliveryService.sendPendingDeliveries();
 

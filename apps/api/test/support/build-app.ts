@@ -3,12 +3,19 @@ import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { AppModule } from "../../src/app.module";
 import { GlobalExceptionFilter } from "../../src/common/filters/global-exception.filter";
 import { API_GLOBAL_PREFIX, API_GLOBAL_PREFIX_EXCLUDE } from "../../src/swagger";
+import { WebhookRetryProcessor } from "../../src/deliveries/webhook-retry.processor";
+import { QueueTimeoutProcessor } from "../../src/queues/queue-timeout.processor";
 
 /**
  * Boots the real Nest app (real Prisma/Postgres, no mocked providers) with the same
  * pipes/filters/prefix as `main.ts`, so requests behave like production. Requires
  * DATABASE_URL to point at a Postgres instance with migrations already applied
  * (see docker-compose.yml / CI's `prisma migrate deploy` step).
+ *
+ * The real `@Cron` processors are disabled: they'd otherwise fire on their own
+ * wall-clock schedule during a test and race with a test's own explicit calls
+ * to `WebhookDeliveryService.sendPendingDeliveries()` (double-processing the
+ * same rows), making assertions on delivery counts/state flaky.
  */
 export async function buildTestApp(): Promise<INestApplication> {
     process.env.NODE_ENV ??= "test";
@@ -18,7 +25,12 @@ export async function buildTestApp(): Promise<INestApplication> {
 
     const moduleFixture = await Test.createTestingModule({
         imports: [AppModule],
-    }).compile();
+    })
+        .overrideProvider(WebhookRetryProcessor)
+        .useValue({ processPendingDeliveries: async () => {} })
+        .overrideProvider(QueueTimeoutProcessor)
+        .useValue({ processTimedOutEntries: async () => {} })
+        .compile();
 
     const app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));

@@ -12,9 +12,16 @@ export const metadata: Metadata = {
     description: "Operator dashboard for the matchmaking platform",
 };
 
+// Applied before first paint so the stored theme never flashes. Defaults to dark
+// when no preference is saved.
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('theme');document.documentElement.classList.toggle('dark', t ? t!=='light' : true);}catch(e){document.documentElement.classList.add('dark');}})();`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="en" className={cn("dark", GeistSans.variable, GeistMono.variable)}>
+        <html lang="en" suppressHydrationWarning className={cn(GeistSans.variable, GeistMono.variable)}>
+            <head>
+                <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+            </head>
             <body className="min-h-screen bg-background font-sans antialiased">
                 <SwrProvider>{children}</SwrProvider>
                 <Toaster />

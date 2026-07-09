@@ -36,9 +36,14 @@ page links back to its organization.
 
 ## Theme tokens
 
-Dark mode is the default (`<html class="dark">`). Colors are HSL CSS variables defined in
-`app/globals.css` (zinc base) and exposed through Tailwind. **Always build from tokens; never
-hard-code hex or use ad-hoc Tailwind palette classes for foundational surfaces.**
+Both light and dark are supported (zinc base), and **dark is the default**. A blocking inline
+script in the root layout applies the saved theme (or dark) before first paint — no FOUC — by
+toggling `.dark` on `<html>`; `components/theme-toggle.tsx` flips it and persists to
+`localStorage` (`theme`). It lives in the landing and dashboard headers. Colors are HSL CSS
+variables in `app/globals.css` (`:root` = light, `.dark` = dark) exposed through Tailwind.
+**Always build from tokens so both themes work; never hard-code hex or use ad-hoc Tailwind
+palette classes for foundational surfaces.** (The only raw color is the drawer scrim
+`bg-black/60`, which is correct over content in either theme.)
 
 - Surfaces: `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`,
   `border-border`, `ring-ring`, `bg-input`.

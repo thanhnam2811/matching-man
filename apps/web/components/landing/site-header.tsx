@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 
 type SessionState =
@@ -41,14 +42,15 @@ export function SiteHeader() {
                     <span className="inline-block size-2 rounded-full bg-success" />
                     Matching Hub
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
+                    <ThemeToggle />
                     {session.status === "loading" ? (
                         <Skeleton className="size-8 rounded-full" />
                     ) : session.status === "authenticated" ? (
                         <UserMenu email={session.email} name={session.name} />
                     ) : (
                         <>
-                            <Link href="/demo">
+                            <Link href="/demo" className="hidden sm:block">
                                 <Button variant="ghost" size="sm">
                                     Demo
                                 </Button>

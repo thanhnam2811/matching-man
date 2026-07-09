@@ -13,19 +13,14 @@ export function LoginForm() {
     const [email, setEmail] = React.useState("");
     const [password, setPassword] = React.useState("");
     const [error, setError] = React.useState<string | null>(null);
-    const [pending, setPending] = React.useState(false);
+    const [pending, setPending] = React.useState<null | "login" | "demo">(null);
 
-    async function onSubmit(event: React.FormEvent) {
-        event.preventDefault();
+    async function submitSession(action: "login" | "demo", init: RequestInit) {
         setError(null);
-        setPending(true);
+        setPending(action);
 
         try {
-            const response = await fetch("/api/session", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
-            });
+            const response = await fetch(action === "demo" ? "/api/session/demo" : "/api/session", init);
 
             if (!response.ok) {
                 const body = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -38,8 +33,21 @@ export function LoginForm() {
         } catch {
             setError("Unable to reach the server");
         } finally {
-            setPending(false);
+            setPending(null);
         }
+    }
+
+    async function onSubmit(event: React.FormEvent) {
+        event.preventDefault();
+        await submitSession("login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+        });
+    }
+
+    function onDemo() {
+        void submitSession("demo", { method: "POST" });
     }
 
     return (
@@ -74,8 +82,12 @@ export function LoginForm() {
                 </p>
             ) : null}
 
-            <Button type="submit" className="w-full" disabled={pending || !email || !password}>
-                {pending ? "Signing in…" : "Sign in"}
+            <Button type="submit" className="w-full" disabled={pending !== null || !email || !password}>
+                {pending === "login" ? "Signing in…" : "Sign in"}
+            </Button>
+
+            <Button type="button" variant="outline" className="w-full" onClick={onDemo} disabled={pending !== null}>
+                {pending === "demo" ? "Loading demo…" : "View the demo"}
             </Button>
 
             <p className="text-center text-sm text-muted-foreground">

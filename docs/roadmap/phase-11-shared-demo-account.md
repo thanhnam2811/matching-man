@@ -2,7 +2,7 @@
 
 ## Status
 
-- [ ] In progress
+- [x] Done
 
 ## Objective
 
@@ -36,20 +36,20 @@ Auth flow recap: `apps/web/components/login-form.tsx` → `POST /api/session`
 
 ## Stage 1 — Demo login route
 
-- [ ] Add `DEMO_ACCOUNT_EMAIL` / `DEMO_ACCOUNT_PASSWORD` to `apps/web/.env.example`
+- [x] Add `DEMO_ACCOUNT_EMAIL` / `DEMO_ACCOUNT_PASSWORD` to `apps/web/.env.example`
       (matches the user seeded by `seed-demo.mjs`)
-- [ ] Extract a `loginAndSetSessionCookie(email, password)` helper in `apps/web/lib/api.ts`;
+- [x] Extract a `loginAndSetSessionCookie(email, password)` helper in `apps/web/lib/api.ts`;
       refactor `apps/web/app/api/session/route.ts` to use it
-- [ ] New `POST apps/web/app/api/session/demo/route.ts`: reads the demo env vars, calls
+- [x] New `POST apps/web/app/api/session/demo/route.ts`: reads the demo env vars, calls
       the shared helper, returns `503` if unconfigured or `401` if the account can't log in
-- [ ] Update the `seed-demo.mjs` header comment to note the seeded user now doubles as
+- [x] Update the `seed-demo.mjs` header comment to note the seeded user now doubles as
       the dashboard's shared demo login
 
 ## Stage 2 — Login UI
 
-- [ ] `login-form.tsx`: add a secondary "View the demo" button that posts to
+- [x] `login-form.tsx`: add a secondary "View the demo" button that posts to
       `/api/session/demo` (no body) and redirects to `/dashboard` on success
-- [ ] Share the existing `pending`/`error` state between both buttons
+- [x] Share the existing `pending`/`error` state between both buttons
 
 **Exit criteria:** a reviewer opens `/login`, clicks "View the demo", and lands in the
 dashboard on the seeded "Demo" org/project — no registration required.

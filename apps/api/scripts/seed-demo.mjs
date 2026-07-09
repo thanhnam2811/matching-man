@@ -1,4 +1,7 @@
 // Idempotently seeds a public demo project used by the web app's /demo page.
+// The `demo@matchinghub.dev` user it creates is a normal, fully-functional
+// dashboard account and also doubles as the shared login behind the one-click
+// "View the demo" button on /login (see apps/web DEMO_ACCOUNT_* env vars).
 // Run with the API server up:  node apps/api/scripts/seed-demo.mjs
 // Prints the DEMO_* env block to paste into apps/web/.env
 

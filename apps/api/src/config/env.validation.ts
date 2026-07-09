@@ -53,6 +53,11 @@ class EnvironmentVariables {
 
     @IsEnum(["fatal", "error", "warn", "info", "debug", "trace"])
     LOG_LEVEL: "fatal" | "error" | "warn" | "info" | "debug" | "trace" = "info";
+
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    SLOW_QUERY_THRESHOLD_MS = 200;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

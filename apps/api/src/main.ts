@@ -3,6 +3,7 @@ import { Logger, ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import helmet from "helmet";
 import { AppModule } from "./app.module";
+import { getBodyLimitKb } from "./common/utils/body-limit.util";
 import { GlobalExceptionFilter } from "./common/filters/global-exception.filter";
 import { RequestLoggingInterceptor } from "./common/interceptors/request-logging.interceptor";
 import { API_GLOBAL_PREFIX, API_GLOBAL_PREFIX_EXCLUDE, setupSwagger } from "./swagger";
@@ -13,11 +14,13 @@ async function bootstrap() {
     });
     const logger = new Logger("Bootstrap");
 
-    const bodyLimit = `${process.env.REQUEST_BODY_LIMIT_KB ?? 256}kb`;
+    // helmet must run before body parsing so error responses (e.g. 413 from an
+    // oversized body) still get security headers set on the way out.
+    app.use(helmet());
+
+    const bodyLimit = getBodyLimitKb();
     app.useBodyParser("json", { limit: bodyLimit });
     app.useBodyParser("urlencoded", { limit: bodyLimit, extended: true });
-
-    app.use(helmet());
     app.useGlobalPipes(
         new ValidationPipe({
             whitelist: true,

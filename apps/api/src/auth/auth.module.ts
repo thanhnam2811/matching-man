@@ -1,5 +1,6 @@
 import { Global, Module } from "@nestjs/common";
 import { PrismaModule } from "../prisma/prisma.module";
+import { DemoModule } from "../demo/demo.module";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { PasswordService } from "./password.service";
@@ -11,7 +12,7 @@ import { UserSessionGuard } from "../common/guards/user-session/user-session.gua
 
 @Global()
 @Module({
-    imports: [PrismaModule],
+    imports: [PrismaModule, DemoModule],
     providers: [
         AuthService,
         PasswordService,

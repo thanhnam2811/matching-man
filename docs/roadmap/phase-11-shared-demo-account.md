@@ -2,7 +2,7 @@
 
 ## Status
 
-- [ ] In progress
+- [x] Done
 
 ## Objective
 
@@ -36,34 +36,61 @@ Auth flow recap: `apps/web/components/login-form.tsx` → `POST /api/session`
 
 ## Stage 1 — Demo login route
 
-- [ ] Add `DEMO_ACCOUNT_EMAIL` / `DEMO_ACCOUNT_PASSWORD` to `apps/web/.env.example`
+- [x] Add `DEMO_ACCOUNT_EMAIL` / `DEMO_ACCOUNT_PASSWORD` to `apps/web/.env.example`
       (matches the user seeded by `seed-demo.mjs`)
-- [ ] Extract a `loginAndSetSessionCookie(email, password)` helper in `apps/web/lib/api.ts`;
+- [x] Extract a `loginAndSetSessionCookie(email, password)` helper in `apps/web/lib/api.ts`;
       refactor `apps/web/app/api/session/route.ts` to use it
-- [ ] New `POST apps/web/app/api/session/demo/route.ts`: reads the demo env vars, calls
+- [x] New `POST apps/web/app/api/session/demo/route.ts`: reads the demo env vars, calls
       the shared helper, returns `503` if unconfigured or `401` if the account can't log in
-- [ ] Update the `seed-demo.mjs` header comment to note the seeded user now doubles as
+- [x] Update the `seed-demo.mjs` header comment to note the seeded user now doubles as
       the dashboard's shared demo login
 
 ## Stage 2 — Login UI
 
-- [ ] `login-form.tsx`: add a secondary "View the demo" button that posts to
+- [x] `login-form.tsx`: add a secondary "View the demo" button that posts to
       `/api/session/demo` (no body) and redirects to `/dashboard` on success
-- [ ] Share the existing `pending`/`error` state between both buttons
+- [x] Share the existing `pending`/`error` state between both buttons
 
 **Exit criteria:** a reviewer opens `/login`, clicks "View the demo", and lands in the
 dashboard on the seeded "Demo" org/project — no registration required.
 
+## Stage 3 — Zero-config scheduled reset + demo status (added)
+
+Because the account is shared read/write, its data drifts as visitors click around.
+A cron restores a rich, fully-populated snapshot on an interval, and the dashboard
+tells the visitor they're on the demo account and when the next reset lands. No env
+is required — credentials default to `demo@matchinghub.dev` / `demo-password-123`
+(overridable via `DEMO_ACCOUNT_EMAIL` / `DEMO_ACCOUNT_PASSWORD`).
+
+- [x] `src/demo` module. `DemoService.reset()` is self-healing: (1) bootstraps the
+      account (user + org + `demo-arena` project + game modes + API key) if missing;
+      (2) purges visitor clutter — every project the demo user owns except
+      `demo-arena`, plus any extra orgs they created (deep FK-ordered delete);
+      (3) wipes and reseeds `demo-arena` with a self-contained snapshot: completed
+      ranked matches with rating history, live + waiting queue entries, and webhook
+      deliveries across all statuses, so every dashboard tab has data. The
+      `demo-arena` project row + its API keys are preserved so ids stay stable.
+- [x] `DemoResetProcessor` `@Cron` ticks each minute, reseeds once
+      `DEMO_RESET_INTERVAL_MINUTES` (default 60) has elapsed (tracked in
+      `system_settings`), reports to scheduler health, and no-ops under `NODE_ENV=test`
+- [x] `/auth/me` includes a `demo` block (`isDemoAccount`, `nextResetAt`,
+      `resetIntervalMinutes`); `DemoBanner` renders it with a live countdown
+- [x] The `/login` demo button and API default to the same credentials, so the
+      button works with no env set
+- [x] Unit test asserts snapshot referential integrity + zero-sum rating deltas
+
 ## Verification
 
-1. `pnpm docker:up`, then `pnpm api:seed:demo` (idempotent; confirms the demo user exists)
-2. Add `DEMO_ACCOUNT_EMAIL`/`DEMO_ACCOUNT_PASSWORD` to `apps/web/.env`
-3. Run the API and web app, click "View the demo" on `/login`, confirm redirect + seeded data
+1. `pnpm docker:up` + run the API (no demo env needed); within a minute the cron
+   auto-provisions the demo account and seeds `demo-arena`
+2. Run the web app, click "View the demo" on `/login`, confirm redirect + seeded data
+   across every tab (queues, matches, ratings, deliveries)
+3. Create a throwaway project while logged into the demo account, wait for the next
+   reset (drop `DEMO_RESET_INTERVAL_MINUTES=1` to speed it up), confirm it's purged
+   and `demo-arena` is back to the seeded snapshot
 4. Confirm normal email/password login still works unaffected
-5. Confirm the button surfaces a clean error if the env vars are unset
 
 ## Non-Goals
 
 - Read-only enforcement / mutation guard for the demo account
-- Scheduled reset of demo data
 - OAuth or any other guest-access mechanism

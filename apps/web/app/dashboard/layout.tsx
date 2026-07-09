@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/api";
 import { DashboardMobileNav } from "@/components/dashboard-mobile-nav";
+import { DemoBanner } from "@/components/demo-banner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 
@@ -30,6 +31,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                     </div>
                 </div>
             </header>
+            {user.demo?.isDemoAccount ? <DemoBanner demo={user.demo} /> : null}
             <main className="px-4 py-6 md:px-6 md:py-8">{children}</main>
         </div>
     );

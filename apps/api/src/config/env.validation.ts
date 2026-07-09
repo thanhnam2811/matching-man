@@ -58,6 +58,18 @@ class EnvironmentVariables {
     @IsInt()
     @Min(1)
     SLOW_QUERY_THRESHOLD_MS = 200;
+
+    // Email of the shared demo dashboard account (see apps/api/scripts/seed-demo.mjs).
+    // When set, the demo-reset cron periodically restores that account's showcase
+    // data and /auth/me reports demo status + next reset time. Unset disables both.
+    @IsOptional()
+    @IsString()
+    DEMO_ACCOUNT_EMAIL?: string;
+
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    DEMO_RESET_INTERVAL_MINUTES = 60;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

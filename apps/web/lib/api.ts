@@ -42,6 +42,39 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     return response.json() as Promise<T>;
 }
 
+export type SessionLoginResult = { ok: true } | { ok: false; status: number };
+
+/**
+ * Logs into the NestJS API and, on success, stores the returned token in the
+ * httpOnly `dashboard_token` cookie. Shared by the normal email/password login
+ * route and the one-click demo login route. Returns `{ ok: false, status: 401 }`
+ * when the credentials are rejected so callers can map it to their own response.
+ */
+export async function loginAndSetSessionCookie(email: string, password: string): Promise<SessionLoginResult> {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+        cache: "no-store",
+    });
+
+    if (!response.ok) {
+        return { ok: false, status: 401 };
+    }
+
+    const { token } = (await response.json()) as { token: string };
+
+    (await cookies()).set(TOKEN_COOKIE, token, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 12,
+    });
+
+    return { ok: true };
+}
+
 export type Paginated<T> = {
     data: T[];
     total: number;
@@ -54,11 +87,19 @@ export type OrganizationMembership = {
     role: string;
 };
 
+export type DemoStatus = {
+    isDemoAccount: boolean;
+    resetIntervalMinutes: number;
+    lastResetAt: string | null;
+    nextResetAt: string | null;
+};
+
 export type CurrentUser = {
     id: string;
     email: string;
     name: string | null;
     organizations: OrganizationMembership[];
+    demo?: DemoStatus | null;
 };
 
 export function getCurrentUser() {

@@ -58,26 +58,26 @@ palette classes for foundational surfaces.** (The only raw color is the drawer s
 Pattern for every primitive: `React.forwardRef`, `cn()` for class merge, `cva` for variants.
 Sizing is via Tailwind classes, not variant props (icons `size-4` / `size-3`).
 
-| Primitive                     | Notes                                                                                                                              |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `button`                      | Variants `default \| destructive \| outline \| secondary \| ghost \| link`; sizes `default \| sm \| lg \| icon`                    |
-| `badge`                       | Variants `default \| secondary \| destructive \| success \| warning \| outline`                                                    |
-| `card`                        | Compound: `Card / CardHeader / CardTitle / CardDescription / CardContent`                                                          |
-| `table`                       | Compound table parts                                                                                                               |
-| `input`, `label`, `separator` | Form and layout basics                                                                                                             |
-| `spinner`                     | `cva`-sized `Loader2`, `text-muted-foreground`                                                                                     |
-| `toast`                       | Dependency-free pub/sub toaster; call `toast(...)` from any client component; a single `<Toaster />` is mounted in the root layout |
-| `skeleton`                    | `animate-pulse` placeholder block; compose with sizing classes (`<Skeleton className="h-4 w-32" />`) inside `loading.tsx` files    |
-| `empty-state`                 | `EmptyState` — icon + title + description + optional action link, for lists with zero items                                        |
-| `error-display`               | `ErrorDisplay` (title + message + optional retry/back) and `parseError(error)` — used inside `error.tsx` boundaries                |
-| `not-found`                   | `NotFoundView` — icon + title + description + back link, for `notFound()` / `not-found.tsx` pages                                  |
-| `avatar`                      | `Avatar` circle (initials fallback via `initialsFrom`) — account affordance in the header                                          |
-| `dropdown-menu`               | Hand-rolled `DropdownMenu` (+ `DropdownItem/Label/Separator`); outside-click + Escape to close. No Radix. Used by `UserMenu`       |
-| `drawer`                      | Hand-rolled off-canvas `Drawer` (backdrop, slide, Escape + body-scroll lock, `md:hidden`) for mobile navigation                    |
-| `copy-button`                 | `CopyButton` — clipboard icon button for mono values (project/match IDs, keys, webhook URLs); shows a check for ~1.5s              |
-| `confirm-button`              | `ConfirmButton` — inline two-step confirm for destructive form submits (arms → destructive `type="submit"` + Cancel), no modal     |
-| `password-input`              | `PasswordInput` — `<Input>` with a show/hide toggle + Caps Lock warning; forwards ref/props so it drops into forms                 |
-| `password-strength`           | `PasswordStrength` — advisory 4-bar meter + label from a simple heuristic (register only); API still enforces the real rules       |
+| Primitive                     | Notes                                                                                                                                                                             |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `button`                      | Variants `default \| destructive \| outline \| secondary \| ghost \| link`; sizes `default \| sm \| lg \| icon`                                                                   |
+| `badge`                       | Variants `default \| secondary \| destructive \| success \| warning \| outline`                                                                                                   |
+| `card`                        | Compound: `Card / CardHeader / CardTitle / CardDescription / CardContent`                                                                                                         |
+| `table`                       | Compound table parts                                                                                                                                                              |
+| `input`, `label`, `separator` | Form and layout basics                                                                                                                                                            |
+| `spinner`                     | `cva`-sized `Loader2`, `text-muted-foreground`                                                                                                                                    |
+| `toast`                       | Dependency-free pub/sub toaster; call `toast(...)` from any client component; a single `<Toaster />` is mounted in the root layout                                                |
+| `skeleton`                    | `animate-pulse` placeholder block; compose with sizing classes (`<Skeleton className="h-4 w-32" />`) inside `loading.tsx` files                                                   |
+| `empty-state`                 | `EmptyState` — icon + title + description + optional action link, for lists with zero items                                                                                       |
+| `error-display`               | `ErrorDisplay` (title + message + optional retry/back) and `parseError(error)` — used inside `error.tsx` boundaries                                                               |
+| `not-found`                   | `NotFoundView` — icon + title + description + back link, for `notFound()` / `not-found.tsx` pages                                                                                 |
+| `avatar`                      | `Avatar` circle (initials fallback via `initialsFrom`) — account affordance in the header                                                                                         |
+| `dropdown-menu`               | Hand-rolled `DropdownMenu` (+ `DropdownItem/Label/Separator`); outside-click + Escape to close. No Radix. Used by `UserMenu`                                                      |
+| `drawer`                      | Hand-rolled off-canvas `Drawer` (backdrop, slide, Escape + body-scroll lock, `md:hidden`) for mobile navigation                                                                   |
+| `copy-button`                 | `CopyButton` — clipboard icon button for mono values (project/match IDs, keys, webhook URLs); shows a check for ~1.5s                                                             |
+| `confirm-button`              | `ConfirmButton` — inline two-step confirm for destructive form submits (arms → destructive `type="submit"` + Cancel); spinner via `useFormStatus` while the action runs. No modal |
+| `password-input`              | `PasswordInput` — `<Input>` with a show/hide toggle + Caps Lock warning; forwards ref/props so it drops into forms                                                                |
+| `password-strength`           | `PasswordStrength` — advisory 4-bar meter + label from a simple heuristic (register only); API still enforces the real rules                                                      |
 
 Domain helpers on top of primitives: `status-badge.tsx` maps a domain status to a badge
 variant (`StatusBadge`); `pagination.tsx` for list paging.
@@ -117,6 +117,13 @@ fresh without a manual refresh, while keeping the token server-side:
 
 Config surfaces that only change on an explicit mutation (org/project overview) stay
 plain Server Components + `revalidatePath` — don't add SWR there.
+
+**Snappy tab navigation.** The project sub-nav (`project-nav.tsx`) sets `prefetch` on each
+tab `<Link>` so a tab's data is fetched before it's clicked, and `next.config.mjs` sets
+`experimental.staleTimes.dynamic` so an already-visited tab's RSC payload is reused from the
+client Router Cache instead of re-hitting the API on every switch. (Both are production
+behaviours — `next dev` disables prefetch and recompiles routes on first hit, so tab
+switching always feels slower in dev.)
 
 ### Mutations — always Next Server Actions
 

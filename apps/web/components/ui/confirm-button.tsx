@@ -1,12 +1,14 @@
 "use client";
 
 import * as React from "react";
+import { useFormStatus } from "react-dom";
 import { Button, type ButtonProps } from "@/components/ui/button";
 
 // Inline two-step confirm for destructive form submits (no modal, per DESIGN.md).
 // First click arms it and reveals a destructive submit + Cancel; the confirm
-// button is `type="submit"`, so it posts the parent <form>. Auto-disarms after a
-// few seconds so a stray arm doesn't linger.
+// button is `type="submit"`, so it posts the parent <form>. While the server
+// action runs it shows a spinner via `useFormStatus`. Auto-disarms after a few
+// seconds so a stray arm doesn't linger.
 export function ConfirmButton({
     children,
     confirmLabel = "Confirm",
@@ -37,12 +39,26 @@ export function ConfirmButton({
 
     return (
         <span className="inline-flex items-center gap-1">
-            <Button type="submit" variant="destructive" size={size}>
-                {confirmLabel}
-            </Button>
-            <Button type="button" variant="ghost" size={size} onClick={() => setArmed(false)}>
-                Cancel
-            </Button>
+            <ConfirmSubmit size={size}>{confirmLabel}</ConfirmSubmit>
+            <CancelButton size={size} onCancel={() => setArmed(false)} />
         </span>
+    );
+}
+
+function ConfirmSubmit({ children, size }: { children: React.ReactNode; size?: ButtonProps["size"] }) {
+    const { pending } = useFormStatus();
+    return (
+        <Button type="submit" variant="destructive" size={size} loading={pending}>
+            {children}
+        </Button>
+    );
+}
+
+function CancelButton({ size, onCancel }: { size?: ButtonProps["size"]; onCancel: () => void }) {
+    const { pending } = useFormStatus();
+    return (
+        <Button type="button" variant="ghost" size={size} onClick={onCancel} disabled={pending}>
+            Cancel
+        </Button>
     );
 }

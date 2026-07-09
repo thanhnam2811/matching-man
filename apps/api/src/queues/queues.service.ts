@@ -114,20 +114,7 @@ export class QueuesService {
             });
         }
 
-        const freshQueueEntry = await this.prismaService.client.queueEntry.findUniqueOrThrow({
-            where: {
-                id: queueEntry.id,
-            },
-            include: {
-                matchSlots: {
-                    include: {
-                        match: true,
-                    },
-                },
-            },
-        });
-
-        return this.toQueueResponse(freshQueueEntry);
+        return this.toQueueResponse(queueEntry, matchId);
     }
 
     async dequeue(authProjectId: string, dequeueDto: DequeueDto) {
@@ -235,15 +222,39 @@ export class QueuesService {
                 return null;
             }
 
-            const lockedRows = await tx.$queryRaw<Array<{ id: string }>>(
+            const lockedRows = await tx.$queryRaw<
+                Array<{
+                    id: string;
+                    teamId: string;
+                    queuedAt: Date;
+                    members: Array<{ playerId: string; ratingSnapshot: number | null }>;
+                }>
+            >(
                 Prisma.sql`
-          SELECT id
-          FROM queue_entries
-          WHERE match_pool_id = ${matchPoolId}
-            AND status = ${QueueEntryStatus.QUEUED}
-          ORDER BY queued_at ASC, id ASC
-          LIMIT ${Math.max(pool.gameMode.requiredSlots * 4, pool.gameMode.requiredSlots)}
-          FOR UPDATE SKIP LOCKED
+          WITH locked AS (
+            SELECT id, team_id, queued_at
+            FROM queue_entries
+            WHERE match_pool_id = ${matchPoolId}
+              AND status = ${QueueEntryStatus.QUEUED}
+            ORDER BY queued_at ASC, id ASC
+            LIMIT ${Math.max(pool.gameMode.requiredSlots * 4, pool.gameMode.requiredSlots)}
+            FOR UPDATE SKIP LOCKED
+          )
+          SELECT
+            l.id AS id,
+            l.team_id AS "teamId",
+            l.queued_at AS "queuedAt",
+            COALESCE(
+              json_agg(
+                json_build_object('playerId', tm.player_id, 'ratingSnapshot', tm.rating_snapshot)
+                ORDER BY tm.created_at ASC
+              ) FILTER (WHERE tm.id IS NOT NULL),
+              '[]'
+            ) AS members
+          FROM locked l
+          LEFT JOIN team_members tm ON tm.team_id = l.team_id
+          GROUP BY l.id, l.team_id, l.queued_at
+          ORDER BY l.queued_at ASC, l.id ASC
         `,
             );
 
@@ -251,27 +262,12 @@ export class QueuesService {
                 return null;
             }
 
-            const candidateEntries = await tx.queueEntry.findMany({
-                where: {
-                    id: {
-                        in: lockedRows.map((row) => row.id),
-                    },
-                },
-                orderBy: {
-                    queuedAt: "asc",
-                },
-                include: {
-                    team: {
-                        include: {
-                            members: {
-                                orderBy: {
-                                    createdAt: "asc",
-                                },
-                            },
-                        },
-                    },
-                },
-            });
+            const candidateEntries = lockedRows.map((row) => ({
+                id: row.id,
+                teamId: row.teamId,
+                queuedAt: row.queuedAt,
+                team: { members: row.members },
+            }));
 
             const queueEntries = this.selectCandidateQueueEntries(candidateEntries, pool.gameMode);
 
@@ -508,22 +504,25 @@ export class QueuesService {
         return team;
     }
 
-    private toQueueResponse(queueEntry: {
-        id: string;
-        status: QueueEntryStatus;
-        queuedAt: Date;
-        projectId: string;
-        environment: string;
-        gameModeId: string;
-        regionKey: string;
-        matchSlots: Array<{ match: { id: string } }>;
-    }) {
+    private toQueueResponse(
+        queueEntry: {
+            id: string;
+            status: QueueEntryStatus;
+            queuedAt: Date;
+            projectId: string;
+            environment: string;
+            gameModeId: string;
+            regionKey: string;
+            matchSlots: Array<{ match: { id: string } }>;
+        },
+        overrideMatchId?: string | null,
+    ) {
         return {
             queueEntryId: queueEntry.id,
-            status: queueEntry.status.toLowerCase(),
+            status: (overrideMatchId ? QueueEntryStatus.MATCHED : queueEntry.status).toLowerCase(),
             poolKey: `${queueEntry.projectId}:${queueEntry.environment}:${queueEntry.gameModeId}:${queueEntry.regionKey}`,
             queuedAt: queueEntry.queuedAt,
-            matchId: queueEntry.matchSlots[0]?.match.id ?? null,
+            matchId: overrideMatchId ?? queueEntry.matchSlots[0]?.match.id ?? null,
         };
     }
 }

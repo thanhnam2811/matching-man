@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Shuffle, Swords, Trophy, Wifi } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,9 @@ type MatchSlot = { slotIndex: number; groupIndex: number; members: { playerId: s
 type MatchView = { id: string; at: number; slots: MatchSlot[] };
 type LogLine = { at: number; text: string };
 
+const MATCHED_BADGE_MS = 1700;
+const MATCHED_REMOVE_MS = 2000;
+
 export function DemoBoard({
     skillWindow,
 }: {
@@ -25,15 +29,32 @@ export function DemoBoard({
     const [mode, setMode] = React.useState<DemoMode>("skill");
     const [rating, setRating] = React.useState(1500);
     const [queued, setQueued] = React.useState<QueuedPlayer[]>([]);
+    const [matchedQueueEntryIds, setMatchedQueueEntryIds] = React.useState<Set<string>>(new Set());
+    const [leavingQueueEntryIds, setLeavingQueueEntryIds] = React.useState<Set<string>>(new Set());
     const [matches, setMatches] = React.useState<MatchView[]>([]);
     const [log, setLog] = React.useState<LogLine[]>([]);
     const [pending, setPending] = React.useState(false);
     const [server, setServer] = React.useState<ServerStatus>("checking");
     const [now, setNow] = React.useState(() => Date.now());
+    const [serverCheckStartedAt] = React.useState(() => Date.now());
 
     React.useEffect(() => {
         const id = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(id);
+    }, []);
+
+    // Mirrors `queued` synchronously so match-exit-animation timers can read the
+    // latest list without waiting for a re-render round trip.
+    const queuedRef = React.useRef<QueuedPlayer[]>([]);
+    React.useEffect(() => {
+        queuedRef.current = queued;
+    }, [queued]);
+
+    const timersRef = React.useRef<number[]>([]);
+    React.useEffect(() => {
+        return () => {
+            timersRef.current.forEach((id) => window.clearTimeout(id));
+        };
     }, []);
 
     // Warm the free-tier server on mount and reflect its state, so the first
@@ -83,6 +104,51 @@ export function DemoBoard({
         setLog((lines) => [{ at: Date.now(), text }, ...lines].slice(0, 40));
     }, []);
 
+    // A match keeps its two queue entries visible with a "Matched!" badge for a
+    // beat before they fade out, instead of vanishing from the queue instantly.
+    const applyMatch = React.useCallback(
+        (match: { id: string; slots: MatchSlot[] }, selfEntry?: { queueEntryId: string; playerId: string }) => {
+            const matchedPlayerIds = new Set(match.slots.flatMap((slot) => slot.members.map((m) => m.playerId)));
+
+            const idsToAnimate = new Set<string>();
+            for (const player of queuedRef.current) {
+                if (matchedPlayerIds.has(player.playerId)) idsToAnimate.add(player.queueEntryId);
+            }
+            if (selfEntry && matchedPlayerIds.has(selfEntry.playerId)) {
+                idsToAnimate.add(selfEntry.queueEntryId);
+            }
+
+            setMatches((list) => [{ id: match.id, at: Date.now(), slots: match.slots }, ...list].slice(0, 12));
+            addLog(`★ match.created · ${[...matchedPlayerIds].join(" vs ")}`);
+            toast({ title: "Match created", description: [...matchedPlayerIds].join("  vs  "), variant: "success" });
+
+            if (idsToAnimate.size === 0) return;
+
+            setMatchedQueueEntryIds((prev) => new Set([...prev, ...idsToAnimate]));
+
+            const badgeTimer = window.setTimeout(() => {
+                setLeavingQueueEntryIds((prev) => new Set([...prev, ...idsToAnimate]));
+            }, MATCHED_BADGE_MS);
+
+            const removeTimer = window.setTimeout(() => {
+                setQueued((list) => list.filter((player) => !idsToAnimate.has(player.queueEntryId)));
+                setMatchedQueueEntryIds((prev) => {
+                    const next = new Set(prev);
+                    idsToAnimate.forEach((id) => next.delete(id));
+                    return next;
+                });
+                setLeavingQueueEntryIds((prev) => {
+                    const next = new Set(prev);
+                    idsToAnimate.forEach((id) => next.delete(id));
+                    return next;
+                });
+            }, MATCHED_REMOVE_MS);
+
+            timersRef.current.push(badgeTimer, removeTimer);
+        },
+        [addLog],
+    );
+
     const pollForMatch = React.useCallback(
         async (queueEntryId: string) => {
             const deadline = Date.now() + 15000;
@@ -103,18 +169,14 @@ export function DemoBoard({
                     if (pollCancelledRef.current || handledMatchIdsRef.current.has(match.id)) return;
                     handledMatchIdsRef.current.add(match.id);
 
-                    const matchedIds = new Set(match.slots.flatMap((slot) => slot.members.map((m) => m.playerId)));
-                    setQueued((list) => list.filter((player) => !matchedIds.has(player.playerId)));
-                    setMatches((list) => [{ id: match.id, at: Date.now(), slots: match.slots }, ...list].slice(0, 12));
-                    addLog(`★ match.created · ${[...matchedIds].join(" vs ")}`);
-                    toast({ title: "Match created", description: [...matchedIds].join("  vs  "), variant: "success" });
+                    applyMatch(match);
                     return;
                 } catch {
                     // transient network error - keep polling until the deadline
                 }
             }
         },
-        [addLog],
+        [applyMatch],
     );
 
     const effectiveWindow = React.useCallback(
@@ -171,36 +233,27 @@ export function DemoBoard({
             };
             addLog(`enqueued ${result.playerId} · ${result.rating}`);
 
+            // Reconcile the optimistic placeholder with the real queue entry.
+            setQueued((list) =>
+                list.map((player) =>
+                    player.queueEntryId === tempId
+                        ? {
+                              queueEntryId: result.queueEntryId,
+                              playerId: result.playerId,
+                              rating: result.rating,
+                              addedAt: player.addedAt,
+                          }
+                        : player,
+                ),
+            );
+
             if (result.matchId) {
                 const matchResponse = await fetch(`/api/demo/match?id=${result.matchId}`);
                 if (matchResponse.ok) {
                     const match = (await matchResponse.json()) as { id: string; slots: MatchSlot[] };
-                    const matchedIds = new Set(match.slots.flatMap((slot) => slot.members.map((m) => m.playerId)));
-                    setQueued((list) =>
-                        list.filter((player) => player.queueEntryId !== tempId && !matchedIds.has(player.playerId)),
-                    );
-                    setMatches((list) => [{ id: match.id, at: Date.now(), slots: match.slots }, ...list].slice(0, 12));
-                    addLog(`★ match.created · ${[...matchedIds].join(" vs ")}`);
-                    toast({ title: "Match created", description: [...matchedIds].join("  vs  "), variant: "success" });
-                } else {
-                    // Enqueue succeeded but the match read failed; drop the placeholder either way.
-                    setQueued((list) => list.filter((player) => player.queueEntryId !== tempId));
+                    applyMatch(match, { queueEntryId: result.queueEntryId, playerId: result.playerId });
                 }
             } else {
-                // Reconcile the optimistic placeholder with the real queue entry.
-                setQueued((list) =>
-                    list.map((player) =>
-                        player.queueEntryId === tempId
-                            ? {
-                                  queueEntryId: result.queueEntryId,
-                                  playerId: result.playerId,
-                                  rating: result.rating,
-                                  addedAt: player.addedAt,
-                              }
-                            : player,
-                    ),
-                );
-
                 // Matching runs in the background after enqueue responds — poll the
                 // queue entry endpoint to learn when this player has been matched.
                 pollForMatch(result.queueEntryId);
@@ -218,6 +271,8 @@ export function DemoBoard({
         setQueued([]);
         setMatches([]);
         setLog([]);
+        setMatchedQueueEntryIds(new Set());
+        setLeavingQueueEntryIds(new Set());
         if (ids.length > 0) {
             await fetch("/api/demo/reset", {
                 method: "POST",
@@ -237,7 +292,10 @@ export function DemoBoard({
 
     return (
         <div className="space-y-6">
-            <ServerBanner status={server} />
+            <ServerBanner
+                status={server}
+                elapsedSeconds={Math.max(0, Math.floor((now - serverCheckStartedAt) / 1000))}
+            />
 
             {/* Controls */}
             <Card>
@@ -270,27 +328,29 @@ export function DemoBoard({
                             <label htmlFor="rating" className="text-xs text-muted-foreground">
                                 Rating
                             </label>
-                            <Input
-                                id="rating"
-                                type="number"
-                                min={100}
-                                max={4000}
-                                value={rating}
-                                onChange={(event) => setRating(Number(event.target.value) || 0)}
-                                className="w-28"
-                            />
+                            <div className="relative">
+                                <Input
+                                    id="rating"
+                                    type="number"
+                                    min={100}
+                                    max={4000}
+                                    value={rating}
+                                    onChange={(event) => setRating(Number(event.target.value) || 0)}
+                                    className="w-32 pr-8"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setRating(800 + Math.floor(Math.random() * 1400))}
+                                    className="absolute inset-y-0 right-1 flex items-center rounded-sm px-1 text-muted-foreground transition-colors hover:text-foreground"
+                                    aria-label="Randomize rating"
+                                    title="Randomize rating"
+                                >
+                                    <Shuffle className="size-3.5" />
+                                </button>
+                            </div>
                         </div>
                         <Button onClick={() => addPlayer(rating)} loading={pending} disabled={!ready}>
-                            Add player
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => addPlayer(800 + Math.floor(Math.random() * 1400))}
-                            loading={pending}
-                            disabled={!ready}
-                        >
-                            <Shuffle className="size-4" />
-                            Add random
+                            {pending ? "Adding…" : "Add player"}
                         </Button>
                         <Button variant="ghost" onClick={reset} disabled={pending}>
                             Reset
@@ -312,12 +372,16 @@ export function DemoBoard({
                             <ul className="space-y-2">
                                 {queued.map((player) => {
                                     const waited = Math.max(0, Math.floor((now - player.addedAt) / 1000));
+                                    const matched = matchedQueueEntryIds.has(player.queueEntryId);
+                                    const leaving = leavingQueueEntryIds.has(player.queueEntryId);
                                     return (
                                         <li
                                             key={player.queueEntryId}
                                             className={cn(
-                                                "flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-opacity",
+                                                "flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-all duration-300",
                                                 player.syncing && "opacity-60",
+                                                matched && "border-success/50 bg-success/10",
+                                                leaving && "scale-95 opacity-0",
                                             )}
                                         >
                                             <span className="flex items-center gap-2">
@@ -327,7 +391,9 @@ export function DemoBoard({
                                                 <span className="font-mono">{player.rating}</span>
                                             </span>
                                             <span className="flex items-center gap-3 text-xs text-muted-foreground">
-                                                {player.syncing ? (
+                                                {matched ? (
+                                                    <Badge variant="success">Matched!</Badge>
+                                                ) : player.syncing ? (
                                                     <Spinner size="sm" />
                                                 ) : (
                                                     <>
@@ -357,7 +423,7 @@ export function DemoBoard({
                         ) : (
                             <ul className="space-y-3">
                                 {matches.map((match) => (
-                                    <li key={match.id} className="rounded-md border p-3">
+                                    <li key={match.id} className="animate-fade-in rounded-md border p-3">
                                         <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
                                             <Trophy className="size-3 text-success" />
                                             <span className="font-mono">{match.id.slice(0, 12)}…</span>
@@ -410,11 +476,11 @@ export function DemoBoard({
     );
 }
 
-function ServerBanner({ status }: { status: ServerStatus }) {
+function ServerBanner({ status, elapsedSeconds }: { status: ServerStatus; elapsedSeconds: number }) {
     if (status === "ready") return null;
     return (
         <div className="flex items-center gap-3 rounded-md border border-warning/40 bg-warning/5 px-4 py-3 text-sm">
-            <Spinner size="sm" className="text-warning" />
+            <Spinner size="lg" className="text-warning" />
             <span className="text-muted-foreground">
                 {status === "checking" ? (
                     <>Connecting to the demo server…</>
@@ -425,7 +491,10 @@ function ServerBanner({ status }: { status: ServerStatus }) {
                     </>
                 )}
             </span>
-            <Wifi className="ml-auto size-4 text-muted-foreground" />
+            <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                <Wifi className="size-4" />
+                {elapsedSeconds}s
+            </span>
         </div>
     );
 }

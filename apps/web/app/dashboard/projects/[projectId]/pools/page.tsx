@@ -1,53 +1,9 @@
 import { apiFetch, type Pool } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatDateTime } from "@/lib/utils";
+import { PoolsTable } from "@/components/pools-table";
 
 export default async function PoolsPage({ params }: { params: Promise<{ projectId: string }> }) {
     const { projectId } = await params;
     const pools = await apiFetch<Pool[]>(`/projects/${projectId}/pools`);
 
-    if (pools.length === 0) {
-        return (
-            <Card>
-                <CardContent className="py-12 text-center text-sm text-muted-foreground">No active pools.</CardContent>
-            </Card>
-        );
-    }
-
-    return (
-        <Card className="p-0">
-            <CardContent className="p-0">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Game mode</TableHead>
-                            <TableHead>Environment</TableHead>
-                            <TableHead>Region</TableHead>
-                            <TableHead className="text-right">Queued</TableHead>
-                            <TableHead>Created</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {pools.map((pool) => (
-                            <TableRow key={pool.id}>
-                                <TableCell className="font-mono text-xs">{pool.gameModeId}</TableCell>
-                                <TableCell>{pool.environment}</TableCell>
-                                <TableCell>{pool.regionKey}</TableCell>
-                                <TableCell className="text-right">
-                                    <Badge variant={pool.queuedCount > 0 ? "warning" : "secondary"}>
-                                        {pool.queuedCount}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-xs text-muted-foreground">
-                                    {formatDateTime(pool.createdAt)}
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-    );
+    return <PoolsTable projectId={projectId} fallback={pools} />;
 }

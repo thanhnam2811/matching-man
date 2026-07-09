@@ -1,18 +1,16 @@
+import { AuthShell } from "@/components/auth/auth-shell";
 import { LoginForm } from "@/components/login-form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function LoginPage() {
     return (
-        <main className="flex min-h-screen items-center justify-center p-4">
-            <Card className="w-full max-w-sm">
-                <CardHeader>
-                    <CardTitle className="text-lg">Matching Hub</CardTitle>
-                    <CardDescription>Sign in to manage your organizations and projects.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <LoginForm />
-                </CardContent>
-            </Card>
-        </main>
+        <AuthShell>
+            <div className="space-y-6">
+                <div className="space-y-1.5">
+                    <h1 className="text-xl font-semibold tracking-tight">Welcome back</h1>
+                    <p className="text-sm text-muted-foreground">Sign in to manage your organizations and projects.</p>
+                </div>
+                <LoginForm />
+            </div>
+        </AuthShell>
     );
 }

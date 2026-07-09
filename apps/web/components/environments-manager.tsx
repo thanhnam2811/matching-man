@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { createEnvironment, deleteEnvironment, type FormState } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Input } from "@/components/ui/input";
 
 type Environment = {
@@ -43,9 +44,7 @@ export function EnvironmentsManager({ projectId, environments }: { projectId: st
                                 <form action={deleteEnvironment}>
                                     <input type="hidden" name="projectId" value={projectId} />
                                     <input type="hidden" name="environmentId" value={environment.id} />
-                                    <Button type="submit" variant="ghost" size="sm">
-                                        Delete
-                                    </Button>
+                                    <ConfirmButton confirmLabel="Delete environment">Delete</ConfirmButton>
                                 </form>
                             )}
                         </li>

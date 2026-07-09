@@ -1,17 +1,10 @@
 import { cookies } from "next/headers";
+import { ApiError, NetworkError, TimeoutError } from "./api-errors";
 
 export const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:3000/v1";
 export const TOKEN_COOKIE = "dashboard_token";
 
-export class ApiError extends Error {
-    constructor(
-        readonly status: number,
-        message: string,
-    ) {
-        super(message);
-        this.name = "ApiError";
-    }
-}
+export { ApiError, NetworkError, TimeoutError } from "./api-errors";
 
 /**
  * Server-side fetch against the NestJS API. Reads the dashboard admin token
@@ -20,15 +13,26 @@ export class ApiError extends Error {
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     const token = (await cookies()).get(TOKEN_COOKIE)?.value;
 
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-        ...init,
-        headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...init?.headers,
-        },
-        cache: "no-store",
-    });
+    let response: Response;
+    try {
+        response = await fetch(`${API_BASE_URL}${path}`, {
+            ...init,
+            headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                ...init?.headers,
+            },
+            cache: "no-store",
+        });
+    } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+            throw new TimeoutError();
+        }
+        if (error instanceof TypeError) {
+            throw new NetworkError();
+        }
+        throw error;
+    }
 
     if (!response.ok) {
         const body = await response.text().catch(() => "");

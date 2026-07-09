@@ -7,6 +7,8 @@ import { Reveal } from "@/components/landing/reveal";
 import { HeroMatchmaking } from "@/components/landing/hero-matchmaking";
 import { CodeWindow } from "@/components/landing/code-window";
 import { Faq } from "@/components/landing/faq";
+import { SiteHeader } from "@/components/landing/site-header";
+import { MobileCtaBar } from "@/components/landing/mobile-cta-bar";
 
 export const metadata: Metadata = {
     title: "Matching Hub — Matchmaking infrastructure for your game",
@@ -90,29 +92,7 @@ X-Webhook-Signature: sha256=…
 export default function LandingPage() {
     return (
         <main className="flex min-h-screen flex-col">
-            <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-                <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6">
-                    <span className="flex items-center gap-2 font-semibold">
-                        <span className="inline-block size-2 rounded-full bg-success" />
-                        Matching Hub
-                    </span>
-                    <div className="flex items-center gap-2">
-                        <Link href="/demo">
-                            <Button variant="ghost" size="sm">
-                                Demo
-                            </Button>
-                        </Link>
-                        <Link href="/login">
-                            <Button variant="ghost" size="sm">
-                                Sign in
-                            </Button>
-                        </Link>
-                        <Link href="/register">
-                            <Button size="sm">Start free</Button>
-                        </Link>
-                    </div>
-                </div>
-            </header>
+            <SiteHeader />
 
             {/* Hero */}
             <section className="relative overflow-hidden border-b">
@@ -218,8 +198,8 @@ export default function LandingPage() {
 
             {/* Code */}
             <section className="mx-auto w-full max-w-6xl px-6 py-20">
-                <div className="grid items-start gap-10 lg:grid-cols-2">
-                    <Reveal>
+                <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2">
+                    <Reveal className="min-w-0">
                         <div className="lg:sticky lg:top-24">
                             <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
                                 One call in, one call out
@@ -236,11 +216,11 @@ export default function LandingPage() {
                             </Link>
                         </div>
                     </Reveal>
-                    <div className="space-y-4">
-                        <Reveal>
+                    <div className="min-w-0 space-y-4">
+                        <Reveal className="min-w-0">
                             <CodeWindow title="enqueue.sh" code={ENQUEUE_SNIPPET} />
                         </Reveal>
-                        <Reveal delayMs={80}>
+                        <Reveal delayMs={80} className="min-w-0">
                             <CodeWindow title="match.created" code={WEBHOOK_SNIPPET} />
                         </Reveal>
                     </div>
@@ -297,6 +277,10 @@ export default function LandingPage() {
                     <span>Multi-tenant · slot-based matches · internal Elo or external ratings</span>
                 </div>
             </footer>
+
+            {/* Spacer so the sticky mobile CTA never covers the footer. */}
+            <div aria-hidden className="h-16 sm:hidden" />
+            <MobileCtaBar />
         </main>
     );
 }

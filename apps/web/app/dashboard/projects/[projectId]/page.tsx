@@ -1,4 +1,5 @@
-import { apiFetch, type ApiKey, type Environment, type Webhook } from "@/lib/api";
+import { notFound } from "next/navigation";
+import { ApiError, apiFetch, type ApiKey, type Environment, type Webhook } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiKeysManager } from "@/components/api-keys-manager";
 import { EnvironmentsManager } from "@/components/environments-manager";
@@ -7,11 +8,21 @@ import { WebhooksManager } from "@/components/webhooks-manager";
 export default async function ProjectOverview({ params }: { params: Promise<{ projectId: string }> }) {
     const { projectId } = await params;
 
-    const [environments, apiKeys, webhooks] = await Promise.all([
-        apiFetch<Environment[]>(`/projects/${projectId}/environments`),
-        apiFetch<ApiKey[]>(`/projects/${projectId}/api-keys`),
-        apiFetch<Webhook[]>(`/projects/${projectId}/webhooks`),
-    ]);
+    let environments: Environment[];
+    let apiKeys: ApiKey[];
+    let webhooks: Webhook[];
+    try {
+        [environments, apiKeys, webhooks] = await Promise.all([
+            apiFetch<Environment[]>(`/projects/${projectId}/environments`),
+            apiFetch<ApiKey[]>(`/projects/${projectId}/api-keys`),
+            apiFetch<Webhook[]>(`/projects/${projectId}/webhooks`),
+        ]);
+    } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+            notFound();
+        }
+        throw error;
+    }
 
     return (
         <div className="grid gap-6 lg:grid-cols-2">

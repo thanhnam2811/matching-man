@@ -1,9 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
+import { KeyRound } from "lucide-react";
 import { type ApiKeyState, createApiKey, revokeApiKey } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-button";
+import { CopyButton } from "@/components/ui/copy-button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -25,7 +28,7 @@ export function ApiKeysManager({ projectId, apiKeys }: { projectId: string; apiK
             <form action={action} className="flex flex-col gap-2 sm:flex-row sm:items-start">
                 <input type="hidden" name="projectId" value={projectId} />
                 <Input name="name" placeholder="Key name (optional)" className="flex-1" />
-                <Button type="submit" disabled={pending}>
+                <Button type="submit" loading={pending}>
                     {pending ? "Creating…" : "New key"}
                 </Button>
             </form>
@@ -33,9 +36,18 @@ export function ApiKeysManager({ projectId, apiKeys }: { projectId: string; apiK
             {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
 
             {state.key ? (
-                <div className="rounded-md border border-success/40 bg-success/10 p-3">
-                    <p className="text-xs text-muted-foreground">Copy this key now — it will not be shown again.</p>
-                    <code className="mt-1 block break-all font-mono text-sm">{state.key}</code>
+                <div className="space-y-2 rounded-md border border-success/40 bg-success/10 p-3">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                        <KeyRound className="size-4 text-success" />
+                        New API key
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Copy it now — for security it won&apos;t be shown again.
+                    </p>
+                    <div className="flex items-center gap-2 rounded border bg-background px-2 py-1.5">
+                        <code className="flex-1 break-all font-mono text-xs">{state.key}</code>
+                        <CopyButton value={state.key} label="Copy API key" />
+                    </div>
                 </div>
             ) : null}
 
@@ -68,9 +80,7 @@ export function ApiKeysManager({ projectId, apiKeys }: { projectId: string; apiK
                                         <form action={revokeApiKey} className="inline">
                                             <input type="hidden" name="projectId" value={projectId} />
                                             <input type="hidden" name="apiKeyId" value={apiKey.id} />
-                                            <Button type="submit" variant="ghost" size="sm">
-                                                Revoke
-                                            </Button>
+                                            <ConfirmButton confirmLabel="Revoke key">Revoke</ConfirmButton>
                                         </form>
                                     )}
                                 </TableCell>

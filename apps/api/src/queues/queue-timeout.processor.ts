@@ -3,6 +3,7 @@ import { Cron } from "@nestjs/schedule";
 import { QueueEntryStatus } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { WebhookDeliveryService } from "../deliveries/deliveries.service";
+import { SCHEDULER_JOBS, SchedulerHealthService } from "../common/scheduler-health/scheduler-health.service";
 
 @Injectable()
 export class QueueTimeoutProcessor {
@@ -11,10 +12,13 @@ export class QueueTimeoutProcessor {
     constructor(
         private readonly prismaService: PrismaService,
         private readonly webhookDeliveryService: WebhookDeliveryService,
+        private readonly schedulerHealthService: SchedulerHealthService,
     ) {}
 
     @Cron("0 * * * * *")
     async processTimedOutEntries() {
+        this.schedulerHealthService.recordRun(SCHEDULER_JOBS.QUEUE_TIMEOUT);
+
         try {
             await this.scanAndTimeout();
         } catch (err) {

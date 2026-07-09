@@ -1,12 +1,13 @@
 import { Module } from "@nestjs/common";
 import { PrismaModule } from "../prisma/prisma.module";
+import { SchedulerHealthModule } from "../common/scheduler-health/scheduler-health.module";
 import { ProjectApiKeyGuard } from "../common/guards/project-api-key/project-api-key.guard";
 import { WebhookDeliveryService } from "./deliveries.service";
 import { WebhookRetryProcessor } from "./webhook-retry.processor";
 import { DeliveriesController } from "./deliveries.controller";
 
 @Module({
-    imports: [PrismaModule],
+    imports: [PrismaModule, SchedulerHealthModule],
     providers: [WebhookDeliveryService, WebhookRetryProcessor, ProjectApiKeyGuard],
     controllers: [DeliveriesController],
     exports: [WebhookDeliveryService],

@@ -66,6 +66,9 @@ Sizing is via Tailwind classes, not variant props (icons `size-4` / `size-3`).
 | `empty-state`                 | `EmptyState` — icon + title + description + optional action link, for lists with zero items                                        |
 | `error-display`               | `ErrorDisplay` (title + message + optional retry/back) and `parseError(error)` — used inside `error.tsx` boundaries                |
 | `not-found`                   | `NotFoundView` — icon + title + description + back link, for `notFound()` / `not-found.tsx` pages                                  |
+| `avatar`                      | `Avatar` circle (initials fallback via `initialsFrom`) — account affordance in the header                                          |
+| `dropdown-menu`               | Hand-rolled `DropdownMenu` (+ `DropdownItem/Label/Separator`); outside-click + Escape to close. No Radix. Used by `UserMenu`       |
+| `drawer`                      | Hand-rolled off-canvas `Drawer` (backdrop, slide, Escape + body-scroll lock, `md:hidden`) for mobile navigation                    |
 
 Domain helpers on top of primitives: `status-badge.tsx` maps a domain status to a badge
 variant (`StatusBadge`); `pagination.tsx` for list paging.
@@ -161,10 +164,39 @@ token to the browser. It renders a `Skeleton` pill while checking, then either t
 anonymous CTAs (Demo / Sign in / Start free) or a signed-in profile pill (email +
 Dashboard link + `LogoutButton`).
 
+### Mobile & responsive navigation
+
+Best practices this dashboard follows (Material navigation-drawer / top-app-bar patterns,
+Apple HIG, common SaaS-console conventions), tuned for a tenant-shaped hierarchy
+(Org → Project → resource). **`md` (768px) is the mobile/desktop divide.**
+
+- **Top app bar** (`app/dashboard/layout.tsx`): a sticky bar with — on mobile — a hamburger
+  (opens the drawer) + brand on the left and an **avatar menu** on the right; on desktop the
+  hamburger is hidden (`md:hidden`) since the inline tabs/cards already expose navigation.
+  This is _responsive disclosure_: one nav model, revealed differently per breakpoint. Don't
+  build a second, parallel desktop sidebar — desktop keeps the centered-content + tabs layout.
+- **Account = avatar menu** (`components/user-menu.tsx`): the email/sign-out controls live in
+  a `DropdownMenu` behind an `Avatar`, not spread across the bar. Menu holds name + email,
+  a Dashboard link, and Sign out. Same component across breakpoints.
+- **Navigation drawer** (`components/dashboard-mobile-nav.tsx`, mobile only): an off-canvas
+  `Drawer` opened from the hamburger. Its links are **context-aware** — derived from
+  `usePathname()` — so inside a project it lists that project's sections vertically (easy
+  tap targets), plus the always-present "Organizations" home and public links. It closes on
+  navigation, backdrop tap, and Escape.
+- **Sub-pages stay tabs** (`components/project-nav.tsx`): the project resource nav is a tab
+  row on every breakpoint, made **horizontally scrollable** (`overflow-x-auto`, no wrap) on
+  mobile so five tabs never wrap or clip. The drawer offers the same destinations as a
+  vertical fallback.
+- **Tables** already wrap in an `overflow-auto` container (`ui/table`), so wide rows scroll
+  within the card instead of breaking the page on narrow screens.
+
 ### No Radix → native, styled
 
 Use a native `<select>` styled with token classes for dropdowns. Prefer dedicated pages or
-inline forms over modals; there is no Dialog primitive.
+inline forms over content modals; there is no Dialog primitive. **Navigation overlays are the
+exception**: the `Drawer` (mobile nav) and `DropdownMenu` (account menu) are allowed, built
+hand-rolled from native elements + tokens (outside-click / Escape / backdrop, no Radix) — they
+carry navigation, not forms.
 
 ### Landing & demo (public surface)
 
@@ -191,7 +223,8 @@ inline forms over modals; there is no Dialog primitive.
   reads go through a same-origin `/api/*` route handler (SWR); mutations go through server
   actions.
 - Nest cards inside cards.
-- Add modals — prefer dedicated pages or inline forms.
+- Add content/form modals — prefer dedicated pages or inline forms. (Navigation overlays —
+  `Drawer`, `DropdownMenu` — are allowed; see Mobile & responsive navigation.)
 
 ## Build gotcha
 

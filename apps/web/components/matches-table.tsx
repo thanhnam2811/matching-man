@@ -1,0 +1,80 @@
+"use client";
+
+import useSWR from "swr";
+import type { MatchSummary, Paginated } from "@/lib/api";
+import { LIVE_REFRESH_MS } from "@/lib/swr";
+import { Card, CardContent } from "@/components/ui/card";
+import { Pagination } from "@/components/pagination";
+import { StatusBadge } from "@/components/status-badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatDateTime } from "@/lib/utils";
+
+export function MatchesTable({
+    projectId,
+    offset,
+    limit,
+    fallback,
+}: {
+    projectId: string;
+    offset: number;
+    limit: number;
+    fallback: Paginated<MatchSummary>;
+}) {
+    const { data } = useSWR<Paginated<MatchSummary>>(
+        `/api/projects/${projectId}/matches?limit=${limit}&offset=${offset}`,
+        { fallbackData: fallback, refreshInterval: LIVE_REFRESH_MS },
+    );
+    const result = data ?? fallback;
+
+    return (
+        <div className="space-y-4">
+            <Card className="p-0">
+                <CardContent className="p-0">
+                    {result.data.length === 0 ? (
+                        <p className="py-12 text-center text-sm text-muted-foreground">No matches.</p>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Match</TableHead>
+                                    <TableHead>Game mode</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Environment</TableHead>
+                                    <TableHead>Winner</TableHead>
+                                    <TableHead>Created</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {result.data.map((match) => (
+                                    <TableRow key={match.id}>
+                                        <TableCell className="font-mono text-xs">{match.id}</TableCell>
+                                        <TableCell className="font-mono text-xs">{match.gameModeId}</TableCell>
+                                        <TableCell>
+                                            <StatusBadge status={match.status} />
+                                        </TableCell>
+                                        <TableCell>{match.environment}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">
+                                            {match.result?.winnerGroupIndex != null
+                                                ? `group ${match.result.winnerGroupIndex}`
+                                                : "—"}
+                                        </TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">
+                                            {formatDateTime(match.createdAt)}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Pagination
+                basePath={`/dashboard/projects/${projectId}/matches`}
+                offset={offset}
+                limit={limit}
+                total={result.total}
+            />
+        </div>
+    );
+}

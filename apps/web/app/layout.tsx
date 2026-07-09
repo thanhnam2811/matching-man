@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toast";
+import { SwrProvider } from "@/components/swr-provider";
 // eslint-disable-next-line import/no-unassigned-import -- global stylesheet side-effect import
 import "./globals.css";
 
@@ -15,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     return (
         <html lang="en" className={cn("dark", GeistSans.variable, GeistMono.variable)}>
             <body className="min-h-screen bg-background font-sans antialiased">
-                {children}
+                <SwrProvider>{children}</SwrProvider>
                 <Toaster />
             </body>
         </html>

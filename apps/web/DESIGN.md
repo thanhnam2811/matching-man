@@ -81,8 +81,30 @@ Adding a primitive: copy the shadcn source shape, theme it with tokens only, dro
   `/dashboard/**` as described in the route map.
 - **Reads**: Server Components call `apiFetch<T>(path)` from `lib/api.ts`. It runs server-side,
   attaches the cookie token as a Bearer header, and uses `cache: "no-store"`. The token never
-  reaches the browser; there are no client-side `fetch`es to the API.
+  reaches the browser, and the browser never calls the API host directly.
 - Page props `params` and `searchParams` are Promises in Next 15 — `await` them.
+
+#### Live reads: SSR-first + SWR revalidation
+
+Operational list views that change over time (pools, matches, deliveries, ratings) stay
+fresh without a manual refresh, while keeping the token server-side:
+
+- The **Server Component page** still does the first fetch with `apiFetch` (fast first
+  paint, SSR, errors flow into `error.tsx`) and passes the result to a client
+  `*-table.tsx` component as `fallback`.
+- The client table calls `useSWR(key, { fallbackData: fallback, refreshInterval })`. SWR
+  shows the SSR data instantly, then revalidates on an interval / focus / reconnect —
+  stale-while-revalidate, no spinner flash. `SwrProvider` (mounted in the root layout)
+  sets the global fetcher (`jsonFetcher`) and defaults (`keepPreviousData`, dedupe).
+- The SWR `key` is a **same-origin proxy route handler** under
+  `app/api/projects/[projectId]/{pools,matches,deliveries,ratings}/route.ts`. Each is a
+  thin `proxyGet()` wrapper (`lib/proxy.ts`) that runs the same server-side `apiFetch`
+  and maps `ApiError`/network failures onto HTTP statuses. So the browser only ever
+  fetches our own routes — never the API host, never the token — the same rule the
+  `/api/demo/*` and `/api/session/*` handlers already follow.
+
+Config surfaces that only change on an explicit mutation (org/project overview) stay
+plain Server Components + `revalidatePath` — don't add SWR there.
 
 ### Mutations — always Next Server Actions
 
@@ -165,7 +187,9 @@ inline forms over modals; there is no Dialog primitive.
 
 - Add Radix, eslint, or any component library.
 - Use ad-hoc hex or Tailwind palette colors for surfaces.
-- Fetch the API from the client or expose any token to the browser.
+- Call the API host directly from the browser, or expose any token to the browser. Client
+  reads go through a same-origin `/api/*` route handler (SWR); mutations go through server
+  actions.
 - Nest cards inside cards.
 - Add modals — prefer dedicated pages or inline forms.
 

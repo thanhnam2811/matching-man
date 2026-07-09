@@ -50,6 +50,9 @@ class EnvironmentVariables {
     @IsInt()
     @Min(1)
     REQUEST_BODY_LIMIT_KB = 256;
+
+    @IsEnum(["fatal", "error", "warn", "info", "debug", "trace"])
+    LOG_LEVEL: "fatal" | "error" | "warn" | "info" | "debug" | "trace" = "info";
 }
 
 export function validateEnv(config: Record<string, unknown>) {

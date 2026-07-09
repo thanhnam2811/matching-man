@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { type FormState, inviteMember, removeMember, updateMemberRole } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Input } from "@/components/ui/input";
 
 type Member = {
@@ -81,9 +82,7 @@ export function MembersManager({
                                 <form action={removeMember}>
                                     <input type="hidden" name="organizationId" value={organizationId} />
                                     <input type="hidden" name="memberId" value={member.id} />
-                                    <Button type="submit" variant="ghost" size="sm">
-                                        Remove
-                                    </Button>
+                                    <ConfirmButton confirmLabel="Remove member">Remove</ConfirmButton>
                                 </form>
                             </div>
                         ) : (

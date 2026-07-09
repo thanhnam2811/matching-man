@@ -1,9 +1,11 @@
 "use client";
 
 import useSWR from "swr";
+import { Webhook } from "lucide-react";
 import type { Delivery, Paginated } from "@/lib/api";
 import { LIVE_REFRESH_MS } from "@/lib/swr";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/pagination";
 import { StatusBadge } from "@/components/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -31,7 +33,11 @@ export function DeliveriesTable({
             <Card className="p-0">
                 <CardContent className="p-0">
                     {result.data.length === 0 ? (
-                        <p className="py-12 text-center text-sm text-muted-foreground">No webhook deliveries.</p>
+                        <EmptyState
+                            icon={Webhook}
+                            title="No webhook deliveries yet"
+                            description="Every event sent to your endpoints will be logged here with its status."
+                        />
                     ) : (
                         <Table>
                             <TableHeader>

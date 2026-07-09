@@ -1,9 +1,12 @@
 "use client";
 
 import useSWR from "swr";
+import { Swords } from "lucide-react";
 import type { MatchSummary, Paginated } from "@/lib/api";
 import { LIVE_REFRESH_MS } from "@/lib/swr";
 import { Card, CardContent } from "@/components/ui/card";
+import { CopyButton } from "@/components/ui/copy-button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/pagination";
 import { StatusBadge } from "@/components/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -31,7 +34,11 @@ export function MatchesTable({
             <Card className="p-0">
                 <CardContent className="p-0">
                     {result.data.length === 0 ? (
-                        <p className="py-12 text-center text-sm text-muted-foreground">No matches.</p>
+                        <EmptyState
+                            icon={Swords}
+                            title="No matches yet"
+                            description="Matches appear here as the engine pairs queued teams."
+                        />
                     ) : (
                         <Table>
                             <TableHeader>
@@ -47,7 +54,12 @@ export function MatchesTable({
                             <TableBody>
                                 {result.data.map((match) => (
                                     <TableRow key={match.id}>
-                                        <TableCell className="font-mono text-xs">{match.id}</TableCell>
+                                        <TableCell className="font-mono text-xs">
+                                            <span className="inline-flex items-center gap-1">
+                                                {match.id}
+                                                <CopyButton value={match.id} label="Copy match ID" />
+                                            </span>
+                                        </TableCell>
                                         <TableCell className="font-mono text-xs">{match.gameModeId}</TableCell>
                                         <TableCell>
                                             <StatusBadge status={match.status} />

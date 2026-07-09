@@ -4,6 +4,8 @@ import { useActionState } from "react";
 import { type ApiKeyState, createApiKey, revokeApiKey } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-button";
+import { CopyButton } from "@/components/ui/copy-button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -35,7 +37,10 @@ export function ApiKeysManager({ projectId, apiKeys }: { projectId: string; apiK
             {state.key ? (
                 <div className="rounded-md border border-success/40 bg-success/10 p-3">
                     <p className="text-xs text-muted-foreground">Copy this key now — it will not be shown again.</p>
-                    <code className="mt-1 block break-all font-mono text-sm">{state.key}</code>
+                    <div className="mt-1 flex items-start gap-2">
+                        <code className="block flex-1 break-all font-mono text-sm">{state.key}</code>
+                        <CopyButton value={state.key} label="Copy API key" />
+                    </div>
                 </div>
             ) : null}
 
@@ -68,9 +73,7 @@ export function ApiKeysManager({ projectId, apiKeys }: { projectId: string; apiK
                                         <form action={revokeApiKey} className="inline">
                                             <input type="hidden" name="projectId" value={projectId} />
                                             <input type="hidden" name="apiKeyId" value={apiKey.id} />
-                                            <Button type="submit" variant="ghost" size="sm">
-                                                Revoke
-                                            </Button>
+                                            <ConfirmButton confirmLabel="Revoke key">Revoke</ConfirmButton>
                                         </form>
                                     )}
                                 </TableCell>

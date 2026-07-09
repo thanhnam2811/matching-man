@@ -4,6 +4,8 @@ import { useActionState } from "react";
 import { createWebhook, deleteWebhook, type FormState, setWebhookActive } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-button";
+import { CopyButton } from "@/components/ui/copy-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -53,7 +55,10 @@ export function WebhooksManager({ projectId, webhooks }: { projectId: string; we
                     {webhooks.map((webhook) => (
                         <li key={webhook.id} className="flex items-center justify-between gap-3 py-3">
                             <div className="min-w-0">
-                                <p className="truncate font-mono text-xs">{webhook.url}</p>
+                                <p className="flex items-center gap-1.5">
+                                    <span className="truncate font-mono text-xs">{webhook.url}</span>
+                                    <CopyButton value={webhook.url} label="Copy endpoint URL" />
+                                </p>
                                 <p className="truncate text-xs text-muted-foreground">{webhook.events.join(", ")}</p>
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
@@ -71,9 +76,7 @@ export function WebhooksManager({ projectId, webhooks }: { projectId: string; we
                                 <form action={deleteWebhook}>
                                     <input type="hidden" name="projectId" value={projectId} />
                                     <input type="hidden" name="webhookId" value={webhook.id} />
-                                    <Button type="submit" variant="ghost" size="sm">
-                                        Delete
-                                    </Button>
+                                    <ConfirmButton confirmLabel="Delete webhook">Delete</ConfirmButton>
                                 </form>
                             </div>
                         </li>

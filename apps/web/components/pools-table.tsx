@@ -1,10 +1,12 @@
 "use client";
 
 import useSWR from "swr";
+import { Layers } from "lucide-react";
 import type { Pool } from "@/lib/api";
 import { LIVE_REFRESH_MS } from "@/lib/swr";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTime } from "@/lib/utils";
 
@@ -18,7 +20,13 @@ export function PoolsTable({ projectId, fallback }: { projectId: string; fallbac
     if (pools.length === 0) {
         return (
             <Card>
-                <CardContent className="py-12 text-center text-sm text-muted-foreground">No active pools.</CardContent>
+                <CardContent className="p-0">
+                    <EmptyState
+                        icon={Layers}
+                        title="No active pools"
+                        description="Pools show up here once teams start queuing for a game mode."
+                    />
+                </CardContent>
             </Card>
         );
     }

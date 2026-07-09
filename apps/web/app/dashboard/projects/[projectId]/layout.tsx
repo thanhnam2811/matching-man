@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ApiError, apiFetch, type Project } from "@/lib/api";
+import { CopyButton } from "@/components/ui/copy-button";
 import { ProjectNav } from "@/components/project-nav";
 
 export default async function ProjectLayout({
@@ -34,7 +35,10 @@ export default async function ProjectLayout({
                     {project.organization.name}
                 </Link>
                 <h1 className="text-2xl font-semibold tracking-tight">{project.name}</h1>
-                <p className="font-mono text-xs text-muted-foreground">{project.id}</p>
+                <span className="inline-flex items-center gap-1">
+                    <span className="font-mono text-xs text-muted-foreground">{project.id}</span>
+                    <CopyButton value={project.id} label="Copy project ID" />
+                </span>
             </div>
 
             <ProjectNav projectId={projectId} />

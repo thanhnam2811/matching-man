@@ -1,9 +1,11 @@
 "use client";
 
 import useSWR from "swr";
+import { TrendingUp } from "lucide-react";
 import type { Paginated, RatingHistoryEntry } from "@/lib/api";
 import { LIVE_REFRESH_MS } from "@/lib/swr";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn, formatDateTime } from "@/lib/utils";
@@ -30,9 +32,11 @@ export function RatingsTable({
             <Card className="p-0">
                 <CardContent className="p-0">
                     {result.data.length === 0 ? (
-                        <p className="py-12 text-center text-sm text-muted-foreground">
-                            No rating history. Internal Elo must be enabled for a game mode.
-                        </p>
+                        <EmptyState
+                            icon={TrendingUp}
+                            title="No rating history yet"
+                            description="Enable internal Elo for a game mode to start recording rating changes."
+                        />
                     ) : (
                         <Table>
                             <TableHeader>

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { Building2, ChevronRight } from "lucide-react";
 import { apiFetch, type OrganizationSummary } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 
 export default async function DashboardHome() {
@@ -22,8 +23,12 @@ export default async function DashboardHome() {
 
             {organizations.length === 0 ? (
                 <Card>
-                    <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                        No organizations yet.
+                    <CardContent className="p-0">
+                        <EmptyState
+                            icon={Building2}
+                            title="No organizations yet"
+                            description="Create your first organization above to start adding projects."
+                        />
                     </CardContent>
                 </Card>
             ) : (

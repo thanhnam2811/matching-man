@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Boxes, ChevronRight } from "lucide-react";
 import { ApiError, apiFetch, getCurrentUser, type OrganizationDetail, type OrganizationMember } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { CreateProjectForm } from "@/components/create-project-form";
 import { MembersManager } from "@/components/members-manager";
 import { formatDateTime } from "@/lib/utils";
@@ -57,8 +58,12 @@ export default async function OrganizationPage({ params }: { params: Promise<{ o
                 <h2 className="text-sm font-medium text-muted-foreground">Projects</h2>
                 {organization.projects.length === 0 ? (
                     <Card>
-                        <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                            No projects yet.
+                        <CardContent className="p-0">
+                            <EmptyState
+                                icon={Boxes}
+                                title="No projects yet"
+                                description="Create a project above to configure environments, keys, and webhooks."
+                            />
                         </CardContent>
                     </Card>
                 ) : (

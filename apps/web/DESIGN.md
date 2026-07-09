@@ -74,6 +74,8 @@ Sizing is via Tailwind classes, not variant props (icons `size-4` / `size-3`).
 | `avatar`                      | `Avatar` circle (initials fallback via `initialsFrom`) — account affordance in the header                                          |
 | `dropdown-menu`               | Hand-rolled `DropdownMenu` (+ `DropdownItem/Label/Separator`); outside-click + Escape to close. No Radix. Used by `UserMenu`       |
 | `drawer`                      | Hand-rolled off-canvas `Drawer` (backdrop, slide, Escape + body-scroll lock, `md:hidden`) for mobile navigation                    |
+| `copy-button`                 | `CopyButton` — clipboard icon button for mono values (project/match IDs, keys, webhook URLs); shows a check for ~1.5s              |
+| `confirm-button`              | `ConfirmButton` — inline two-step confirm for destructive form submits (arms → destructive `type="submit"` + Cancel), no modal     |
 
 Domain helpers on top of primitives: `status-badge.tsx` maps a domain status to a badge
 variant (`StatusBadge`); `pagination.tsx` for list paging.

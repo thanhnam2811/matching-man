@@ -68,9 +68,54 @@ export function DemoBoard({
         };
     }, []);
 
+    // Matching now runs in the background after enqueue responds, so polling
+    // loops can outlive the component (unmount mid-poll) and two different
+    // players' loops can independently discover the same match.
+    const pollCancelledRef = React.useRef(false);
+    const handledMatchIdsRef = React.useRef(new Set<string>());
+    React.useEffect(() => {
+        return () => {
+            pollCancelledRef.current = true;
+        };
+    }, []);
+
     const addLog = React.useCallback((text: string) => {
         setLog((lines) => [{ at: Date.now(), text }, ...lines].slice(0, 40));
     }, []);
+
+    const pollForMatch = React.useCallback(
+        async (queueEntryId: string) => {
+            const deadline = Date.now() + 15000;
+
+            while (Date.now() < deadline && !pollCancelledRef.current) {
+                await new Promise((resolve) => setTimeout(resolve, 400));
+                if (pollCancelledRef.current) return;
+
+                try {
+                    const entryResponse = await fetch(`/api/demo/queue-entry?id=${queueEntryId}`);
+                    if (!entryResponse.ok) continue;
+                    const entry = (await entryResponse.json()) as { matchId: string | null };
+                    if (!entry.matchId || handledMatchIdsRef.current.has(entry.matchId)) continue;
+
+                    const matchResponse = await fetch(`/api/demo/match?id=${entry.matchId}`);
+                    if (!matchResponse.ok) return;
+                    const match = (await matchResponse.json()) as { id: string; slots: MatchSlot[] };
+                    if (pollCancelledRef.current || handledMatchIdsRef.current.has(match.id)) return;
+                    handledMatchIdsRef.current.add(match.id);
+
+                    const matchedIds = new Set(match.slots.flatMap((slot) => slot.members.map((m) => m.playerId)));
+                    setQueued((list) => list.filter((player) => !matchedIds.has(player.playerId)));
+                    setMatches((list) => [{ id: match.id, at: Date.now(), slots: match.slots }, ...list].slice(0, 12));
+                    addLog(`★ match.created · ${[...matchedIds].join(" vs ")}`);
+                    toast({ title: "Match created", description: [...matchedIds].join("  vs  "), variant: "success" });
+                    return;
+                } catch {
+                    // transient network error - keep polling until the deadline
+                }
+            }
+        },
+        [addLog],
+    );
 
     const effectiveWindow = React.useCallback(
         (addedAt: number) => {
@@ -155,6 +200,10 @@ export function DemoBoard({
                             : player,
                     ),
                 );
+
+                // Matching runs in the background after enqueue responds — poll the
+                // queue entry endpoint to learn when this player has been matched.
+                pollForMatch(result.queueEntryId);
             }
         } catch {
             setQueued((list) => list.filter((player) => player.queueEntryId !== tempId));

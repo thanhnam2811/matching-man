@@ -2,10 +2,17 @@ import { SchedulerHealthService } from "../common/scheduler-health/scheduler-hea
 import { PrismaService } from "../prisma/prisma.service";
 import { HealthService } from "./health.service";
 
-function buildService(database: boolean, webhookRetry: string, queueTimeout: string) {
+function buildService(database: boolean, webhookRetry: string, queueTimeout: string, matchMakerSweep?: string) {
     const prismaService = { isHealthy: jest.fn().mockResolvedValue(database) } as unknown as PrismaService;
     const schedulerHealthService = {
-        getStatus: jest.fn((job: string) => (job === "webhook-retry" ? webhookRetry : queueTimeout)),
+        getStatus: jest.fn(
+            (job: string) =>
+                ({
+                    "webhook-retry": webhookRetry,
+                    "queue-timeout": queueTimeout,
+                    "match-maker-sweep": matchMakerSweep ?? "pending",
+                })[job] ?? queueTimeout,
+        ),
     } as unknown as SchedulerHealthService;
 
     return new HealthService(prismaService, schedulerHealthService);
@@ -20,7 +27,7 @@ describe("HealthService", () => {
         expect(health.status).toBe("ok");
         expect(health.checks).toEqual({
             database: "up",
-            scheduler: { webhookRetry: "up", queueTimeout: "pending" },
+            scheduler: { webhookRetry: "up", queueTimeout: "pending", matchMakerSweep: "pending" },
         });
     });
 

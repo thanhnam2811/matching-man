@@ -8,10 +8,11 @@ import { GameModesModule } from "../game-modes/game-modes.module";
 import { ProjectsModule } from "../projects/projects.module";
 import { DeliveriesModule } from "../deliveries/deliveries.module";
 import { QueueTimeoutProcessor } from "./queue-timeout.processor";
+import { MatchMakerSweepProcessor } from "./match-maker-sweep.processor";
 
 @Module({
     imports: [PrismaModule, GameModesModule, ProjectsModule, DeliveriesModule, SchedulerHealthModule],
-    providers: [QueuesService, QueueTimeoutProcessor, ProjectApiKeyGuard],
+    providers: [QueuesService, QueueTimeoutProcessor, MatchMakerSweepProcessor, ProjectApiKeyGuard],
     controllers: [QueuesController],
     exports: [QueuesService],
 })

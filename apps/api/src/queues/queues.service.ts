@@ -1,4 +1,5 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { createId } from "@paralleldrive/cuid2";
 import { MatchStatus, MatchStructure, Prisma, QueueEntryStatus, RatingMode } from "../generated/prisma/client";
 import { GameModesService } from "../game-modes/game-modes.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -7,8 +8,26 @@ import { WebhookDeliveryService } from "../deliveries/deliveries.service";
 import { DequeueDto } from "./dto/dequeue.dto";
 import { EnqueueDto } from "./dto/enqueue.dto";
 
+type MatchPoolContext = {
+    poolId: string;
+    projectId: string;
+    environment: string;
+    regionKey: string;
+    gameModeId: string;
+    ratingMode: RatingMode;
+    requiredSlots: number;
+    groupCount: number;
+    matchStructure: MatchStructure;
+    initialRatingWindow: number | null;
+    windowExpandIntervalSeconds: number | null;
+    windowExpandStep: number | null;
+    environmentConfigured: boolean;
+};
+
 @Injectable()
 export class QueuesService {
+    private readonly logger = new Logger(QueuesService.name);
+
     constructor(
         private readonly prismaService: PrismaService,
         private readonly gameModesService: GameModesService,
@@ -52,69 +71,30 @@ export class QueuesService {
 
         const regionKey = enqueueDto.region?.trim() || "global";
 
-        const queueEntry = await this.prismaService.client.$transaction(async (tx) => {
-            const pool = await tx.matchPool.upsert({
-                where: {
-                    projectId_gameModeId_environment_regionKey: {
-                        projectId: authProjectId,
-                        gameModeId: gameMode.id,
-                        environment,
-                        regionKey,
-                    },
-                },
-                update: {},
-                create: {
-                    projectId: authProjectId,
-                    gameModeId: gameMode.id,
-                    environment,
-                    regionKey,
-                },
-            });
+        const inserted = await this.insertQueueEntry(authProjectId, gameMode, environment, regionKey, enqueueDto);
 
-            const team = enqueueDto.team.externalTeamId
-                ? await this.upsertExternalTeam(
-                      tx,
-                      authProjectId,
-                      enqueueDto.team.externalTeamId,
-                      enqueueDto.team.members,
-                  )
-                : await this.createAnonymousTeam(tx, authProjectId, enqueueDto.team.members);
-
-            return tx.queueEntry.create({
-                data: {
-                    projectId: authProjectId,
-                    gameModeId: gameMode.id,
-                    matchPoolId: pool.id,
-                    teamId: team.id,
-                    environment,
-                    regionKey,
-                    idempotencyKey: enqueueDto.idempotencyKey,
-                    ratingMode: gameMode.ratingMode,
-                    metadata: enqueueDto.metadata ? (enqueueDto.metadata as Prisma.InputJsonValue) : undefined,
-                },
-                include: {
-                    matchSlots: {
-                        include: {
-                            match: true,
-                        },
-                    },
-                },
-            });
+        // Fire-and-forget: match-making runs in the background after the response is
+        // sent so the client isn't blocked on it. Must never throw unhandled - an
+        // un-awaited rejected promise with no catch crashes the process. A periodic
+        // sweep (MatchMakerSweepProcessor) is the safety net if this attempt is lost
+        // (e.g. process restart between the response and this completing).
+        void this.dispatchMatchMakingAsync(
+            inserted.matchPoolId,
+            authProjectId,
+            gameMode.id,
+            environment,
+            regionKey,
+        ).catch((error: unknown) => {
+            this.logger.error(`Background match-making failed for pool ${inserted.matchPoolId}`, error);
         });
 
-        const matchId = await this.tryCreateMatch(queueEntry.matchPoolId);
-
-        if (matchId) {
-            await this.webhookDeliveryService.scheduleDelivery(authProjectId, "match.created", {
-                event: "match.created",
-                matchId,
-                gameModeId: gameMode.id,
-                environment,
-                regionKey,
-            });
-        }
-
-        return this.toQueueResponse(queueEntry, matchId);
+        return {
+            queueEntryId: inserted.queueEntryId,
+            status: QueueEntryStatus.QUEUED.toLowerCase(),
+            poolKey: `${authProjectId}:${environment}:${gameMode.id}:${regionKey}`,
+            queuedAt: inserted.queuedAt,
+            matchId: null as string | null,
+        };
     }
 
     async dequeue(authProjectId: string, dequeueDto: DequeueDto) {
@@ -175,6 +155,28 @@ export class QueuesService {
         };
     }
 
+    async getQueueEntry(projectId: string, queueEntryId: string) {
+        const queueEntry = await this.prismaService.client.queueEntry.findFirst({
+            where: {
+                id: queueEntryId,
+                projectId,
+            },
+            include: {
+                matchSlots: {
+                    include: {
+                        match: true,
+                    },
+                },
+            },
+        });
+
+        if (!queueEntry) {
+            throw new NotFoundException("Queue entry not found");
+        }
+
+        return this.toQueueResponse(queueEntry);
+    }
+
     async listPools(projectId: string) {
         const pools = await this.prismaService.client.matchPool.findMany({
             where: { projectId },
@@ -198,27 +200,143 @@ export class QueuesService {
         }));
     }
 
-    private async tryCreateMatch(matchPoolId: string) {
+    /**
+     * Collapses the pool upsert + team upsert/replace + queue entry insert into a
+     * single round-trip via CTE-chained raw SQL (a plain statement is already
+     * atomic in Postgres, so no explicit $transaction wrapper is needed here).
+     */
+    private async insertQueueEntry(
+        projectId: string,
+        gameMode: { id: string; ratingMode: RatingMode },
+        environment: string,
+        regionKey: string,
+        enqueueDto: EnqueueDto,
+    ) {
+        const poolId = createId();
+        const teamId = createId();
+        const entryId = createId();
+        const externalTeamId = enqueueDto.team.externalTeamId ?? null;
+        const memberPlayerIds = enqueueDto.team.members.map((member) => member.playerId);
+        const metadataJson = enqueueDto.metadata !== undefined ? JSON.stringify(enqueueDto.metadata) : null;
+
+        const memberValues = Prisma.join(
+            enqueueDto.team.members.map(
+                (member) =>
+                    Prisma.sql`(${createId()}, (SELECT id FROM team), ${member.playerId}, ${member.rating ?? null}, now())`,
+            ),
+        );
+
+        const rows = await this.prismaService.client.$queryRaw<
+            Array<{ queueEntryId: string; queuedAt: Date; matchPoolId: string; teamId: string }>
+        >(Prisma.sql`
+            WITH pool AS (
+                INSERT INTO match_pools (id, project_id, game_mode_id, environment, region_key, created_at, updated_at)
+                VALUES (${poolId}, ${projectId}, ${gameMode.id}, ${environment}, ${regionKey}, now(), now())
+                ON CONFLICT (project_id, game_mode_id, environment, region_key)
+                DO UPDATE SET updated_at = match_pools.updated_at
+                RETURNING id
+            ),
+            team AS (
+                INSERT INTO teams (id, project_id, external_team_id, created_at, updated_at)
+                VALUES (${teamId}, ${projectId}, ${externalTeamId}, now(), now())
+                ON CONFLICT (project_id, external_team_id) DO UPDATE SET updated_at = teams.updated_at
+                RETURNING id
+            ),
+            deleted_stale AS (
+                -- Preserves upsertExternalTeam's old exact-replace semantics: members
+                -- absent from this enqueue's payload are dropped from the team.
+                DELETE FROM team_members
+                WHERE team_id = (SELECT id FROM team)
+                  AND player_id NOT IN (${Prisma.join(memberPlayerIds)})
+                RETURNING id
+            ),
+            members AS (
+                INSERT INTO team_members (id, team_id, player_id, rating_snapshot, created_at)
+                VALUES ${memberValues}
+                ON CONFLICT (team_id, player_id) DO UPDATE SET rating_snapshot = EXCLUDED.rating_snapshot
+                RETURNING team_id
+            ),
+            entry AS (
+                INSERT INTO queue_entries
+                    (id, project_id, game_mode_id, match_pool_id, team_id, environment, region_key,
+                     idempotency_key, rating_mode, status, metadata, queued_at, created_at, updated_at)
+                VALUES (
+                    ${entryId}, ${projectId}, ${gameMode.id}, (SELECT id FROM pool), (SELECT id FROM team),
+                    ${environment}, ${regionKey}, ${enqueueDto.idempotencyKey ?? null}, ${gameMode.ratingMode},
+                    ${QueueEntryStatus.QUEUED}, ${metadataJson}::jsonb, now(), now(), now()
+                )
+                RETURNING id, queued_at
+            )
+            SELECT
+                entry.id AS "queueEntryId",
+                entry.queued_at AS "queuedAt",
+                pool.id AS "matchPoolId",
+                team.id AS "teamId",
+                (SELECT count(*) FROM deleted_stale) AS "deletedStaleCount",
+                (SELECT count(*) FROM members) AS "memberCount"
+            FROM entry, pool, team
+        `);
+
+        return rows[0];
+    }
+
+    private async dispatchMatchMakingAsync(
+        matchPoolId: string,
+        projectId: string,
+        gameModeId: string,
+        environment: string,
+        regionKey: string,
+    ) {
+        const matchId = await this.tryCreateMatch(matchPoolId);
+
+        if (matchId) {
+            await this.scheduleMatchCreatedWebhook(projectId, matchId, gameModeId, environment, regionKey);
+        }
+    }
+
+    async scheduleMatchCreatedWebhook(
+        projectId: string,
+        matchId: string,
+        gameModeId: string,
+        environment: string,
+        regionKey: string,
+    ) {
+        await this.webhookDeliveryService.scheduleDelivery(projectId, "match.created", {
+            event: "match.created",
+            matchId,
+            gameModeId,
+            environment,
+            regionKey,
+        });
+    }
+
+    /**
+     * Called both from the fire-and-forget path right after enqueue and from
+     * MatchMakerSweepProcessor's periodic safety-net scan - must be independently
+     * callable given only a matchPoolId (no live request context to lean on).
+     */
+    async tryCreateMatch(matchPoolId: string): Promise<string | null> {
         return this.prismaService.client.$transaction(async (tx) => {
-            const pool = await tx.matchPool.findUnique({
-                where: {
-                    id: matchPoolId,
-                },
-                include: {
-                    gameMode: true,
-                },
-            });
+            const poolRows = await tx.$queryRaw<Array<MatchPoolContext>>(Prisma.sql`
+                SELECT
+                    mp.id AS "poolId", mp.project_id AS "projectId", mp.environment, mp.region_key AS "regionKey",
+                    mp.game_mode_id AS "gameModeId",
+                    gm.rating_mode AS "ratingMode", gm.required_slots AS "requiredSlots", gm.group_count AS "groupCount",
+                    gm.match_structure AS "matchStructure",
+                    gm.initial_rating_window AS "initialRatingWindow",
+                    gm.window_expand_interval_seconds AS "windowExpandIntervalSeconds",
+                    gm.window_expand_step AS "windowExpandStep",
+                    (pe.id IS NOT NULL) AS "environmentConfigured"
+                FROM match_pools mp
+                JOIN game_modes gm ON gm.id = mp.game_mode_id
+                LEFT JOIN project_environments pe
+                    ON pe.project_id = mp.project_id AND pe.name = mp.environment
+                WHERE mp.id = ${matchPoolId}
+            `);
 
-            if (!pool) {
-                return null;
-            }
+            const pool = poolRows[0];
 
-            const isConfiguredEnvironment = await this.projectEnvironmentsService.isConfigured(
-                pool.projectId,
-                pool.environment,
-            );
-
-            if (!isConfiguredEnvironment) {
+            if (!pool || !pool.environmentConfigured) {
                 return null;
             }
 
@@ -237,7 +355,7 @@ export class QueuesService {
             WHERE match_pool_id = ${matchPoolId}
               AND status = ${QueueEntryStatus.QUEUED}
             ORDER BY queued_at ASC, id ASC
-            LIMIT ${Math.max(pool.gameMode.requiredSlots * 4, pool.gameMode.requiredSlots)}
+            LIMIT ${Math.max(pool.requiredSlots * 4, pool.requiredSlots)}
             FOR UPDATE SKIP LOCKED
           )
           SELECT
@@ -258,7 +376,7 @@ export class QueuesService {
         `,
             );
 
-            if (lockedRows.length < pool.gameMode.requiredSlots) {
+            if (lockedRows.length < pool.requiredSlots) {
                 return null;
             }
 
@@ -269,60 +387,57 @@ export class QueuesService {
                 team: { members: row.members },
             }));
 
-            const queueEntries = this.selectCandidateQueueEntries(candidateEntries, pool.gameMode);
+            const queueEntries = this.selectCandidateQueueEntries(candidateEntries, pool);
 
-            if (queueEntries.length < pool.gameMode.requiredSlots) {
+            if (queueEntries.length < pool.requiredSlots) {
                 return null;
             }
 
-            const queueEntryIds = queueEntries.map((queueEntry) => queueEntry.id);
+            const matchId = createId();
 
-            const match = await tx.match.create({
-                data: {
-                    projectId: pool.projectId,
-                    gameModeId: pool.gameModeId,
-                    matchPoolId: pool.id,
-                    environment: pool.environment,
-                    regionKey: pool.regionKey,
-                    status: MatchStatus.CREATED,
-                    ratingMode: pool.gameMode.ratingMode,
-                    requiredSlots: pool.gameMode.requiredSlots,
-                    groupCount: pool.gameMode.groupCount,
-                },
-            });
+            const slotValues = Prisma.join(
+                queueEntries.map((queueEntry, index) => {
+                    const slotIndex = index + 1;
+                    const groupIndex = this.computeGroupIndex(
+                        pool.matchStructure,
+                        pool.groupCount,
+                        pool.requiredSlots,
+                        slotIndex,
+                    );
+                    const teamSnapshot = JSON.stringify(
+                        queueEntry.team.members.map((member) => ({
+                            playerId: member.playerId,
+                            rating: member.ratingSnapshot,
+                        })),
+                    );
 
-            await tx.matchSlot.createMany({
-                data: queueEntries.map((queueEntry, index) => ({
-                    matchId: match.id,
-                    queueEntryId: queueEntry.id,
-                    teamId: queueEntry.teamId,
-                    slotIndex: index + 1,
-                    groupIndex: this.computeGroupIndex(
-                        pool.gameMode.matchStructure,
-                        pool.gameMode.groupCount,
-                        pool.gameMode.requiredSlots,
-                        index + 1,
-                    ),
-                    teamSnapshot: queueEntry.team.members.map((member) => ({
-                        playerId: member.playerId,
-                        rating: member.ratingSnapshot,
-                    })),
-                })),
-            });
+                    return Prisma.sql`(${createId()}, ${queueEntry.id}, ${queueEntry.teamId}, ${slotIndex}::int, ${groupIndex}::int, ${teamSnapshot}::jsonb)`;
+                }),
+            );
 
-            await tx.queueEntry.updateMany({
-                where: {
-                    id: {
-                        in: queueEntryIds,
-                    },
-                },
-                data: {
-                    status: QueueEntryStatus.MATCHED,
-                    matchedAt: new Date(),
-                },
-            });
+            await tx.$executeRaw(Prisma.sql`
+                WITH inserted_match AS (
+                    INSERT INTO matches (id, project_id, game_mode_id, match_pool_id, environment, region_key, status,
+                                          rating_mode, required_slots, group_count, created_at, updated_at)
+                    VALUES (${matchId}, ${pool.projectId}, ${pool.gameModeId}, ${pool.poolId}, ${pool.environment},
+                            ${pool.regionKey}, ${MatchStatus.CREATED}, ${pool.ratingMode}, ${pool.requiredSlots},
+                            ${pool.groupCount}, now(), now())
+                    RETURNING id
+                ),
+                inserted_slots AS (
+                    INSERT INTO match_slots (id, match_id, queue_entry_id, team_id, slot_index, group_index, team_snapshot, created_at)
+                    SELECT v.id, im.id, v.queue_entry_id, v.team_id, v.slot_index, v.group_index, v.team_snapshot, now()
+                    FROM inserted_match im,
+                         (VALUES ${slotValues}) AS v(id, queue_entry_id, team_id, slot_index, group_index, team_snapshot)
+                    RETURNING queue_entry_id
+                )
+                UPDATE queue_entries
+                SET status = ${QueueEntryStatus.MATCHED}, matched_at = now()
+                FROM inserted_slots
+                WHERE queue_entries.id = inserted_slots.queue_entry_id
+            `);
 
-            return match.id;
+            return matchId;
         });
     }
 
@@ -445,84 +560,22 @@ export class QueuesService {
         return total / members.length;
     }
 
-    private async upsertExternalTeam(
-        tx: Prisma.TransactionClient,
-        projectId: string,
-        externalTeamId: string,
-        members: EnqueueDto["team"]["members"],
-    ) {
-        const team = await tx.team.upsert({
-            where: {
-                projectId_externalTeamId: {
-                    projectId,
-                    externalTeamId,
-                },
-            },
-            update: {},
-            create: {
-                projectId,
-                externalTeamId,
-            },
-        });
-
-        await tx.teamMember.deleteMany({
-            where: {
-                teamId: team.id,
-            },
-        });
-
-        await tx.teamMember.createMany({
-            data: members.map((member) => ({
-                teamId: team.id,
-                playerId: member.playerId,
-                ratingSnapshot: member.rating,
-            })),
-        });
-
-        return team;
-    }
-
-    private async createAnonymousTeam(
-        tx: Prisma.TransactionClient,
-        projectId: string,
-        members: EnqueueDto["team"]["members"],
-    ) {
-        const team = await tx.team.create({
-            data: {
-                projectId,
-            },
-        });
-
-        await tx.teamMember.createMany({
-            data: members.map((member) => ({
-                teamId: team.id,
-                playerId: member.playerId,
-                ratingSnapshot: member.rating,
-            })),
-        });
-
-        return team;
-    }
-
-    private toQueueResponse(
-        queueEntry: {
-            id: string;
-            status: QueueEntryStatus;
-            queuedAt: Date;
-            projectId: string;
-            environment: string;
-            gameModeId: string;
-            regionKey: string;
-            matchSlots: Array<{ match: { id: string } }>;
-        },
-        overrideMatchId?: string | null,
-    ) {
+    private toQueueResponse(queueEntry: {
+        id: string;
+        status: QueueEntryStatus;
+        queuedAt: Date;
+        projectId: string;
+        environment: string;
+        gameModeId: string;
+        regionKey: string;
+        matchSlots: Array<{ match: { id: string } }>;
+    }) {
         return {
             queueEntryId: queueEntry.id,
-            status: (overrideMatchId ? QueueEntryStatus.MATCHED : queueEntry.status).toLowerCase(),
+            status: queueEntry.status.toLowerCase(),
             poolKey: `${queueEntry.projectId}:${queueEntry.environment}:${queueEntry.gameModeId}:${queueEntry.regionKey}`,
             queuedAt: queueEntry.queuedAt,
-            matchId: overrideMatchId ?? queueEntry.matchSlots[0]?.match.id ?? null,
+            matchId: queueEntry.matchSlots[0]?.match.id ?? null,
         };
     }
 }

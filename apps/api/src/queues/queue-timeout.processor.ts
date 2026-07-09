@@ -28,8 +28,16 @@ export class QueueTimeoutProcessor {
 
     private async scanAndTimeout() {
         const now = new Date();
+        const timedOutAt = now;
 
-        // Find QUEUED entries where queuedAt + maxQueueSeconds < now
+        // Single atomic UPDATE...RETURNING: the WHERE status = QUEUED guard is
+        // evaluated against each row's current state as part of the update itself,
+        // so an entry that a concurrent match-maker attempt matches (status ->
+        // MATCHED) in the same window is correctly skipped here instead of being
+        // overwritten back to TIMED_OUT. Also removes a round-trip versus the old
+        // separate SELECT + updateMany, and only the rows actually transitioned
+        // drive the webhook loop below (previously it fired for every row in the
+        // initial SELECT regardless of whether the updateMany actually touched it).
         const timedOut = await this.prismaService.client.$queryRaw<
             Array<{
                 id: string;
@@ -41,26 +49,20 @@ export class QueueTimeoutProcessor {
                 queued_at: Date;
             }>
         >`
-            SELECT qe.id, qe.project_id, qe.game_mode_id, qe.environment, qe.region_key, qe.team_id, qe.queued_at
-            FROM queue_entries qe
-            JOIN game_modes gm ON gm.id = qe.game_mode_id
-            WHERE qe.status = ${QueueEntryStatus.QUEUED}
+            UPDATE queue_entries qe
+            SET status = ${QueueEntryStatus.TIMED_OUT}, timed_out_at = ${timedOutAt}
+            FROM game_modes gm
+            WHERE qe.game_mode_id = gm.id
+              AND qe.status = ${QueueEntryStatus.QUEUED}
               AND qe.queued_at + (gm.max_queue_seconds * interval '1 second') < ${now}
+            RETURNING qe.id, qe.project_id, qe.game_mode_id, qe.environment, qe.region_key, qe.team_id, qe.queued_at
         `;
 
         if (timedOut.length === 0) {
             return;
         }
 
-        const timedOutAt = new Date();
-        const ids = timedOut.map((e) => e.id);
-
-        await this.prismaService.client.queueEntry.updateMany({
-            where: { id: { in: ids } },
-            data: { status: QueueEntryStatus.TIMED_OUT, timedOutAt },
-        });
-
-        this.logger.log(`Timed out ${ids.length} queue entries`);
+        this.logger.log(`Timed out ${timedOut.length} queue entries`);
 
         await Promise.allSettled(
             timedOut.map((entry) =>

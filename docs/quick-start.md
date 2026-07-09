@@ -107,11 +107,20 @@ curl -s -X POST http://localhost:3000/v1/queues/enqueue \
   -d "{\"projectId\":\"$PROJECT_ID\",\"gameModeId\":\"$GAME_MODE_ID\",\"environment\":\"production\",\"team\":{\"members\":[{\"playerId\":\"bob\"}]}}"
 ```
 
-The second call matches immediately (a 1v1 needs exactly two solo teams) and returns a
-non-null `matchId` in the response. Your webhook endpoint receives a `match.created`
-POST within seconds — headers `X-Webhook-Event`, `X-Webhook-Timestamp`, and
-`X-Webhook-Signature: sha256=<hmac>` (HMAC-SHA256 of `"<timestamp>.<raw body>"`, keyed by
-the hex-decoded webhook secret from step 5).
+Both calls return `matchId: null` — match-making now runs in the background after the
+enqueue response is sent (and also on a 20-second cron sweep). To discover the match,
+poll the queue entries endpoint with the `queueEntryId` from either response:
+
+```bash
+curl -s http://localhost:3000/v1/queues/entries/<queueEntryId> \
+  -H "Authorization: Bearer $API_KEY"
+```
+
+When a match is formed the response includes a non-null `matchId`. At that point
+your webhook endpoint also receives a `match.created` POST within seconds — headers
+`X-Webhook-Event`, `X-Webhook-Timestamp`, and `X-Webhook-Signature: sha256=<hmac>`
+(HMAC-SHA256 of `"<timestamp>.<raw body>"`, keyed by the hex-decoded webhook secret
+from step 5).
 
 ## 7. Report the match result (1 min)
 

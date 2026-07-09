@@ -87,11 +87,19 @@ export type OrganizationMembership = {
     role: string;
 };
 
+export type DemoStatus = {
+    isDemoAccount: boolean;
+    resetIntervalMinutes: number;
+    lastResetAt: string | null;
+    nextResetAt: string | null;
+};
+
 export type CurrentUser = {
     id: string;
     email: string;
     name: string | null;
     organizations: OrganizationMembership[];
+    demo?: DemoStatus | null;
 };
 
 export function getCurrentUser() {

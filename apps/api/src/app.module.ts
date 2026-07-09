@@ -21,6 +21,7 @@ import { MatchesModule } from "./matches/matches.module";
 import { DeliveriesModule } from "./deliveries/deliveries.module";
 import { RatingsModule } from "./ratings/ratings.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
+import { DemoModule } from "./demo/demo.module";
 import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project-throttler.guard";
 
 @Module({
@@ -61,6 +62,7 @@ import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project
         DeliveriesModule,
         RatingsModule,
         DashboardModule,
+        DemoModule,
     ],
     controllers: [AppController],
     providers: [AppService, { provide: APP_GUARD, useClass: ProjectThrottlerGuard }],

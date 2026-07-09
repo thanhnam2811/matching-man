@@ -4,6 +4,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { ProjectMemberRole } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { normalizeSlug } from "../common/utils/slug.util";
+import { DemoService } from "../demo/demo.service";
 import type { LoginDto } from "./dto/login.dto";
 import type { RegisterDto } from "./dto/register.dto";
 import { PasswordService } from "./password.service";
@@ -23,6 +24,7 @@ export class AuthService {
         private readonly prismaService: PrismaService,
         private readonly passwordService: PasswordService,
         private readonly sessionTokenService: SessionTokenService,
+        private readonly demoService: DemoService,
     ) {}
 
     getContract() {
@@ -121,6 +123,7 @@ export class AuthService {
                 slug: membership.organization.slug,
                 role: membership.role,
             })),
+            demo: await this.demoService.getStatusForEmail(user.email),
         };
     }
 

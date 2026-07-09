@@ -4,6 +4,7 @@ export const SCHEDULER_JOBS = {
     WEBHOOK_RETRY: "webhook-retry",
     QUEUE_TIMEOUT: "queue-timeout",
     MATCH_MAKER_SWEEP: "match-maker-sweep",
+    DEMO_RESET: "demo-reset",
 } as const;
 
 export type SchedulerJobName = (typeof SCHEDULER_JOBS)[keyof typeof SCHEDULER_JOBS];

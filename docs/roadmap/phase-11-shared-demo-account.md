@@ -54,6 +54,29 @@ Auth flow recap: `apps/web/components/login-form.tsx` → `POST /api/session`
 **Exit criteria:** a reviewer opens `/login`, clicks "View the demo", and lands in the
 dashboard on the seeded "Demo" org/project — no registration required.
 
+## Stage 3 — Scheduled reset + demo status (added)
+
+Because the account is shared read/write, its data drifts as visitors click around.
+A cron restores a rich, fully-populated snapshot on an interval, and the dashboard
+tells the visitor they're on the demo account and when the next reset lands.
+
+- [x] API env: `DEMO_ACCOUNT_EMAIL` (enables the feature) + `DEMO_RESET_INTERVAL_MINUTES`
+      (default 60) in `apps/api/.env.example` and `env.validation.ts`
+- [x] `src/demo` module: `DemoService.reset()` wipes only the demo project's activity
+      data (queues, teams, matches, results, ratings, deliveries) and reseeds a
+      self-contained snapshot — completed ranked matches with rating history, live + waiting queue entries, and webhook deliveries across all statuses, so every
+      dashboard tab has data. Durable objects (user, org, project, game modes, API
+      keys) are preserved so the public `/demo` page's API key keeps working.
+- [x] `DemoResetProcessor` `@Cron` ticks each minute, reseeds once the interval has
+      elapsed (tracked in `system_settings`), and reports to scheduler health
+- [x] `/auth/me` includes a `demo` block (`isDemoAccount`, `nextResetAt`,
+      `resetIntervalMinutes`); `DemoBanner` renders it with a live countdown
+- [x] Unit test asserts snapshot referential integrity + zero-sum rating deltas
+
+Not covered: purging visitor-created _extra_ orgs/projects (only the canonical
+`demo-arena` project is restored). Acceptable — the showcase the visitor lands on
+stays pristine; broad account purge can follow if clutter becomes a problem.
+
 ## Verification
 
 1. `pnpm docker:up`, then `pnpm api:seed:demo` (idempotent; confirms the demo user exists)
@@ -65,5 +88,5 @@ dashboard on the seeded "Demo" org/project — no registration required.
 ## Non-Goals
 
 - Read-only enforcement / mutation guard for the demo account
-- Scheduled reset of demo data
+- Purging visitor-created extra orgs/projects (only `demo-arena` is restored)
 - OAuth or any other guest-access mechanism

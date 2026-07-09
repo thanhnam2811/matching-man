@@ -1,6 +1,7 @@
 import { ConflictException, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
+import { DemoService } from "../demo/demo.service";
 import { AuthService } from "./auth.service";
 import { PasswordService } from "./password.service";
 import { SessionTokenService } from "./session-token.service";
@@ -32,11 +33,21 @@ describe("AuthService", () => {
             sign: jest.fn().mockReturnValue({ token: "tok", expiresAt: new Date(Date.now() + 1000) }),
         };
 
+        const demoService = {
+            getStatusForEmail: jest.fn().mockResolvedValue({
+                isDemoAccount: false,
+                resetIntervalMinutes: 60,
+                lastResetAt: null,
+                nextResetAt: null,
+            }),
+        };
+
         service = new AuthService(
             { get: jest.fn() } as unknown as ConfigService,
             prismaService as unknown as PrismaService,
             passwordService as unknown as PasswordService,
             sessionTokenService as unknown as SessionTokenService,
+            demoService as unknown as DemoService,
         );
     });
 

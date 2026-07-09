@@ -221,6 +221,9 @@ carry navigation, not forms.
 
 - Landing sections live in `components/landing/` (`hero-matchmaking`, `code-window`, `faq`,
   `reveal` for scroll animation). They follow the same tokens and primitives as the dashboard.
+- On mobile the header drops the redundant "Demo" link, and `mobile-cta-bar.tsx` pins a
+  "Demo / Start free" bar to the bottom for logged-out visitors (hidden on `sm+` and once
+  authenticated) — a page-end spacer keeps it from covering the footer.
 - The `/demo` page drives `demo-board.tsx` against server-side plumbing in `lib/demo.ts`; the
   demo API key stays server-side like every other credential.
 

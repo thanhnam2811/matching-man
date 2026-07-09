@@ -8,6 +8,7 @@ import { HeroMatchmaking } from "@/components/landing/hero-matchmaking";
 import { CodeWindow } from "@/components/landing/code-window";
 import { Faq } from "@/components/landing/faq";
 import { SiteHeader } from "@/components/landing/site-header";
+import { MobileCtaBar } from "@/components/landing/mobile-cta-bar";
 
 export const metadata: Metadata = {
     title: "Matching Hub — Matchmaking infrastructure for your game",
@@ -276,6 +277,10 @@ export default function LandingPage() {
                     <span>Multi-tenant · slot-based matches · internal Elo or external ratings</span>
                 </div>
             </footer>
+
+            {/* Spacer so the sticky mobile CTA never covers the footer. */}
+            <div aria-hidden className="h-16 sm:hidden" />
+            <MobileCtaBar />
         </main>
     );
 }

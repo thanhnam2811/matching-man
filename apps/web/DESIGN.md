@@ -76,6 +76,8 @@ Sizing is via Tailwind classes, not variant props (icons `size-4` / `size-3`).
 | `drawer`                      | Hand-rolled off-canvas `Drawer` (backdrop, slide, Escape + body-scroll lock, `md:hidden`) for mobile navigation                    |
 | `copy-button`                 | `CopyButton` — clipboard icon button for mono values (project/match IDs, keys, webhook URLs); shows a check for ~1.5s              |
 | `confirm-button`              | `ConfirmButton` — inline two-step confirm for destructive form submits (arms → destructive `type="submit"` + Cancel), no modal     |
+| `password-input`              | `PasswordInput` — `<Input>` with a show/hide toggle + Caps Lock warning; forwards ref/props so it drops into forms                 |
+| `password-strength`           | `PasswordStrength` — advisory 4-bar meter + label from a simple heuristic (register only); API still enforces the real rules       |
 
 Domain helpers on top of primitives: `status-badge.tsx` maps a domain status to a badge
 variant (`StatusBadge`); `pagination.tsx` for list paging.
@@ -170,6 +172,14 @@ elsewhere) that checks `GET /api/session/me` on mount — a route handler that r
 token to the browser. It renders a `Skeleton` avatar-sized pill while checking, then either
 the anonymous CTAs (Demo / Sign in / Start free) or the shared `UserMenu` (avatar dropdown) —
 identical to the dashboard header — so the signed-in state stays compact on mobile.
+
+### Auth screens
+
+`/login` and `/register` share `components/auth/auth-shell.tsx`: a split-screen with a brand
+panel on the left (grid + gradient, tagline, feature bullets) shown only on `lg+`, and the
+form on the right with a "Back to home" link and the `ThemeToggle`. Below `lg` the panel is
+hidden and just the form shows. Password fields use `PasswordInput` (show/hide + Caps Lock),
+and register adds a `PasswordStrength` meter under the password.
 
 ### Mobile & responsive navigation
 

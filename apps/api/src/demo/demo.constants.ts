@@ -1,14 +1,56 @@
-// Canonical identifiers for the shared demo account's showcase data. The account
-// itself (user + org + project + game modes + API key) is bootstrapped once by
-// apps/api/scripts/seed-demo.mjs; the demo-reset cron only refreshes the activity
-// data inside this project, so these anchors must match what the script creates.
+import { MatchStructure, RatingMode } from "../generated/prisma/client";
+
+// Canonical identity + shape of the shared demo account. The demo-reset cron is
+// self-healing: it creates the account (user + org + project + game modes + API
+// key) if missing, then on every run purges any visitor-created clutter and
+// restores just this project. Defaults here mean no env is required to run it;
+// DEMO_ACCOUNT_EMAIL / DEMO_ACCOUNT_PASSWORD can still override the credentials.
+
+export const DEFAULT_DEMO_EMAIL = "demo@matchinghub.dev";
+export const DEFAULT_DEMO_PASSWORD = "demo-password-123";
+export const DEFAULT_DEMO_NAME = "Demo";
+
+export const DEMO_ORG_NAME = "Demo";
+export const DEMO_ORG_SLUG = "demo";
 
 export const DEMO_PROJECT_SLUG = "demo-arena";
+export const DEMO_PROJECT_NAME = "Demo Arena";
 export const DEMO_ENVIRONMENT = "production";
 export const DEMO_REGION_KEY = "global";
 
 export const DEMO_SKILL_MODE_KEY = "skill-1v1";
 export const DEMO_CASUAL_MODE_KEY = "casual-1v1";
+
+// Game-mode specs mirror apps/api/scripts/seed-demo.mjs so the two bootstrap
+// paths agree on the demo project's shape.
+export const DEMO_GAME_MODES = [
+    {
+        key: DEMO_SKILL_MODE_KEY,
+        name: "Skill 1v1",
+        matchStructure: MatchStructure.VERSUS,
+        requiredSlots: 2,
+        groupCount: 2,
+        teamSizeMin: 1,
+        teamSizeMax: 1,
+        ratingMode: RatingMode.EXTERNAL_RATING,
+        initialRatingWindow: 50,
+        windowExpandIntervalSeconds: 3,
+        windowExpandStep: 100,
+    },
+    {
+        key: DEMO_CASUAL_MODE_KEY,
+        name: "Casual 1v1",
+        matchStructure: MatchStructure.VERSUS,
+        requiredSlots: 2,
+        groupCount: 2,
+        teamSizeMin: 1,
+        teamSizeMax: 1,
+        ratingMode: RatingMode.DISABLED,
+        initialRatingWindow: null,
+        windowExpandIntervalSeconds: null,
+        windowExpandStep: null,
+    },
+] as const;
 
 // SystemSetting key holding the ISO timestamp of the last successful reset.
 export const DEMO_LAST_RESET_SETTING_KEY = "demo:last_reset_at";

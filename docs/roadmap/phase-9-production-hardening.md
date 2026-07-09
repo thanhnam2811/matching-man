@@ -46,10 +46,10 @@ The domain logic worth testing is the logic that differentiates the project.
 
 ## Stage 4 — Observability
 
-- [ ] Structured JSON logging (pino via `nestjs-pino`) replacing the default logger
-- [ ] Request ID propagation (accept/generate `x-request-id`, include in logs and error responses)
-- [ ] Enrich `/health` with DB connectivity and scheduler liveness
-- [ ] Log slow queries and failed webhook deliveries with enough context to debug
+- [x] Structured JSON logging (pino via `nestjs-pino`) replacing the default logger
+- [x] Request ID propagation (accept/generate `x-request-id`, include in logs and error responses)
+- [x] Enrich `/health` with DB connectivity and scheduler liveness
+- [x] Log slow queries and failed webhook deliveries with enough context to debug
 
 **Exit criteria:** a production incident can be traced from a single request ID.
 

@@ -1,4 +1,4 @@
-import { INestApplication, ValidationPipe } from "@nestjs/common";
+import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
 import helmet from "helmet";
@@ -6,7 +6,9 @@ import request from "supertest";
 import { ConfigService } from "@nestjs/config";
 import { ThrottlerStorage } from "@nestjs/throttler";
 import { AppModule } from "../src/app.module";
+import { getBodyLimitKb } from "../src/common/utils/body-limit.util";
 import { GlobalExceptionFilter } from "../src/common/filters/global-exception.filter";
+import { hashToken } from "../src/common/utils/hash-token.util";
 import { API_GLOBAL_PREFIX, API_GLOBAL_PREFIX_EXCLUDE } from "../src/swagger";
 import { WebhookRetryProcessor } from "../src/deliveries/webhook-retry.processor";
 import { QueueTimeoutProcessor } from "../src/queues/queue-timeout.processor";
@@ -23,7 +25,7 @@ const mockGet = (key: string): unknown => {
 };
 
 describe("Rate limiting (e2e)", () => {
-    let app: INestApplication;
+    let app: NestExpressApplication;
     let storageService: ThrottlerStorage;
 
     beforeAll(async () => {
@@ -53,10 +55,10 @@ describe("Rate limiting (e2e)", () => {
             .compile();
 
         app = moduleFixture.createNestApplication<NestExpressApplication>();
-        const bodyLimit = `${process.env.REQUEST_BODY_LIMIT_KB ?? 256}kb`;
+        app.use(helmet());
+        const bodyLimit = getBodyLimitKb();
         app.useBodyParser("json", { limit: bodyLimit });
         app.useBodyParser("urlencoded", { limit: bodyLimit, extended: true });
-        app.use(helmet());
         app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
         app.useGlobalFilters(new GlobalExceptionFilter());
         app.setGlobalPrefix(API_GLOBAL_PREFIX, { exclude: API_GLOBAL_PREFIX_EXCLUDE });
@@ -94,21 +96,11 @@ describe("Rate limiting (e2e)", () => {
         const server = app.getHttpServer() as Parameters<typeof request>[0];
 
         const ipTracker = "::ffff:127.0.0.1";
-        const key = require("crypto")
-            .createHash("sha256")
-            .update(`AuthController-login-default-${ipTracker}`)
-            .digest("hex");
+        const key = hashToken(`AuthController-login-default-${ipTracker}`);
 
-        await storageService.increment(key, 60000, 10, 60000, "default");
-        await storageService.increment(key, 60000, 10, 60000, "default");
-        await storageService.increment(key, 60000, 10, 60000, "default");
-        await storageService.increment(key, 60000, 10, 60000, "default");
-        await storageService.increment(key, 60000, 10, 60000, "default");
-        await storageService.increment(key, 60000, 10, 60000, "default");
-        await storageService.increment(key, 60000, 10, 60000, "default");
-        await storageService.increment(key, 60000, 10, 60000, "default");
-        await storageService.increment(key, 60000, 10, 60000, "default");
-        await storageService.increment(key, 60000, 10, 60000, "default");
+        for (let i = 0; i < 10; i++) {
+            await storageService.increment(key, 60000, 10, 60000, "default");
+        }
 
         const blocked = await request(server)
             .post("/v1/auth/login")

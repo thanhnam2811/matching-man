@@ -8,10 +8,17 @@ import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 
-// Keep these two literals in sync with AUTH_THROTTLE_LIMIT / AUTH_THROTTLE_TTL_MS's
-// defaults in src/config/env.validation.ts — @Throttle() is evaluated at decoration
-// time, so it can't read ConfigService.
-const AUTH_ROUTE_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
+// @Throttle() is evaluated at decoration time (module load), before ConfigService
+// exists, so a plain object literal here can't read config. @nestjs/throttler
+// resolves limit/ttl lazily per-request when given a function (ThrottlerGuard#resolveValue),
+// so read AUTH_THROTTLE_LIMIT / AUTH_THROTTLE_TTL_MS straight from process.env at
+// that point instead — defaults match src/config/env.validation.ts.
+const AUTH_ROUTE_THROTTLE = {
+    default: {
+        limit: () => Number(process.env.AUTH_THROTTLE_LIMIT ?? 10),
+        ttl: () => Number(process.env.AUTH_THROTTLE_TTL_MS ?? 60_000),
+    },
+};
 
 @ApiTags("Auth")
 @Controller("auth")

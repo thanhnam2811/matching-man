@@ -23,9 +23,9 @@ describe("Request body size limit (e2e)", () => {
     });
 
     it("accepts a JSON body under the limit", async () => {
-        // Gửi JSON body dưới giới hạn lên route GET /v1/auth/contract (sử dụng method POST).
-        // Vì body hợp lệ, Express body-parser cho qua và đi tiếp. Method POST lên route GET
-        // sẽ bị NestJS chặn ở tầng routing trả về 404 (hoặc 405 Method Not Allowed), chứ không bị 413.
+        // POSTs to /v1/auth/contract (a GET-only route) with a body under the limit.
+        // body-parser accepts it and passes through; NestJS's router then rejects the
+        // method itself (404/405), so the assertion only cares that it isn't 413.
         const res = await request(app.getHttpServer() as Parameters<typeof request>[0])
             .post("/v1/auth/contract")
             .send({ data: "short-data" });

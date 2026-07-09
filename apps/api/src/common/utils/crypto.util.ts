@@ -1,11 +1,12 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
+import { hashToken } from "./hash-token.util";
 
 export function generateApiKey() {
     const raw = `mhub_${randomBytes(24).toString("hex")}`;
 
     return {
         raw,
-        hashed: createHash("sha256").update(raw).digest("hex"),
+        hashed: hashToken(raw),
         prefix: raw.slice(0, 9),
         lastFour: raw.slice(-4),
     };

@@ -1,17 +1,19 @@
 import { NestFactory } from "@nestjs/core";
 import { Logger, ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
+import { Logger as PinoLogger } from "nestjs-pino";
 import helmet from "helmet";
 import { AppModule } from "./app.module";
 import { getBodyLimitKb } from "./common/utils/body-limit.util";
 import { GlobalExceptionFilter } from "./common/filters/global-exception.filter";
-import { RequestLoggingInterceptor } from "./common/interceptors/request-logging.interceptor";
 import { API_GLOBAL_PREFIX, API_GLOBAL_PREFIX_EXCLUDE, setupSwagger } from "./swagger";
 
 async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, {
         bufferLogs: true,
     });
+
+    app.useLogger(app.get(PinoLogger));
     const logger = new Logger("Bootstrap");
 
     // helmet must run before body parsing so error responses (e.g. 413 from an
@@ -29,7 +31,6 @@ async function bootstrap() {
         }),
     );
     app.useGlobalFilters(new GlobalExceptionFilter());
-    app.useGlobalInterceptors(new RequestLoggingInterceptor());
     app.setGlobalPrefix(API_GLOBAL_PREFIX, {
         exclude: API_GLOBAL_PREFIX_EXCLUDE,
     });

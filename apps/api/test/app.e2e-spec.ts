@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication } from "@nestjs/common";
+import { Logger as PinoLogger } from "nestjs-pino";
 import helmet from "helmet";
 import request from "supertest";
 import { AppModule } from "./../src/app.module";
@@ -25,7 +26,8 @@ describe("AppController (e2e)", () => {
             })
             .compile();
 
-        app = moduleFixture.createNestApplication();
+        app = moduleFixture.createNestApplication({ bufferLogs: true });
+        app.useLogger(app.get(PinoLogger));
         app.use(helmet());
         await app.init();
     });

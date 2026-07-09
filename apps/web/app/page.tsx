@@ -7,6 +7,7 @@ import { Reveal } from "@/components/landing/reveal";
 import { HeroMatchmaking } from "@/components/landing/hero-matchmaking";
 import { CodeWindow } from "@/components/landing/code-window";
 import { Faq } from "@/components/landing/faq";
+import { SiteHeader } from "@/components/landing/site-header";
 
 export const metadata: Metadata = {
     title: "Matching Hub — Matchmaking infrastructure for your game",
@@ -90,29 +91,7 @@ X-Webhook-Signature: sha256=…
 export default function LandingPage() {
     return (
         <main className="flex min-h-screen flex-col">
-            <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-                <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6">
-                    <span className="flex items-center gap-2 font-semibold">
-                        <span className="inline-block size-2 rounded-full bg-success" />
-                        Matching Hub
-                    </span>
-                    <div className="flex items-center gap-2">
-                        <Link href="/demo">
-                            <Button variant="ghost" size="sm">
-                                Demo
-                            </Button>
-                        </Link>
-                        <Link href="/login">
-                            <Button variant="ghost" size="sm">
-                                Sign in
-                            </Button>
-                        </Link>
-                        <Link href="/register">
-                            <Button size="sm">Start free</Button>
-                        </Link>
-                    </div>
-                </div>
-            </header>
+            <SiteHeader />
 
             {/* Hero */}
             <section className="relative overflow-hidden border-b">

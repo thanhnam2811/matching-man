@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ApiError, apiFetch } from "./api";
+import { ApiError, NetworkError, TimeoutError, apiFetch } from "./api";
 
 export type FormState = { error?: string };
 
@@ -11,6 +11,12 @@ function humanize(error: unknown): string {
         if (error.status === 409) return "That name or slug is already taken";
         if (error.status === 403) return "You do not have permission to do that";
         if (error.status === 400) return "Please check the form and try again";
+        if (error.status === 404) return "The requested resource was not found.";
+        if (error.status === 429) return "Too many requests — please slow down and try again.";
+        if (error.status >= 500) return `The server encountered an error (${error.status}). Please try again later.`;
+    }
+    if (error instanceof NetworkError || error instanceof TimeoutError) {
+        return error.message;
     }
     return "Something went wrong";
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ArrowLeft, ChevronRight } from "lucide-react";
-import { apiFetch, getCurrentUser, type OrganizationDetail, type OrganizationMember } from "@/lib/api";
+import { ApiError, apiFetch, getCurrentUser, type OrganizationDetail, type OrganizationMember } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateProjectForm } from "@/components/create-project-form";
 import { MembersManager } from "@/components/members-manager";
@@ -8,11 +9,22 @@ import { formatDateTime } from "@/lib/utils";
 
 export default async function OrganizationPage({ params }: { params: Promise<{ orgId: string }> }) {
     const { orgId } = await params;
-    const [organization, members, me] = await Promise.all([
-        apiFetch<OrganizationDetail>(`/organizations/${orgId}`),
-        apiFetch<OrganizationMember[]>(`/organizations/${orgId}/members`),
-        getCurrentUser(),
-    ]);
+
+    let organization: OrganizationDetail;
+    let members: OrganizationMember[];
+    let me: Awaited<ReturnType<typeof getCurrentUser>>;
+    try {
+        [organization, members, me] = await Promise.all([
+            apiFetch<OrganizationDetail>(`/organizations/${orgId}`),
+            apiFetch<OrganizationMember[]>(`/organizations/${orgId}/members`),
+            getCurrentUser(),
+        ]);
+    } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+            notFound();
+        }
+        throw error;
+    }
 
     const myRole = me.organizations.find((membership) => membership.id === orgId)?.role;
     const canManage = myRole === "OWNER" || myRole === "ADMIN";

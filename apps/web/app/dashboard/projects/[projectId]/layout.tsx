@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { apiFetch, type Project } from "@/lib/api";
+import { ApiError, apiFetch, type Project } from "@/lib/api";
 import { ProjectNav } from "@/components/project-nav";
 
 export default async function ProjectLayout({
@@ -11,7 +12,16 @@ export default async function ProjectLayout({
     params: Promise<{ projectId: string }>;
 }) {
     const { projectId } = await params;
-    const project = await apiFetch<Project & { organization: { id: string; name: string } }>(`/projects/${projectId}`);
+
+    let project: Project & { organization: { id: string; name: string } };
+    try {
+        project = await apiFetch<Project & { organization: { id: string; name: string } }>(`/projects/${projectId}`);
+    } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+            notFound();
+        }
+        throw error;
+    }
 
     return (
         <div className="mx-auto max-w-6xl space-y-6">

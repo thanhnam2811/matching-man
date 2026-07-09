@@ -18,15 +18,15 @@ this file in the same change.
 
 Two distinct surfaces share this app:
 
-| Route                                                                | Access | Purpose                                                    |
-| -------------------------------------------------------------------- | ------ | ---------------------------------------------------------- |
-| `/`                                                                   | public | Marketing landing page (`components/landing/`)             |
-| `/demo`                                                               | public | Interactive live matchmaking demo (`demo-board.tsx`)       |
-| `/login`, `/register`                                                 | public | Auth screens (redirect to `/dashboard` if signed in)       |
-| `/dashboard`                                                          | gated  | User's organizations + create-org form                     |
-| `/dashboard/organizations/[orgId]`                                    | gated  | Org's projects (+ create) and members                      |
-| `/dashboard/projects/[projectId]`                                     | gated  | Project overview: environments, API keys, webhooks         |
-| `/dashboard/projects/[projectId]/{pools,matches,deliveries,ratings}` | gated  | Operational views via project sub-nav (`project-nav.tsx`)  |
+| Route                                                                | Access | Purpose                                                   |
+| -------------------------------------------------------------------- | ------ | --------------------------------------------------------- |
+| `/`                                                                  | public | Marketing landing page (`components/landing/`)            |
+| `/demo`                                                              | public | Interactive live matchmaking demo (`demo-board.tsx`)      |
+| `/login`, `/register`                                                | public | Auth screens (redirect to `/dashboard` if signed in)      |
+| `/dashboard`                                                         | gated  | User's organizations + create-org form                    |
+| `/dashboard/organizations/[orgId]`                                   | gated  | Org's projects (+ create) and members                     |
+| `/dashboard/projects/[projectId]`                                    | gated  | Project overview: environments, API keys, webhooks        |
+| `/dashboard/projects/[projectId]/{pools,matches,deliveries,ratings}` | gated  | Operational views via project sub-nav (`project-nav.tsx`) |
 
 `middleware.ts` enforces this: no session cookie + `/dashboard/**` → redirect to `/login`;
 session cookie + auth page → redirect to `/dashboard`. Everything else is public.
@@ -53,15 +53,19 @@ hard-code hex or use ad-hoc Tailwind palette classes for foundational surfaces.*
 Pattern for every primitive: `React.forwardRef`, `cn()` for class merge, `cva` for variants.
 Sizing is via Tailwind classes, not variant props (icons `size-4` / `size-3`).
 
-| Primitive                     | Notes                                                                                        |
-| ----------------------------- | -------------------------------------------------------------------------------------------- |
-| `button`                      | Variants `default \| destructive \| outline \| secondary \| ghost \| link`; sizes `default \| sm \| lg \| icon` |
-| `badge`                       | Variants `default \| secondary \| destructive \| success \| warning \| outline`               |
-| `card`                        | Compound: `Card / CardHeader / CardTitle / CardDescription / CardContent`                     |
-| `table`                       | Compound table parts                                                                          |
-| `input`, `label`, `separator` | Form and layout basics                                                                        |
-| `spinner`                     | `cva`-sized `Loader2`, `text-muted-foreground`                                                |
+| Primitive                     | Notes                                                                                                                              |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `button`                      | Variants `default \| destructive \| outline \| secondary \| ghost \| link`; sizes `default \| sm \| lg \| icon`                    |
+| `badge`                       | Variants `default \| secondary \| destructive \| success \| warning \| outline`                                                    |
+| `card`                        | Compound: `Card / CardHeader / CardTitle / CardDescription / CardContent`                                                          |
+| `table`                       | Compound table parts                                                                                                               |
+| `input`, `label`, `separator` | Form and layout basics                                                                                                             |
+| `spinner`                     | `cva`-sized `Loader2`, `text-muted-foreground`                                                                                     |
 | `toast`                       | Dependency-free pub/sub toaster; call `toast(...)` from any client component; a single `<Toaster />` is mounted in the root layout |
+| `skeleton`                    | `animate-pulse` placeholder block; compose with sizing classes (`<Skeleton className="h-4 w-32" />`) inside `loading.tsx` files    |
+| `empty-state`                 | `EmptyState` — icon + title + description + optional action link, for lists with zero items                                        |
+| `error-display`               | `ErrorDisplay` (title + message + optional retry/back) and `parseError(error)` — used inside `error.tsx` boundaries                |
+| `not-found`                   | `NotFoundView` — icon + title + description + back link, for `notFound()` / `not-found.tsx` pages                                  |
 
 Domain helpers on top of primitives: `status-badge.tsx` maps a domain status to a badge
 variant (`StatusBadge`); `pagination.tsx` for list paging.
@@ -103,6 +107,37 @@ renders the list plus its create/edit forms wired to server actions.
 Read the caller's role from `getCurrentUser()` (`/auth/me`) and hide management controls when
 the user lacks the role (e.g. `canManage = role === "OWNER" || role === "ADMIN"`). This is UX
 only — the API enforces authorization regardless.
+
+### Loading, error & not-found states
+
+Every route segment under `app/` handles the slow/broken/missing cases with Next.js
+conventions instead of letting the framework's generic crash screen show:
+
+- `loading.tsx` — a route-shaped skeleton built from `<Skeleton>` (and `Table`/`Card`
+  skeleton rows for list pages) shown instantly while the segment's Server Component
+  data-fetches are in flight. Since `loading.tsx` wraps the whole segment (its
+  `layout.tsx` **and** `page.tsx`), it needs to mimic the full chrome that segment
+  renders, not just the page content.
+- `error.tsx` — a client component error boundary rendering `<ErrorDisplay
+message={parseError(error)} retry={reset} backHref="..." />`. `parseError` turns an
+  `ApiError` / `NetworkError` / `TimeoutError` / generic `Error` into a human sentence.
+  Keep these files thin — no business logic, just the boundary UI.
+- `not-found.tsx` + `notFound()` — Server Components that fetch a resource by id
+  (`organizations/[orgId]`, `projects/[projectId]`) catch a 404 `ApiError` and call
+  `notFound()` instead of letting the fetch throw into `error.tsx`. Pair each with a
+  `not-found.tsx` using `<NotFoundView>` scoped to that segment.
+- `lib/api.ts`'s `apiFetch` throws `NetworkError` (fetch/`TypeError`) or `TimeoutError`
+  (`AbortError`) instead of letting those escape as opaque errors — both are handled by
+  `parseError` and by `humanize()` in `lib/actions.ts` for form-action failures.
+
+### Auth-aware public header
+
+`components/landing/site-header.tsx` is a client component used on `/` (and reusable
+elsewhere) that checks `GET /api/session/me` on mount — a route handler that reads the
+`dashboard_token` cookie server-side and calls `getCurrentUser()`, never exposing the
+token to the browser. It renders a `Skeleton` pill while checking, then either the
+anonymous CTAs (Demo / Sign in / Start free) or a signed-in profile pill (email +
+Dashboard link + `LogoutButton`).
 
 ### No Radix → native, styled
 

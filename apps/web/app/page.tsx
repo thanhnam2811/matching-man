@@ -197,8 +197,8 @@ export default function LandingPage() {
 
             {/* Code */}
             <section className="mx-auto w-full max-w-6xl px-6 py-20">
-                <div className="grid items-start gap-10 lg:grid-cols-2">
-                    <Reveal>
+                <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2">
+                    <Reveal className="min-w-0">
                         <div className="lg:sticky lg:top-24">
                             <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
                                 One call in, one call out
@@ -215,11 +215,11 @@ export default function LandingPage() {
                             </Link>
                         </div>
                     </Reveal>
-                    <div className="space-y-4">
-                        <Reveal>
+                    <div className="min-w-0 space-y-4">
+                        <Reveal className="min-w-0">
                             <CodeWindow title="enqueue.sh" code={ENQUEUE_SNIPPET} />
                         </Reveal>
-                        <Reveal delayMs={80}>
+                        <Reveal delayMs={80} className="min-w-0">
                             <CodeWindow title="match.created" code={WEBHOOK_SNIPPET} />
                         </Reveal>
                     </div>

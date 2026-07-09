@@ -4,9 +4,12 @@ import * as React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LogoutButton } from "@/components/logout-button";
+import { UserMenu } from "@/components/user-menu";
 
-type SessionState = { status: "loading" } | { status: "authenticated"; email: string } | { status: "anonymous" };
+type SessionState =
+    | { status: "loading" }
+    | { status: "authenticated"; email: string; name: string | null }
+    | { status: "anonymous" };
 
 export function SiteHeader() {
     const [session, setSession] = React.useState<SessionState>({ status: "loading" });
@@ -15,11 +18,11 @@ export function SiteHeader() {
         let cancelled = false;
         fetch("/api/session/me", { cache: "no-store" })
             .then((response) => response.json())
-            .then((data: { authenticated: boolean; email?: string }) => {
+            .then((data: { authenticated: boolean; email?: string; name?: string | null }) => {
                 if (cancelled) return;
                 setSession(
                     data.authenticated && data.email
-                        ? { status: "authenticated", email: data.email }
+                        ? { status: "authenticated", email: data.email, name: data.name ?? null }
                         : { status: "anonymous" },
                 );
             })
@@ -40,19 +43,9 @@ export function SiteHeader() {
                 </span>
                 <div className="flex items-center gap-2">
                     {session.status === "loading" ? (
-                        <Skeleton className="h-8 w-40 rounded-full" />
+                        <Skeleton className="size-8 rounded-full" />
                     ) : session.status === "authenticated" ? (
-                        <>
-                            <span className="max-w-[10rem] truncate text-sm text-muted-foreground">
-                                {session.email}
-                            </span>
-                            <Link href="/dashboard">
-                                <Button variant="ghost" size="sm">
-                                    Dashboard
-                                </Button>
-                            </Link>
-                            <LogoutButton />
-                        </>
+                        <UserMenu email={session.email} name={session.name} />
                     ) : (
                         <>
                             <Link href="/demo">

@@ -160,9 +160,9 @@ message={parseError(error)} retry={reset} backHref="..." />`. `parseError` turns
 `components/landing/site-header.tsx` is a client component used on `/` (and reusable
 elsewhere) that checks `GET /api/session/me` on mount — a route handler that reads the
 `dashboard_token` cookie server-side and calls `getCurrentUser()`, never exposing the
-token to the browser. It renders a `Skeleton` pill while checking, then either the
-anonymous CTAs (Demo / Sign in / Start free) or a signed-in profile pill (email +
-Dashboard link + `LogoutButton`).
+token to the browser. It renders a `Skeleton` avatar-sized pill while checking, then either
+the anonymous CTAs (Demo / Sign in / Start free) or the shared `UserMenu` (avatar dropdown) —
+identical to the dashboard header — so the signed-in state stays compact on mobile.
 
 ### Mobile & responsive navigation
 
@@ -177,7 +177,9 @@ Apple HIG, common SaaS-console conventions), tuned for a tenant-shaped hierarchy
   build a second, parallel desktop sidebar — desktop keeps the centered-content + tabs layout.
 - **Account = avatar menu** (`components/user-menu.tsx`): the email/sign-out controls live in
   a `DropdownMenu` behind an `Avatar`, not spread across the bar. Menu holds name + email,
-  a Dashboard link, and Sign out. Same component across breakpoints.
+  a Dashboard link, and Sign out. Same component across breakpoints — and the **landing
+  header reuses the exact same `UserMenu`** for its signed-in state, so a wide email never
+  overflows the bar on mobile.
 - **Navigation drawer** (`components/dashboard-mobile-nav.tsx`, mobile only): an off-canvas
   `Drawer` opened from the hamburger. Its links are **context-aware** — derived from
   `usePathname()` — so inside a project it lists that project's sections vertically (easy

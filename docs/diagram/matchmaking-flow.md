@@ -1,7 +1,9 @@
 # Matchmaking & Delivery Flow
 
-The end-to-end game-server flow: enqueue → match creation → asynchronous webhook delivery →
-result report → optional Elo update. Background processors run in-process on a cron.
+The end-to-end game-server flow: enqueue → background match-making (fire-and-forget or
+20s cron sweep) → asynchronous webhook delivery → result report → optional Elo update.
+Match-making is no longer synchronous after enqueue; clients poll the queue-entries
+endpoint to discover the match.
 
 ```mermaid
 sequenceDiagram
@@ -9,16 +11,32 @@ sequenceDiagram
     participant GS as Game Server
     participant API as NestJS API
     participant DB as Postgres
+    participant SP as MatchMakerSweep<br/>(@Cron 20s)
     participant W as Webhook processor<br/>(@Cron 30s)
 
     GS->>API: POST /v1/queues/enqueue (API key)
     API->>DB: validate mode, upsert MatchPool,<br/>create Team + TeamMembers + QueueEntry
-    API->>DB: tryCreateMatch — SELECT ... FOR UPDATE SKIP LOCKED,<br/>rating-window filter (external_rating)
-    alt enough candidates in window
-        API->>DB: create Match + MatchSlots,<br/>mark entries MATCHED
-        API->>DB: insert WebhookDelivery (match.created)
+    API-->>GS: { queueEntryId, status, matchId: null }
+
+    rect rgb(235, 248, 235)
+        Note over API,DB: Fire-and-forget dispatchMatchMakingAsync<br/>(un-awaited, runs after response)
+        API->>DB: tryCreateMatch — SELECT ... FOR UPDATE SKIP LOCKED,<br/>rating-window filter (external_rating)
+        alt enough candidates in window
+            API->>DB: create Match + MatchSlots,<br/>mark entries MATCHED
+            API->>DB: insert WebhookDelivery (match.created)
+        end
     end
-    API-->>GS: { queueEntryId, status, matchId? }
+
+    loop every 20s
+        SP->>DB: SELECT pools with count(*) >= required_slots<br/>GROUP BY match_pool_id
+        alt candidates found
+            SP->>DB: tryCreateMatch — FOR UPDATE SKIP LOCKED<br/>per pool (sequential)
+            SP->>DB: insert WebhookDelivery (match.created)<br/>if match formed
+        end
+    end
+
+    GS->>API: GET /v1/queues/entries/:queueEntryId (poll 400ms)
+    API-->>GS: { queueEntryId, status, matchId }
 
     loop every 30s
         W->>DB: fetch PENDING/FAILED deliveries due

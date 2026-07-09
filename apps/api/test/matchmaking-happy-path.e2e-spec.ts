@@ -7,6 +7,47 @@ import { WebhookDeliveryStatus } from "../src/generated/prisma/client";
 import { buildTestApp } from "./support/build-app";
 import { createMatchmakingFixture } from "./support/fixtures";
 
+async function pollForMatchId(
+    http: Parameters<typeof request>[0],
+    apiKey: string,
+    queueEntryId: string,
+): Promise<string> {
+    const deadline = Date.now() + 5000;
+
+    while (Date.now() < deadline) {
+        const res = await request(http)
+            .get(`/v1/queues/entries/${queueEntryId}`)
+            .set("Authorization", `Bearer ${apiKey}`)
+            .expect(200);
+
+        if (res.body.matchId) {
+            return res.body.matchId as string;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    throw new Error(`Timed out waiting for a match on queue entry ${queueEntryId}`);
+}
+
+async function waitForWebhookScheduled(prisma: PrismaService, projectId: string, eventType: string): Promise<void> {
+    const deadline = Date.now() + 5000;
+
+    while (Date.now() < deadline) {
+        const count = await prisma.client.webhookDelivery.count({
+            where: { eventType, webhookEndpoint: { projectId } },
+        });
+
+        if (count > 0) {
+            return;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    throw new Error(`Timed out waiting for a ${eventType} webhook delivery to be scheduled`);
+}
+
 describe("Matchmaking happy path (e2e)", () => {
     let app: INestApplication;
     let prisma: PrismaService;
@@ -58,8 +99,16 @@ describe("Matchmaking happy path (e2e)", () => {
         expect(first.body.matchId).toBeNull();
 
         const second = await enqueue(`p2-${randomUUID().slice(0, 8)}`).expect(201);
-        const matchId = second.body.matchId as string;
-        expect(matchId).toEqual(expect.any(String));
+        // Match-making now runs fire-and-forget after the response is sent, so the
+        // enqueue response itself never carries a synchronous matchId - poll the new
+        // entries endpoint instead.
+        expect(second.body.matchId).toBeNull();
+        const matchId = await pollForMatchId(http, fixture.apiKey, second.body.queueEntryId as string);
+
+        // The fire-and-forget task schedules the match.created webhook delivery in
+        // a step after the match itself commits, so wait for that row to land too
+        // before triggering delivery below.
+        await waitForWebhookScheduled(prisma, fixture.projectId, "match.created");
 
         const reportRes = await request(http)
             .post(`/v1/matches/${matchId}/report-result`)

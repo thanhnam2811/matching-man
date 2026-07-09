@@ -2,9 +2,11 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { SCHEDULER_JOBS, SchedulerHealthService } from "../common/scheduler-health/scheduler-health.service";
 
-// 3x each cron's own interval (webhook-retry: */30s, queue-timeout: 0 * * * * * = 60s).
+// 3x each cron's own interval (webhook-retry: */30s, queue-timeout: 0 * * * * * = 60s,
+// match-maker-sweep: */20s).
 const WEBHOOK_RETRY_STALE_AFTER_MS = 90_000;
 const QUEUE_TIMEOUT_STALE_AFTER_MS = 180_000;
+const MATCH_MAKER_SWEEP_STALE_AFTER_MS = 60_000;
 
 @Injectable()
 export class HealthService {
@@ -23,16 +25,20 @@ export class HealthService {
             SCHEDULER_JOBS.QUEUE_TIMEOUT,
             QUEUE_TIMEOUT_STALE_AFTER_MS,
         );
+        const matchMakerSweep = this.schedulerHealthService.getStatus(
+            SCHEDULER_JOBS.MATCH_MAKER_SWEEP,
+            MATCH_MAKER_SWEEP_STALE_AFTER_MS,
+        );
         // "pending" (never ticked yet, e.g. just after boot) is expected and not
         // itself a degradation signal — only a job that ran before and has since
         // gone stale ("down") counts.
-        const schedulerOk = webhookRetry !== "down" && queueTimeout !== "down";
+        const schedulerOk = webhookRetry !== "down" && queueTimeout !== "down" && matchMakerSweep !== "down";
 
         return {
             status: database && schedulerOk ? "ok" : "degraded",
             checks: {
                 database: database ? "up" : "down",
-                scheduler: { webhookRetry, queueTimeout },
+                scheduler: { webhookRetry, queueTimeout, matchMakerSweep },
             },
             timestamp: new Date().toISOString(),
         };

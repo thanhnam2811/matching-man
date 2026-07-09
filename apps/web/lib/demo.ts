@@ -83,6 +83,20 @@ export function demoMatch(matchId: string) {
     return demoFetch<DemoMatch>(`/matches/${matchId}`);
 }
 
+export type DemoQueueEntry = {
+    queueEntryId: string;
+    status: string;
+    poolKey: string;
+    queuedAt: string;
+    matchId: string | null;
+};
+
+// Matching now runs in the background after enqueue responds, so the client
+// polls this to learn when a queue entry has been matched.
+export function demoQueueEntry(queueEntryId: string) {
+    return demoFetch<DemoQueueEntry>(`/queues/entries/${queueEntryId}`);
+}
+
 export async function demoDequeue(queueEntryId: string) {
     try {
         return await demoFetch("/queues/dequeue", {

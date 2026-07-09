@@ -1,4 +1,4 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, Logger, NotFoundException } from "@nestjs/common";
 import { MatchStructure, QueueEntryStatus, RatingMode } from "../generated/prisma/enums";
 import { WebhookDeliveryService } from "../deliveries/deliveries.service";
 import { GameModesService } from "../game-modes/game-modes.service";
@@ -6,34 +6,15 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ProjectEnvironmentsService } from "../projects/project-environments.service";
 import { QueuesService } from "./queues.service";
 
+const flushMicrotasks = () => new Promise((resolve) => setImmediate(resolve));
+
 describe("QueuesService", () => {
     let service: QueuesService;
     let prismaService: {
         client: {
             queueEntry: {
                 findFirst: jest.Mock;
-                create: jest.Mock;
-                findUniqueOrThrow: jest.Mock;
                 update: jest.Mock;
-                updateMany: jest.Mock;
-            };
-            matchPool: {
-                upsert: jest.Mock;
-                findUnique: jest.Mock;
-            };
-            match: {
-                create: jest.Mock;
-            };
-            matchSlot: {
-                createMany: jest.Mock;
-            };
-            team: {
-                create: jest.Mock;
-                upsert: jest.Mock;
-            };
-            teamMember: {
-                createMany: jest.Mock;
-                deleteMany: jest.Mock;
             };
             $transaction: jest.Mock;
             $queryRaw: jest.Mock;
@@ -55,28 +36,7 @@ describe("QueuesService", () => {
             client: {
                 queueEntry: {
                     findFirst: jest.fn(),
-                    create: jest.fn(),
-                    findUniqueOrThrow: jest.fn(),
                     update: jest.fn(),
-                    updateMany: jest.fn(),
-                },
-                matchPool: {
-                    upsert: jest.fn(),
-                    findUnique: jest.fn(),
-                },
-                match: {
-                    create: jest.fn(),
-                },
-                matchSlot: {
-                    createMany: jest.fn(),
-                },
-                team: {
-                    create: jest.fn(),
-                    upsert: jest.fn(),
-                },
-                teamMember: {
-                    createMany: jest.fn(),
-                    deleteMany: jest.fn(),
                 },
                 $transaction: jest.fn(),
                 $queryRaw: jest.fn(),
@@ -103,157 +63,304 @@ describe("QueuesService", () => {
         );
     });
 
-    it("rejects enqueue when environment is not configured for the project", async () => {
-        prismaService.client.projectEnvironment.findUnique.mockResolvedValue(null);
-        gameModesService.findOne.mockResolvedValue({
-            id: "mode_1",
-            teamSizeMin: 1,
-            teamSizeMax: 2,
+    describe("enqueue", () => {
+        it("rejects enqueue when environment is not configured for the project", async () => {
+            prismaService.client.projectEnvironment.findUnique.mockResolvedValue(null);
+            gameModesService.findOne.mockResolvedValue({
+                id: "mode_1",
+                teamSizeMin: 1,
+                teamSizeMax: 2,
+            });
+
+            await expect(
+                service.enqueue("project_1", {
+                    projectId: "project_1",
+                    gameModeId: "mode_1",
+                    environment: "staging",
+                    team: {
+                        members: [{ playerId: "player_1" }],
+                    },
+                }),
+            ).rejects.toBeInstanceOf(BadRequestException);
+
+            expect(prismaService.client.queueEntry.findFirst).not.toHaveBeenCalled();
+            expect(prismaService.client.$queryRaw).not.toHaveBeenCalled();
         });
 
-        await expect(
-            service.enqueue("project_1", {
+        it("normalizes the environment, inserts via a single raw query, and returns matchId: null synchronously", async () => {
+            prismaService.client.projectEnvironment.findUnique.mockResolvedValue({ name: "production" });
+            gameModesService.findOne.mockResolvedValue({
+                id: "mode_1",
+                teamSizeMin: 1,
+                teamSizeMax: 2,
+                ratingMode: RatingMode.DISABLED,
+            });
+            prismaService.client.queueEntry.findFirst.mockResolvedValue(null);
+            prismaService.client.$queryRaw.mockResolvedValue([
+                {
+                    queueEntryId: "entry_1",
+                    queuedAt: new Date("2026-06-12T00:00:00.000Z"),
+                    matchPoolId: "pool_1",
+                    teamId: "team_1",
+                },
+            ]);
+            // Background fire-and-forget match-making attempt; its outcome isn't
+            // under test here, an unconfigured mock resolving `undefined` is enough
+            // for tryCreateMatch to no-op cleanly.
+            prismaService.client.$transaction.mockResolvedValue(undefined);
+
+            const result = await service.enqueue("project_1", {
                 projectId: "project_1",
                 gameModeId: "mode_1",
-                environment: "staging",
+                environment: " Production ",
                 team: {
                     members: [{ playerId: "player_1" }],
                 },
-            }),
-        ).rejects.toBeInstanceOf(BadRequestException);
+            });
 
-        expect(prismaService.client.queueEntry.findFirst).not.toHaveBeenCalled();
-        expect(prismaService.client.$transaction).not.toHaveBeenCalled();
-    });
+            expect(result).toEqual({
+                queueEntryId: "entry_1",
+                status: "queued",
+                poolKey: "project_1:production:mode_1:global",
+                queuedAt: new Date("2026-06-12T00:00:00.000Z"),
+                matchId: null,
+            });
 
-    it("uses the normalized configured environment for pool assignment", async () => {
-        prismaService.client.projectEnvironment.findUnique.mockResolvedValue({ name: "production" });
-        gameModesService.findOne.mockResolvedValue({
-            id: "mode_1",
-            teamSizeMin: 1,
-            teamSizeMax: 2,
-            requiredSlots: 2,
-            ratingMode: RatingMode.DISABLED,
-            matchStructure: MatchStructure.VERSUS,
-            groupCount: 2,
+            const [sqlArg] = prismaService.client.$queryRaw.mock.calls[0] as [{ values: unknown[] }];
+            expect(sqlArg.values).toContain("production");
+            expect(sqlArg.values).not.toContain(" Production ");
         });
-        prismaService.client.queueEntry.findFirst.mockResolvedValue(null);
-        prismaService.client.$transaction.mockImplementation(
-            async (callback: (tx: typeof prismaService.client) => unknown) => callback(prismaService.client),
-        );
-        prismaService.client.matchPool.upsert.mockResolvedValue({ id: "pool_1" });
-        prismaService.client.team.create.mockResolvedValue({ id: "team_1" });
-        prismaService.client.queueEntry.create.mockResolvedValue({
-            id: "entry_1",
-            matchPoolId: "pool_1",
-            projectId: "project_1",
-            environment: "production",
-            gameModeId: "mode_1",
-            regionKey: "global",
-            status: QueueEntryStatus.QUEUED,
-            queuedAt: new Date("2026-06-12T00:00:00.000Z"),
-            matchSlots: [],
-        });
-        prismaService.client.matchPool.findUnique.mockResolvedValue({
-            id: "pool_1",
-            projectId: "project_1",
-            gameModeId: "mode_1",
-            environment: "production",
-            regionKey: "global",
-            gameMode: {
-                requiredSlots: 2,
+
+        it("resolves with matchId: null and does not crash when the background match-making attempt fails", async () => {
+            const errorSpy = jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
+
+            prismaService.client.projectEnvironment.findUnique.mockResolvedValue({ name: "production" });
+            gameModesService.findOne.mockResolvedValue({
+                id: "mode_1",
+                teamSizeMin: 1,
+                teamSizeMax: 2,
                 ratingMode: RatingMode.DISABLED,
-                matchStructure: MatchStructure.VERSUS,
-                groupCount: 2,
-                initialRatingWindow: null,
-                windowExpandIntervalSeconds: null,
-                windowExpandStep: null,
-            },
-        });
-        prismaService.client.$queryRaw.mockResolvedValue([]);
-        prismaService.client.queueEntry.findUniqueOrThrow.mockResolvedValue({
-            id: "entry_1",
-            projectId: "project_1",
-            environment: "production",
-            gameModeId: "mode_1",
-            regionKey: "global",
-            status: QueueEntryStatus.QUEUED,
-            queuedAt: new Date("2026-06-12T00:00:00.000Z"),
-            matchSlots: [],
-        });
-
-        const result = await service.enqueue("project_1", {
-            projectId: "project_1",
-            gameModeId: "mode_1",
-            environment: " Production ",
-            team: {
-                members: [{ playerId: "player_1" }],
-            },
-        });
-
-        expect(prismaService.client.matchPool.upsert).toHaveBeenCalledWith(
-            expect.objectContaining({
-                where: {
-                    projectId_gameModeId_environment_regionKey: {
-                        projectId: "project_1",
-                        gameModeId: "mode_1",
-                        environment: "production",
-                        regionKey: "global",
-                    },
+            });
+            prismaService.client.queueEntry.findFirst.mockResolvedValue(null);
+            prismaService.client.$queryRaw.mockResolvedValue([
+                {
+                    queueEntryId: "entry_1",
+                    queuedAt: new Date("2026-06-12T00:00:00.000Z"),
+                    matchPoolId: "pool_1",
+                    teamId: "team_1",
                 },
-            }),
-        );
-        expect(result.poolKey).toBe("project_1:production:mode_1:global");
+            ]);
+            prismaService.client.$transaction.mockRejectedValue(new Error("connection lost"));
+
+            const result = await service.enqueue("project_1", {
+                projectId: "project_1",
+                gameModeId: "mode_1",
+                environment: "production",
+                team: {
+                    members: [{ playerId: "player_1" }],
+                },
+            });
+
+            expect(result.matchId).toBeNull();
+
+            // Let the un-awaited background promise's rejection propagate to its .catch().
+            await flushMicrotasks();
+            await flushMicrotasks();
+
+            expect(errorSpy).toHaveBeenCalledWith(
+                expect.stringContaining("Background match-making failed"),
+                expect.any(Error),
+            );
+
+            errorSpy.mockRestore();
+        });
     });
 
-    it("replays dequeue response for an existing idempotency key", async () => {
-        prismaService.client.queueEntry.findFirst
-            .mockResolvedValueOnce({
+    describe("dequeue", () => {
+        it("replays dequeue response for an existing idempotency key", async () => {
+            prismaService.client.queueEntry.findFirst
+                .mockResolvedValueOnce({
+                    id: "entry_1",
+                    projectId: "project_1",
+                    dequeueIdempotencyKey: "deq_1",
+                    status: QueueEntryStatus.CANCELLED,
+                })
+                .mockResolvedValueOnce(null);
+
+            const result = await service.dequeue("project_1", {
+                queueEntryId: "entry_1",
+                idempotencyKey: "deq_1",
+            });
+
+            expect(result).toEqual({
+                queueEntryId: "entry_1",
+                status: "cancelled",
+            });
+            expect(prismaService.client.queueEntry.update).not.toHaveBeenCalled();
+        });
+
+        it("stores dequeue idempotency metadata when cancelling a queued entry", async () => {
+            prismaService.client.queueEntry.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
                 id: "entry_1",
                 projectId: "project_1",
-                dequeueIdempotencyKey: "deq_1",
+                status: QueueEntryStatus.QUEUED,
+            });
+            prismaService.client.queueEntry.update.mockResolvedValue({
+                id: "entry_1",
                 status: QueueEntryStatus.CANCELLED,
-            })
-            .mockResolvedValueOnce(null);
+            });
 
-        const result = await service.dequeue("project_1", {
-            queueEntryId: "entry_1",
-            idempotencyKey: "deq_1",
-        });
+            const result = await service.dequeue("project_1", {
+                queueEntryId: "entry_1",
+                idempotencyKey: "deq_2",
+                reason: "party_cancelled",
+            });
 
-        expect(result).toEqual({
-            queueEntryId: "entry_1",
-            status: "cancelled",
+            expect(result.status).toBe("cancelled");
+            expect(prismaService.client.queueEntry.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        dequeueIdempotencyKey: "deq_2",
+                        cancelReason: "party_cancelled",
+                    }),
+                }),
+            );
         });
-        expect(prismaService.client.queueEntry.update).not.toHaveBeenCalled();
     });
 
-    it("stores dequeue idempotency metadata when cancelling a queued entry", async () => {
-        prismaService.client.queueEntry.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
-            id: "entry_1",
-            projectId: "project_1",
-            status: QueueEntryStatus.QUEUED,
-        });
-        prismaService.client.queueEntry.update.mockResolvedValue({
-            id: "entry_1",
-            status: QueueEntryStatus.CANCELLED,
+    describe("getQueueEntry", () => {
+        it("returns the current state of a queue entry, including matchId once matched", async () => {
+            prismaService.client.queueEntry.findFirst.mockResolvedValue({
+                id: "entry_1",
+                projectId: "project_1",
+                environment: "production",
+                gameModeId: "mode_1",
+                regionKey: "global",
+                status: QueueEntryStatus.MATCHED,
+                queuedAt: new Date("2026-06-12T00:00:00.000Z"),
+                matchSlots: [{ match: { id: "match_1" } }],
+            });
+
+            const result = await service.getQueueEntry("project_1", "entry_1");
+
+            expect(result).toEqual({
+                queueEntryId: "entry_1",
+                status: "matched",
+                poolKey: "project_1:production:mode_1:global",
+                queuedAt: new Date("2026-06-12T00:00:00.000Z"),
+                matchId: "match_1",
+            });
         });
 
-        const result = await service.dequeue("project_1", {
-            queueEntryId: "entry_1",
-            idempotencyKey: "deq_2",
-            reason: "party_cancelled",
+        it("throws NotFoundException for a queue entry outside the caller's project", async () => {
+            prismaService.client.queueEntry.findFirst.mockResolvedValue(null);
+
+            await expect(service.getQueueEntry("project_1", "entry_1")).rejects.toBeInstanceOf(NotFoundException);
+        });
+    });
+
+    describe("tryCreateMatch", () => {
+        it("returns null when the pool's environment is no longer configured", async () => {
+            const tx = { $queryRaw: jest.fn(), $executeRaw: jest.fn() };
+            prismaService.client.$transaction.mockImplementation(async (callback: (...args: unknown[]) => unknown) =>
+                callback(tx),
+            );
+            tx.$queryRaw.mockResolvedValueOnce([
+                {
+                    poolId: "pool_1",
+                    requiredSlots: 2,
+                    environmentConfigured: false,
+                },
+            ]);
+
+            const matchId = await service.tryCreateMatch("pool_1");
+
+            expect(matchId).toBeNull();
+            expect(tx.$executeRaw).not.toHaveBeenCalled();
         });
 
-        expect(result.status).toBe("cancelled");
-        expect(prismaService.client.queueEntry.update).toHaveBeenCalledWith(
-            expect.objectContaining({
-                data: expect.objectContaining({
-                    dequeueIdempotencyKey: "deq_2",
-                    cancelReason: "party_cancelled",
-                }),
-            }),
-        );
+        it("returns null when fewer candidates are locked than the mode requires", async () => {
+            const tx = { $queryRaw: jest.fn(), $executeRaw: jest.fn() };
+            prismaService.client.$transaction.mockImplementation(async (callback: (...args: unknown[]) => unknown) =>
+                callback(tx),
+            );
+            tx.$queryRaw
+                .mockResolvedValueOnce([
+                    {
+                        poolId: "pool_1",
+                        projectId: "project_1",
+                        environment: "production",
+                        regionKey: "global",
+                        gameModeId: "mode_1",
+                        ratingMode: RatingMode.DISABLED,
+                        requiredSlots: 2,
+                        groupCount: 1,
+                        matchStructure: MatchStructure.VERSUS,
+                        initialRatingWindow: null,
+                        windowExpandIntervalSeconds: null,
+                        windowExpandStep: null,
+                        environmentConfigured: true,
+                    },
+                ])
+                .mockResolvedValueOnce([
+                    {
+                        id: "entry_1",
+                        teamId: "team_1",
+                        queuedAt: new Date("2026-06-12T00:00:00.000Z"),
+                        members: [{ playerId: "p1", ratingSnapshot: null }],
+                    },
+                ]);
+
+            const matchId = await service.tryCreateMatch("pool_1");
+
+            expect(matchId).toBeNull();
+            expect(tx.$executeRaw).not.toHaveBeenCalled();
+        });
+
+        it("collapses match+slots+status-update into a single write when enough candidates are locked", async () => {
+            const tx = { $queryRaw: jest.fn(), $executeRaw: jest.fn().mockResolvedValue(undefined) };
+            prismaService.client.$transaction.mockImplementation(async (callback: (...args: unknown[]) => unknown) =>
+                callback(tx),
+            );
+            tx.$queryRaw
+                .mockResolvedValueOnce([
+                    {
+                        poolId: "pool_1",
+                        projectId: "project_1",
+                        environment: "production",
+                        regionKey: "global",
+                        gameModeId: "mode_1",
+                        ratingMode: RatingMode.DISABLED,
+                        requiredSlots: 2,
+                        groupCount: 1,
+                        matchStructure: MatchStructure.VERSUS,
+                        initialRatingWindow: null,
+                        windowExpandIntervalSeconds: null,
+                        windowExpandStep: null,
+                        environmentConfigured: true,
+                    },
+                ])
+                .mockResolvedValueOnce([
+                    {
+                        id: "entry_1",
+                        teamId: "team_1",
+                        queuedAt: new Date("2026-06-12T00:00:00.000Z"),
+                        members: [{ playerId: "p1", ratingSnapshot: null }],
+                    },
+                    {
+                        id: "entry_2",
+                        teamId: "team_2",
+                        queuedAt: new Date("2026-06-12T00:00:01.000Z"),
+                        members: [{ playerId: "p2", ratingSnapshot: null }],
+                    },
+                ]);
+
+            const matchId = await service.tryCreateMatch("pool_1");
+
+            expect(typeof matchId).toBe("string");
+            expect(matchId).not.toHaveLength(0);
+            expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+        });
     });
 
     describe("selectCandidateQueueEntries", () => {

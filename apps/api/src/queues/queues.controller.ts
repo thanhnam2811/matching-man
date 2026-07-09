@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { AuthenticatedProjectRequest } from "../common/interfaces/authenticated-project-request";
 import { ProjectApiKeyGuard } from "../common/guards/project-api-key/project-api-key.guard";
@@ -30,5 +30,13 @@ export class QueuesController {
     @Get("pools")
     listPools(@Req() request: AuthenticatedProjectRequest) {
         return this.queuesService.listPools(request.authProjectId);
+    }
+
+    @ApiOperation({
+        summary: "Get the current state of a queue entry - poll this to learn when a match has been assigned.",
+    })
+    @Get("entries/:queueEntryId")
+    getEntry(@Req() request: AuthenticatedProjectRequest, @Param("queueEntryId") queueEntryId: string) {
+        return this.queuesService.getQueueEntry(request.authProjectId, queueEntryId);
     }
 }

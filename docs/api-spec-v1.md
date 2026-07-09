@@ -195,6 +195,24 @@ Response:
 }
 ```
 
+### `GET /v1/queues/entries/:queueEntryId`
+
+Returns the current status of a queue entry and, if a match has been formed, the
+`matchId`. Match-making runs in the background after enqueue responds, so clients
+should poll this endpoint until `matchId` is non-null.
+
+Response:
+
+```json
+{
+    "queueEntryId": "qe_123",
+    "status": "queued",
+    "poolKey": "proj_123:production:mode_ranked_5v5:ap-southeast-1",
+    "queuedAt": "2026-06-12T00:00:00Z",
+    "matchId": null
+}
+```
+
 ### `POST /v1/queues/dequeue`
 
 Removes a waiting entry from the queue.

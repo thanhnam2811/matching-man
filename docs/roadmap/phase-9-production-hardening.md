@@ -57,9 +57,9 @@ The domain logic worth testing is the logic that differentiates the project.
 
 Lower the barrier for anyone assessing the project.
 
-- [ ] One-command demo seed: org + project + API key + game mode + queued players
+- [x] One-command demo seed: org + project + API key + game mode + queued players
 - [ ] Screenshots (or a short GIF) of the dashboard and live demo in the README
-- [ ] `docs/` quick-start for integrating a game server end-to-end in under 10 minutes
+- [x] `docs/` quick-start for integrating a game server end-to-end in under 10 minutes
 
 **Exit criteria:** a reviewer sees the system working within minutes of cloning.
 

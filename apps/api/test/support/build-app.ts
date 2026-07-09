@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
+import { Logger as PinoLogger } from "nestjs-pino";
 import helmet from "helmet";
 import { AppModule } from "../../src/app.module";
 import { getBodyLimitKb } from "../../src/common/utils/body-limit.util";
@@ -35,7 +36,8 @@ export async function buildTestApp(): Promise<INestApplication> {
         .useValue({ processTimedOutEntries: async () => {} })
         .compile();
 
-    const app = moduleFixture.createNestApplication<NestExpressApplication>();
+    const app = moduleFixture.createNestApplication<NestExpressApplication>({ bufferLogs: true });
+    app.useLogger(app.get(PinoLogger));
     app.use(helmet());
     const bodyLimit = getBodyLimitKb();
     app.useBodyParser("json", { limit: bodyLimit });

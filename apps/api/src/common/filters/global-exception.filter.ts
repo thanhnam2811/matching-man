@@ -9,6 +9,7 @@ type ErrorEnvelope = {
         message: string;
         details?: unknown;
     };
+    requestId: string;
     timestamp: string;
     path: string;
 };
@@ -33,6 +34,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
                     statusCode,
                     code: payload.error.code,
                     message: payload.error.message,
+                    requestId: payload.requestId,
                 }),
                 exception instanceof Error ? exception.stack : undefined,
             );
@@ -54,9 +56,19 @@ export class GlobalExceptionFilter implements ExceptionFilter {
                 message,
                 ...(details === undefined ? {} : { details }),
             },
+            requestId: this.getRequestId(request),
             timestamp,
             path,
         };
+    }
+
+    private getRequestId(request: Request): string {
+        // Set by pino-http's genReqId (see src/config/pino-http.options.ts) before
+        // any guard/filter runs — either the client's own x-request-id or a
+        // generated UUID, always present by the time a filter executes.
+        const id = (request as Request & { id?: string | number }).id;
+
+        return id === undefined ? "" : String(id);
     }
 
     private extractErrorParts(

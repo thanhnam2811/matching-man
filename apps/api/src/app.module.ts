@@ -3,11 +3,13 @@ import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
+import { LoggerModule } from "nestjs-pino";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { HealthModule } from "./health/health.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { validateEnv } from "./config/env.validation";
+import { buildPinoHttpOptions } from "./config/pino-http.options";
 import { AuthModule } from "./auth/auth.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { ProjectsModule } from "./projects/projects.module";
@@ -28,6 +30,12 @@ import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project
             cache: true,
             envFilePath: [".env.development.local", ".env.development", ".env"],
             validate: validateEnv,
+        }),
+        LoggerModule.forRootAsync({
+            inject: [ConfigService],
+            useFactory: (config: ConfigService) => ({
+                pinoHttp: buildPinoHttpOptions(config.get<string>("NODE_ENV")!, config.get<string>("LOG_LEVEL")!),
+            }),
         }),
         ThrottlerModule.forRootAsync({
             inject: [ConfigService],

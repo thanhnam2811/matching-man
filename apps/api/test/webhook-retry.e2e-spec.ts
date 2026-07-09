@@ -51,11 +51,23 @@ describe("Webhook delivery retry/backoff (e2e)", () => {
         await enqueue("p1");
         await enqueue("p2");
 
-        const delivery = await prisma.client.webhookDelivery.findFirstOrThrow({
-            where: { webhookEndpoint: { projectId: fixture.projectId } },
-        });
+        // Match-making now runs fire-and-forget after the enqueue response is sent,
+        // so the webhook delivery is not created synchronously — poll for it.
+        const deadline = Date.now() + 5000;
 
-        return delivery.id;
+        while (Date.now() < deadline) {
+            const delivery = await prisma.client.webhookDelivery.findFirst({
+                where: { webhookEndpoint: { projectId: fixture.projectId } },
+            });
+
+            if (delivery) {
+                return delivery.id;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+
+        throw new Error("Timed out waiting for match.created webhook delivery");
     }
 
     it("marks the delivery FAILED and schedules a ~30s retry after a connection failure", async () => {

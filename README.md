@@ -58,13 +58,13 @@ More diagrams (module graph, ER model, auth flows, matchmaking sequence): [`docs
 
 ## Tech Stack
 
-| Layer      | Technology                                                                     |
-| ---------- | ------------------------------------------------------------------------------ |
-| API        | NestJS 11, TypeScript, class-validator DTOs, `@nestjs/schedule` processors      |
-| Database   | PostgreSQL (Neon in production), Prisma 7 ORM + versioned migrations            |
-| Dashboard  | Next.js 15 (App Router), React Server Components, Server Actions, Tailwind CSS  |
-| Tooling    | pnpm workspaces, oxlint + oxfmt, Husky + lint-staged, Jest (unit + e2e)         |
-| Delivery   | Docker, GitHub Actions CI/CD, GHCR, self-hosted VPS behind Cloudflare Tunnel    |
+| Layer     | Technology                                                                     |
+| --------- | ------------------------------------------------------------------------------ |
+| API       | NestJS 11, TypeScript, class-validator DTOs, `@nestjs/schedule` processors     |
+| Database  | PostgreSQL (Neon in production), Prisma 7 ORM + versioned migrations           |
+| Dashboard | Next.js 15 (App Router), React Server Components, Server Actions, Tailwind CSS |
+| Tooling   | pnpm workspaces, oxlint + oxfmt, Husky + lint-staged, Jest (unit + e2e)        |
+| Delivery  | Docker, GitHub Actions CI/CD, GHCR, self-hosted VPS behind Cloudflare Tunnel   |
 
 ## Engineering Highlights
 
@@ -110,19 +110,24 @@ pnpm --dir apps/api start:dev
 
 # 6. Run the dashboard (http://localhost:3001)
 pnpm --dir apps/web dev
+
+# 7. (optional) Seed a demo project — org, project, game modes, API key, queued players
+pnpm api:seed:demo
 ```
+
+See [`docs/quick-start.md`](docs/quick-start.md) to integrate a game server end-to-end.
 
 ## Development
 
-| Command                              | Description                          |
-| ------------------------------------ | ------------------------------------ |
-| `pnpm lint` / `pnpm format`          | Lint (oxlint) / format (oxfmt)       |
-| `pnpm api:test`                      | API unit tests (Jest)                |
-| `pnpm api:test:e2e`                  | API end-to-end tests                 |
-| `pnpm --dir apps/api test:cov`       | Unit tests with coverage             |
-| `pnpm --dir apps/web typecheck`      | Dashboard type checking              |
-| `pnpm --dir apps/api prisma:studio`  | Browse the database in Prisma Studio |
-| `pnpm docker:build`                  | Build the API Docker image           |
+| Command                             | Description                          |
+| ----------------------------------- | ------------------------------------ |
+| `pnpm lint` / `pnpm format`         | Lint (oxlint) / format (oxfmt)       |
+| `pnpm api:test`                     | API unit tests (Jest)                |
+| `pnpm api:test:e2e`                 | API end-to-end tests                 |
+| `pnpm --dir apps/api test:cov`      | Unit tests with coverage             |
+| `pnpm --dir apps/web typecheck`     | Dashboard type checking              |
+| `pnpm --dir apps/api prisma:studio` | Browse the database in Prisma Studio |
+| `pnpm docker:build`                 | Build the API Docker image           |
 
 Pre-commit hooks (Husky + lint-staged) format and lint staged files automatically.
 
@@ -140,6 +145,7 @@ Full runbook: [`docs/roadmap/phase-8-deploy.md`](docs/roadmap/phase-8-deploy.md)
 
 ## Documentation
 
+- [Quick Start](docs/quick-start.md) — integrate a game server end-to-end in under 10 minutes
 - [Architecture](docs/architecture.md) — subsystem design and rationale
 - [API Spec v1](docs/api-spec-v1.md) — public API contract
 - [Diagrams](docs/diagram/README.md) — Mermaid: modules, ER model, auth, matchmaking flow

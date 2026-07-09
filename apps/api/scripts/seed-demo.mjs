@@ -64,6 +64,33 @@ async function findOrCreateGameMode(token, projectId, spec) {
     return created.id;
 }
 
+// Uses fixed idempotency keys so reruns don't pile up duplicate queue entries —
+// enqueue with a key that already exists just returns the existing entry.
+async function enqueue(apiKey, projectId, gameModeId, idempotencyKey, playerId, rating) {
+    return req("POST", "/queues/enqueue", {
+        token: apiKey,
+        body: {
+            idempotencyKey,
+            projectId,
+            gameModeId,
+            environment: "production",
+            team: { members: rating === undefined ? [{ playerId }] : [{ playerId, rating }] },
+        },
+    });
+}
+
+async function seedQueuedPlayers(apiKey, projectId, casualModeId, skillModeId) {
+    // Two casual players pair up immediately (any rating, 1v1).
+    await enqueue(apiKey, projectId, casualModeId, "seed-demo-casual-1", "demo_casual_1");
+    await enqueue(apiKey, projectId, casualModeId, "seed-demo-casual-2", "demo_casual_2");
+
+    // Two skill players within the initial rating window (50) pair up immediately;
+    // a third, far outside the window, is left waiting for the window to expand.
+    await enqueue(apiKey, projectId, skillModeId, "seed-demo-skill-1", "demo_skill_1", 1200);
+    await enqueue(apiKey, projectId, skillModeId, "seed-demo-skill-2", "demo_skill_2", 1230);
+    await enqueue(apiKey, projectId, skillModeId, "seed-demo-skill-3", "demo_skill_3", 1500);
+}
+
 async function main() {
     const token = await registerOrLogin();
     const organizationId = await findOrCreateOrg(token);
@@ -97,8 +124,13 @@ async function main() {
     // API keys cannot be read back, so always mint a fresh one for the demo.
     const apiKey = await req("POST", `/projects/${projectId}/api-keys`, { token, body: { name: "demo-key" } });
 
+    await seedQueuedPlayers(apiKey.key, projectId, casualModeId, skillModeId);
+
     process.stdout.write(
         [
+            "",
+            "Queued: demo_casual_1 + demo_casual_2 matched immediately (casual);",
+            "        demo_skill_1 + demo_skill_2 matched immediately, demo_skill_3 waiting (skill, rating window).",
             "",
             "# --- paste into apps/web/.env ---",
             `DEMO_PROJECT_ID=${projectId}`,

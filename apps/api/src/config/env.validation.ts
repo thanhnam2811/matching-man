@@ -25,6 +25,31 @@ class EnvironmentVariables {
     @IsString()
     @IsNotEmpty()
     SESSION_SECRET!: string;
+
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    THROTTLE_TTL_MS = 60_000;
+
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    THROTTLE_LIMIT = 120;
+
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    AUTH_THROTTLE_TTL_MS = 60_000;
+
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    AUTH_THROTTLE_LIMIT = 10;
+
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    REQUEST_BODY_LIMIT_KB = 256;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

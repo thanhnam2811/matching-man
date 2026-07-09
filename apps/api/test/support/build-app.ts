@@ -1,6 +1,9 @@
 import { Test } from "@nestjs/testing";
 import { INestApplication, ValidationPipe } from "@nestjs/common";
+import { NestExpressApplication } from "@nestjs/platform-express";
+import helmet from "helmet";
 import { AppModule } from "../../src/app.module";
+import { getBodyLimitKb } from "../../src/common/utils/body-limit.util";
 import { GlobalExceptionFilter } from "../../src/common/filters/global-exception.filter";
 import { API_GLOBAL_PREFIX, API_GLOBAL_PREFIX_EXCLUDE } from "../../src/swagger";
 import { WebhookRetryProcessor } from "../../src/deliveries/webhook-retry.processor";
@@ -32,7 +35,11 @@ export async function buildTestApp(): Promise<INestApplication> {
         .useValue({ processTimedOutEntries: async () => {} })
         .compile();
 
-    const app = moduleFixture.createNestApplication();
+    const app = moduleFixture.createNestApplication<NestExpressApplication>();
+    app.use(helmet());
+    const bodyLimit = getBodyLimitKb();
+    app.useBodyParser("json", { limit: bodyLimit });
+    app.useBodyParser("urlencoded", { limit: bodyLimit, extended: true });
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
     app.useGlobalFilters(new GlobalExceptionFilter());
     app.setGlobalPrefix(API_GLOBAL_PREFIX, { exclude: API_GLOBAL_PREFIX_EXCLUDE });

@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
+import { APP_GUARD } from "@nestjs/core";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { HealthModule } from "./health/health.module";
@@ -17,6 +19,7 @@ import { MatchesModule } from "./matches/matches.module";
 import { DeliveriesModule } from "./deliveries/deliveries.module";
 import { RatingsModule } from "./ratings/ratings.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
+import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project-throttler.guard";
 
 @Module({
     imports: [
@@ -25,6 +28,16 @@ import { DashboardModule } from "./dashboard/dashboard.module";
             cache: true,
             envFilePath: [".env.development.local", ".env.development", ".env"],
             validate: validateEnv,
+        }),
+        ThrottlerModule.forRootAsync({
+            inject: [ConfigService],
+            useFactory: (config: ConfigService) => [
+                {
+                    name: "default",
+                    ttl: config.get<number>("THROTTLE_TTL_MS")!,
+                    limit: config.get<number>("THROTTLE_LIMIT")!,
+                },
+            ],
         }),
         ScheduleModule.forRoot(),
         HealthModule,
@@ -42,6 +55,6 @@ import { DashboardModule } from "./dashboard/dashboard.module";
         DashboardModule,
     ],
     controllers: [AppController],
-    providers: [AppService],
+    providers: [AppService, { provide: APP_GUARD, useClass: ProjectThrottlerGuard }],
 })
 export class AppModule {}

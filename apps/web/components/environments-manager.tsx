@@ -35,13 +35,17 @@ export function EnvironmentsManager({ projectId, environments }: { projectId: st
             ) : (
                 <ul className="divide-y">
                     {environments.map((environment) => (
-                        <li key={environment.id} className="flex items-center justify-between py-2">
-                            <span className="flex items-center gap-2 text-sm">
-                                {environment.name}
-                                {environment.isDefault ? <Badge variant="secondary">default</Badge> : null}
+                        <li key={environment.id} className="flex items-center justify-between gap-2 py-2">
+                            <span className="flex min-w-0 items-center gap-2 text-sm">
+                                <span className="truncate">{environment.name}</span>
+                                {environment.isDefault ? (
+                                    <Badge variant="secondary" className="shrink-0">
+                                        default
+                                    </Badge>
+                                ) : null}
                             </span>
                             {environment.isDefault ? null : (
-                                <form action={deleteEnvironment}>
+                                <form action={deleteEnvironment} className="shrink-0">
                                     <input type="hidden" name="projectId" value={projectId} />
                                     <input type="hidden" name="environmentId" value={environment.id} />
                                     <ConfirmButton confirmLabel="Delete environment">Delete</ConfirmButton>

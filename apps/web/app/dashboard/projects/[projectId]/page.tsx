@@ -26,7 +26,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
 
     return (
         <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
+            <Card className="min-w-0">
                 <CardHeader>
                     <CardTitle>Environments</CardTitle>
                     <CardDescription>{environments.length} configured</CardDescription>
@@ -36,7 +36,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
                 </CardContent>
             </Card>
 
-            <Card>
+            <Card className="min-w-0">
                 <CardHeader>
                     <CardTitle>API keys</CardTitle>
                     <CardDescription>{apiKeys.length} issued</CardDescription>
@@ -46,7 +46,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
                 </CardContent>
             </Card>
 
-            <Card className="lg:col-span-2">
+            <Card className="min-w-0 lg:col-span-2">
                 <CardHeader>
                     <CardTitle>Webhooks</CardTitle>
                     <CardDescription>{webhooks.length} endpoints</CardDescription>

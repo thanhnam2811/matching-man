@@ -15,7 +15,7 @@ type Member = {
 
 const ROLES = ["OWNER", "ADMIN", "MEMBER"];
 const selectClass =
-    "h-9 rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+    "h-9 rounded-md border border-input bg-transparent px-2 text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:text-sm";
 
 const initialState: FormState = {};
 

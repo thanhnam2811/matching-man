@@ -46,7 +46,7 @@ The API (`apps/api`) deploys as a Docker container to a self-hosted VPS; the adm
 - `pnpm docker:build` — build the API image locally (`Dockerfile`)
 - `pnpm docker:up` — run Postgres only, for local dev against `pnpm start:dev`
 - `docker compose up` — full stack (Postgres + built API image) via `docker-compose.yml`
-- CI/CD (`.github/workflows/pipeline.yml`, push to `master`): lint/test → `prisma migrate
+- CI/CD (`.github/workflows/pipeline.yml`, push to `main`): lint/test → `prisma migrate
 deploy` against Neon → build & push image to `ghcr.io/thanhnam2811/matching-man` →
   SSH into the VPS over a Cloudflare Tunnel and restart via `docker-compose.prod.yml`.
 - **DB migrations run in CI, not in the container.** If you change

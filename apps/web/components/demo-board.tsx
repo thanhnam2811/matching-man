@@ -149,19 +149,44 @@ export function DemoBoard({
         [addLog],
     );
 
+    // Removes a player whose queue entry ended without a match (timeout/cancel).
+    const dropFromQueue = React.useCallback(
+        (queueEntryId: string, reason: string) => {
+            const player = queuedRef.current.find((entry) => entry.queueEntryId === queueEntryId);
+            setQueued((list) => list.filter((entry) => entry.queueEntryId !== queueEntryId));
+            if (player) addLog(`${reason} · ${player.playerId}`);
+        },
+        [addLog],
+    );
+
     const pollForMatch = React.useCallback(
         async (queueEntryId: string) => {
-            const deadline = Date.now() + 15000;
+            // Poll until the entry reaches a terminal state (matched / cancelled /
+            // timed out) instead of a fixed short window: skill matches formed by
+            // the 20s server sweep can take 20-30s+ to appear (issue #18). Fast
+            // cadence at first so instant matches feel instant, then a backoff to
+            // stay friendly to the free-tier API. The hard cap sits past the demo
+            // mode's max queue time (300s), by which point the entry has timed out.
+            const deadline = Date.now() + 6 * 60 * 1000;
+            const fastUntil = Date.now() + 6000;
 
             while (Date.now() < deadline && !pollCancelledRef.current) {
-                await new Promise((resolve) => setTimeout(resolve, 400));
+                await new Promise((resolve) => setTimeout(resolve, Date.now() < fastUntil ? 400 : 2000));
                 if (pollCancelledRef.current) return;
 
                 try {
                     const entryResponse = await fetch(`/api/demo/queue-entry?id=${queueEntryId}`);
                     if (!entryResponse.ok) continue;
-                    const entry = (await entryResponse.json()) as { matchId: string | null };
-                    if (!entry.matchId || handledMatchIdsRef.current.has(entry.matchId)) continue;
+                    const entry = (await entryResponse.json()) as { status: string; matchId: string | null };
+
+                    if (entry.status === "timed_out" || entry.status === "cancelled") {
+                        dropFromQueue(queueEntryId, entry.status === "timed_out" ? "queue.timeout" : "dequeued");
+                        return;
+                    }
+                    // Another player's loop already rendered this match (it removes
+                    // both queue cards), so this loop is done.
+                    if (entry.matchId && handledMatchIdsRef.current.has(entry.matchId)) return;
+                    if (!entry.matchId) continue;
 
                     const matchResponse = await fetch(`/api/demo/match?id=${entry.matchId}`);
                     if (!matchResponse.ok) return;
@@ -176,7 +201,7 @@ export function DemoBoard({
                 }
             }
         },
-        [applyMatch],
+        [applyMatch, dropFromQueue],
     );
 
     const effectiveWindow = React.useCallback(

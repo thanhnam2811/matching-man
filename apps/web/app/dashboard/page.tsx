@@ -39,7 +39,7 @@ export default async function DashboardHome() {
                             href={`/dashboard/organizations/${organization.id}`}
                             className="group"
                         >
-                            <Card className="transition-colors group-hover:border-foreground/20">
+                            <Card className="h-full transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-md">
                                 <CardHeader>
                                     <div className="flex items-center justify-between">
                                         <CardTitle>{organization.name}</CardTitle>

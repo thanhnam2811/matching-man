@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -39,7 +40,7 @@ export function SiteHeader() {
         <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
             <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6">
                 <span className="flex items-center gap-2 font-semibold">
-                    <span className="inline-block size-2 rounded-full bg-success" />
+                    <BrandMark />
                     Matching Hub
                 </span>
                 <div className="flex items-center gap-1 sm:gap-2">

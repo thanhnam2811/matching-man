@@ -15,12 +15,15 @@ export function DropdownMenu({
     align = "end",
     label,
     className,
+    block = false,
 }: {
     trigger: React.ReactNode;
     children: React.ReactNode;
     align?: "start" | "end";
     label?: string;
     className?: string;
+    /** Full-width trigger (e.g. the sidebar org switcher) instead of the default inline pill. */
+    block?: boolean;
 }) {
     const [open, setOpen] = React.useState(false);
     const ref = React.useRef<HTMLDivElement>(null);
@@ -43,14 +46,17 @@ export function DropdownMenu({
     }, [open]);
 
     return (
-        <div ref={ref} className="relative">
+        <div ref={ref} className={cn("relative", block && "w-full")}>
             <button
                 type="button"
                 onClick={() => setOpen((value) => !value)}
                 aria-haspopup="menu"
                 aria-expanded={open}
                 aria-label={label}
-                className="inline-flex items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className={cn(
+                    "inline-flex items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                    block && "w-full rounded-md",
+                )}
             >
                 {trigger}
             </button>

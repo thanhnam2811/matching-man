@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { ApiError, apiFetch, type Project } from "@/lib/api";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { CopyButton } from "@/components/ui/copy-button";
 import { ProjectNav } from "@/components/project-nav";
 
@@ -26,14 +25,17 @@ export default async function ProjectLayout({
 
     return (
         <div className="mx-auto max-w-6xl space-y-6">
-            <div className="space-y-1">
-                <Link
-                    href={`/dashboard/organizations/${project.organization.id}`}
-                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                >
-                    <ArrowLeft className="size-3" />
-                    {project.organization.name}
-                </Link>
+            <div className="space-y-1.5">
+                <Breadcrumbs
+                    items={[
+                        { label: "Organizations", href: "/dashboard" },
+                        {
+                            label: project.organization.name,
+                            href: `/dashboard/organizations/${project.organization.id}`,
+                        },
+                        { label: project.name },
+                    ]}
+                />
                 <h1 className="text-2xl font-semibold tracking-tight">{project.name}</h1>
                 <span className="inline-flex items-center gap-1">
                     <span className="font-mono text-xs text-muted-foreground">{project.id}</span>

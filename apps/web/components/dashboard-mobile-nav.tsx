@@ -1,12 +1,12 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type LucideIcon, Building2, Home, Menu as MenuIcon, Play, X } from "lucide-react";
+import { Building2, Home, Menu as MenuIcon, Play, X } from "lucide-react";
+import { BrandMark } from "@/components/brand-mark";
 import { Drawer } from "@/components/ui/drawer";
+import { NavLink } from "@/components/nav-link";
 import { isProjectNavActive, projectNavItems } from "@/components/project-nav";
-import { cn } from "@/lib/utils";
 
 export function DashboardMobileNav() {
     const [open, setOpen] = React.useState(false);
@@ -28,7 +28,7 @@ export function DashboardMobileNav() {
                 type="button"
                 onClick={() => setOpen(true)}
                 aria-label="Open navigation"
-                className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
+                className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:hidden"
             >
                 <MenuIcon className="size-5" />
             </button>
@@ -36,7 +36,7 @@ export function DashboardMobileNav() {
             <Drawer open={open} onClose={close} label="Navigation">
                 <div className="flex h-14 shrink-0 items-center justify-between border-b px-4">
                     <span className="flex items-center gap-2 font-semibold">
-                        <span className="inline-block size-2 rounded-full bg-success" />
+                        <BrandMark />
                         Matching Hub
                     </span>
                     <button
@@ -64,6 +64,7 @@ export function DashboardMobileNav() {
                                     key={item.href}
                                     href={item.href}
                                     active={isProjectNavActive(item.href, projectBase, pathname)}
+                                    icon={item.icon}
                                     onNavigate={close}
                                 >
                                     {item.label}
@@ -83,36 +84,5 @@ export function DashboardMobileNav() {
                 </div>
             </Drawer>
         </>
-    );
-}
-
-function NavLink({
-    href,
-    active,
-    icon: Icon,
-    onNavigate,
-    children,
-}: {
-    href: string;
-    active?: boolean;
-    icon?: LucideIcon;
-    onNavigate: () => void;
-    children: React.ReactNode;
-}) {
-    return (
-        <Link
-            href={href}
-            onClick={onNavigate}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors [&_svg]:size-4 [&_svg]:shrink-0",
-                active
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
-            )}
-        >
-            {Icon ? <Icon /> : <span className="size-4" aria-hidden />}
-            {children}
-        </Link>
     );
 }

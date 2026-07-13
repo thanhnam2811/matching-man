@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 
 // Hand-rolled off-canvas drawer (no Radix). Stays mounted so it can animate open
 // AND closed; closes on backdrop tap and Escape; locks body scroll while open.
-// `md:hidden` — this is the mobile navigation surface only.
+// `lg:hidden` — this is the mobile/tablet navigation surface only; the desktop
+// sidebar takes over at lg.
 //
 // Rendered through a portal to <body> so it escapes any ancestor with a
 // `filter`/`backdrop-filter`/`transform` (e.g. the sticky `backdrop-blur`
@@ -45,7 +46,7 @@ export function Drawer({
     if (!mounted) return null;
 
     return createPortal(
-        <div className={cn("fixed inset-0 z-50 md:hidden", !open && "pointer-events-none")} aria-hidden={!open}>
+        <div className={cn("fixed inset-0 z-50 lg:hidden", !open && "pointer-events-none")} aria-hidden={!open}>
             <div
                 onClick={onClose}
                 className={cn(

@@ -8,7 +8,7 @@
         --foreground: 240 10% 3.9%;
         --card: 0 0% 100%;
         --card-foreground: 240 10% 3.9%;
-        --primary: 240 5.9% 10%;
+        --primary: 243 75% 59%;
         --primary-foreground: 0 0% 98%;
         --secondary: 240 4.8% 95.9%;
         --secondary-foreground: 240 5.9% 10%;
@@ -24,7 +24,7 @@
         --warning-foreground: 0 0% 98%;
         --border: 240 5.9% 90%;
         --input: 240 5.9% 90%;
-        --ring: 240 10% 3.9%;
+        --ring: 243 75% 59%;
         --radius: 0.5rem;
     }
 
@@ -33,8 +33,8 @@
         --foreground: 0 0% 98%;
         --card: 240 6% 10%;
         --card-foreground: 0 0% 98%;
-        --primary: 0 0% 98%;
-        --primary-foreground: 240 5.9% 10%;
+        --primary: 234 89% 74%;
+        --primary-foreground: 244 47% 15%;
         --secondary: 240 3.7% 15.9%;
         --secondary-foreground: 0 0% 98%;
         --muted: 240 3.7% 15.9%;
@@ -47,9 +47,9 @@
         --success-foreground: 144 80% 6%;
         --warning: 38 92% 55%;
         --warning-foreground: 38 92% 8%;
-        --border: 240 3.7% 15.9%;
-        --input: 240 3.7% 15.9%;
-        --ring: 240 4.9% 83.9%;
+        --border: 240 4% 18%;
+        --input: 240 4% 18%;
+        --ring: 234 89% 74%;
     }
 }
 

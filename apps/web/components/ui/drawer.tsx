@@ -6,8 +6,9 @@ import { cn } from "@/lib/utils";
 
 // Hand-rolled off-canvas drawer (no Radix). Stays mounted so it can animate open
 // AND closed; closes on backdrop tap and Escape; locks body scroll while open.
-// `lg:hidden` — this is the mobile/tablet navigation surface only; the desktop
-// sidebar takes over at lg.
+// By default it is `lg:hidden` (the mobile/tablet nav surface — the desktop
+// sidebar takes over at lg); pass `desktop` for panels that show at every
+// size, e.g. detail sheets.
 //
 // Rendered through a portal to <body> so it escapes any ancestor with a
 // `filter`/`backdrop-filter`/`transform` (e.g. the sticky `backdrop-blur`
@@ -19,12 +20,16 @@ export function Drawer({
     children,
     side = "left",
     label,
+    desktop = false,
+    panelClassName,
 }: {
     open: boolean;
     onClose: () => void;
     children: React.ReactNode;
     side?: "left" | "right";
     label?: string;
+    desktop?: boolean;
+    panelClassName?: string;
 }) {
     const [mounted, setMounted] = React.useState(false);
     React.useEffect(() => setMounted(true), []);
@@ -46,7 +51,10 @@ export function Drawer({
     if (!mounted) return null;
 
     return createPortal(
-        <div className={cn("fixed inset-0 z-50 lg:hidden", !open && "pointer-events-none")} aria-hidden={!open}>
+        <div
+            className={cn("fixed inset-0 z-50", !desktop && "lg:hidden", !open && "pointer-events-none")}
+            aria-hidden={!open}
+        >
             <div
                 onClick={onClose}
                 className={cn(
@@ -62,6 +70,7 @@ export function Drawer({
                     "absolute inset-y-0 flex w-72 max-w-[82%] flex-col bg-background shadow-xl transition-transform duration-300 ease-out",
                     side === "left" ? "left-0 border-r" : "right-0 border-l",
                     open ? "translate-x-0" : side === "left" ? "-translate-x-full" : "translate-x-full",
+                    panelClassName,
                 )}
             >
                 {children}

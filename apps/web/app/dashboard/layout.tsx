@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/api";
 import { BrandMark } from "@/components/brand-mark";
+import { CommandPalette } from "@/components/command-palette";
 import { DashboardMobileNav } from "@/components/dashboard-mobile-nav";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { DemoBanner } from "@/components/demo-banner";
@@ -30,8 +31,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
                                 Matching Hub
                             </Link>
                         </div>
-                        <div className="hidden lg:block" />
-                        <div className="flex items-center gap-1">
+                        <div className="ml-auto flex items-center gap-1.5">
+                            <CommandPalette />
                             <ThemeToggle />
                             <UserMenu email={user.email} name={user.name} />
                         </div>

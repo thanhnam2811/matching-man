@@ -184,6 +184,13 @@ export type RatingHistoryEntry = {
     ratingProfile: { playerId: string; gameModeId: string };
 };
 
+// Shape served by the web app's own /api/nav route (command palette index).
+export type NavOrganization = {
+    id: string;
+    name: string;
+    projects: { id: string; name: string }[];
+};
+
 export type Environment = {
     id: string;
     name: string;

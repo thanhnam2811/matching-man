@@ -1,11 +1,13 @@
 "use client";
 
+import * as React from "react";
 import useSWR from "swr";
 import { Swords } from "lucide-react";
 import type { MatchSummary, Paginated } from "@/lib/api";
 import { LIVE_REFRESH_MS } from "@/lib/swr";
 import { Card, CardContent } from "@/components/ui/card";
 import { CopyButton } from "@/components/ui/copy-button";
+import { DetailDrawer, DetailField, DetailList } from "@/components/ui/detail-drawer";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/pagination";
 import { StatusBadge } from "@/components/status-badge";
@@ -31,6 +33,11 @@ export function MatchesTable({
         { fallbackData: fallback, refreshInterval: LIVE_REFRESH_MS },
     );
     const result = data ?? fallback;
+
+    // `current` survives closing so the sheet's content stays put during the exit animation.
+    const [current, setCurrent] = React.useState<MatchSummary | null>(null);
+    const [open, setOpen] = React.useState(false);
+    const close = React.useCallback(() => setOpen(false), []);
 
     return (
         <div className="space-y-4">
@@ -60,9 +67,19 @@ export function MatchesTable({
                             </TableHeader>
                             <TableBody>
                                 {result.data.map((match) => (
-                                    <TableRow key={match.id}>
+                                    <TableRow
+                                        key={match.id}
+                                        className="cursor-pointer"
+                                        onClick={() => {
+                                            setCurrent(match);
+                                            setOpen(true);
+                                        }}
+                                    >
                                         <TableCell className="font-mono text-xs">
-                                            <span className="inline-flex items-center gap-1">
+                                            <span
+                                                className="inline-flex items-center gap-1"
+                                                onClick={(event) => event.stopPropagation()}
+                                            >
                                                 {match.id}
                                                 <CopyButton value={match.id} label="Copy match ID" />
                                             </span>
@@ -95,6 +112,39 @@ export function MatchesTable({
                 total={result.total}
                 query={status ? { status } : undefined}
             />
+
+            <DetailDrawer open={open} onClose={close} title="Match details">
+                {current ? (
+                    <DetailList>
+                        <DetailField label="Match ID" mono>
+                            <span className="inline-flex items-center gap-1">
+                                {current.id}
+                                <CopyButton value={current.id} label="Copy match ID" />
+                            </span>
+                        </DetailField>
+                        <DetailField label="Game mode" mono>
+                            {current.gameModeId}
+                        </DetailField>
+                        <DetailField label="Status">
+                            <StatusBadge status={current.status} />
+                        </DetailField>
+                        <DetailField label="Environment">{current.environment}</DetailField>
+                        <DetailField label="Region">{current.region}</DetailField>
+                        <DetailField label="Required slots">{current.requiredSlots}</DetailField>
+                        <DetailField label="Groups">{current.groupCount}</DetailField>
+                        <DetailField label="Rating mode">{current.ratingMode}</DetailField>
+                        <DetailField label="Winner">
+                            {current.result?.winnerGroupIndex != null
+                                ? `group ${current.result.winnerGroupIndex}`
+                                : "—"}
+                        </DetailField>
+                        <DetailField label="Ended">
+                            {current.result ? formatDateTime(current.result.endedAt) : "—"}
+                        </DetailField>
+                        <DetailField label="Created">{formatDateTime(current.createdAt)}</DetailField>
+                    </DetailList>
+                ) : null}
+            </DetailDrawer>
         </div>
     );
 }

@@ -15,28 +15,35 @@ export function DeliveriesTable({
     projectId,
     offset,
     limit,
+    status,
     fallback,
 }: {
     projectId: string;
     offset: number;
     limit: number;
+    status?: string;
     fallback: Paginated<Delivery>;
 }) {
+    const statusQuery = status ? `&status=${status}` : "";
     const { data } = useSWR<Paginated<Delivery>>(
-        `/api/projects/${projectId}/deliveries?limit=${limit}&offset=${offset}`,
+        `/api/projects/${projectId}/deliveries?limit=${limit}&offset=${offset}${statusQuery}`,
         { fallbackData: fallback, refreshInterval: LIVE_REFRESH_MS },
     );
     const result = data ?? fallback;
 
     return (
         <div className="space-y-4">
-            <Card className="p-0">
+            <Card className="overflow-hidden p-0">
                 <CardContent className="p-0">
                     {result.data.length === 0 ? (
                         <EmptyState
                             icon={Webhook}
-                            title="No webhook deliveries yet"
-                            description="Every event sent to your endpoints will be logged here with its status."
+                            title={status ? `No ${status} deliveries` : "No webhook deliveries yet"}
+                            description={
+                                status
+                                    ? "Try another status or clear the filter."
+                                    : "Every event sent to your endpoints will be logged here with its status."
+                            }
                         />
                     ) : (
                         <Table>
@@ -80,6 +87,7 @@ export function DeliveriesTable({
                 offset={offset}
                 limit={limit}
                 total={result.total}
+                query={status ? { status } : undefined}
             />
         </div>
     );

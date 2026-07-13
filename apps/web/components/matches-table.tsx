@@ -16,28 +16,35 @@ export function MatchesTable({
     projectId,
     offset,
     limit,
+    status,
     fallback,
 }: {
     projectId: string;
     offset: number;
     limit: number;
+    status?: string;
     fallback: Paginated<MatchSummary>;
 }) {
+    const statusQuery = status ? `&status=${status}` : "";
     const { data } = useSWR<Paginated<MatchSummary>>(
-        `/api/projects/${projectId}/matches?limit=${limit}&offset=${offset}`,
+        `/api/projects/${projectId}/matches?limit=${limit}&offset=${offset}${statusQuery}`,
         { fallbackData: fallback, refreshInterval: LIVE_REFRESH_MS },
     );
     const result = data ?? fallback;
 
     return (
         <div className="space-y-4">
-            <Card className="p-0">
+            <Card className="overflow-hidden p-0">
                 <CardContent className="p-0">
                     {result.data.length === 0 ? (
                         <EmptyState
                             icon={Swords}
-                            title="No matches yet"
-                            description="Matches appear here as the engine pairs queued teams."
+                            title={status ? `No ${status.replace(/_/g, " ")} matches` : "No matches yet"}
+                            description={
+                                status
+                                    ? "Try another status or clear the filter."
+                                    : "Matches appear here as the engine pairs queued teams."
+                            }
                         />
                     ) : (
                         <Table>
@@ -86,6 +93,7 @@ export function MatchesTable({
                 offset={offset}
                 limit={limit}
                 total={result.total}
+                query={status ? { status } : undefined}
             />
         </div>
     );

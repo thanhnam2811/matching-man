@@ -8,19 +8,28 @@ export function Pagination({
     offset,
     limit,
     total,
+    query,
 }: {
     basePath: string;
     offset: number;
     limit: number;
     total: number;
+    /** Extra query params (e.g. an active status filter) preserved across pages. */
+    query?: Record<string, string>;
 }) {
     const from = total === 0 ? 0 : offset + 1;
     const to = Math.min(offset + limit, total);
     const hasPrev = offset > 0;
     const hasNext = offset + limit < total;
 
-    const prevHref = `${basePath}?offset=${Math.max(offset - limit, 0)}`;
-    const nextHref = `${basePath}?offset=${offset + limit}`;
+    function buildHref(nextOffset: number) {
+        const params = new URLSearchParams(query);
+        params.set("offset", String(nextOffset));
+        return `${basePath}?${params.toString()}`;
+    }
+
+    const prevHref = buildHref(Math.max(offset - limit, 0));
+    const nextHref = buildHref(offset + limit);
     const disabled = "pointer-events-none opacity-50";
 
     return (

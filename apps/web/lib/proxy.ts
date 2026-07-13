@@ -1,11 +1,11 @@
 import { ApiError, NetworkError, TimeoutError, apiFetch } from "@/lib/api";
 
-// Server-only helper for the dashboard's same-origin read proxies. Runs the
-// authenticated server-side `apiFetch` (token from the httpOnly cookie) and maps
+// Server-only helpers for the dashboard's same-origin read proxies. They run
+// authenticated server-side loads (token from the httpOnly cookie) and map
 // failures onto HTTP statuses the client SWR fetcher can reason about.
-export async function proxyGet<T>(path: string): Promise<Response> {
+export async function proxyJson<T>(load: () => Promise<T>): Promise<Response> {
     try {
-        const data = await apiFetch<T>(path);
+        const data = await load();
         return Response.json(data);
     } catch (error) {
         if (error instanceof ApiError) {
@@ -16,6 +16,10 @@ export async function proxyGet<T>(path: string): Promise<Response> {
         }
         return Response.json({ error: "Unexpected error" }, { status: 500 });
     }
+}
+
+export function proxyGet<T>(path: string): Promise<Response> {
+    return proxyJson(() => apiFetch<T>(path));
 }
 
 export function readPaging(request: Request, fallbackLimit: number): { limit: number; offset: number } {

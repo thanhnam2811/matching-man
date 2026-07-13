@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Boxes, ChevronRight } from "lucide-react";
+import { Boxes, ChevronRight } from "lucide-react";
 import { ApiError, apiFetch, getCurrentUser, type OrganizationDetail, type OrganizationMember } from "@/lib/api";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CreateProjectForm } from "@/components/create-project-form";
@@ -32,14 +33,8 @@ export default async function OrganizationPage({ params }: { params: Promise<{ o
 
     return (
         <div className="mx-auto max-w-5xl space-y-6">
-            <div className="space-y-1">
-                <Link
-                    href="/dashboard"
-                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                >
-                    <ArrowLeft className="size-3" />
-                    All organizations
-                </Link>
+            <div className="space-y-1.5">
+                <Breadcrumbs items={[{ label: "Organizations", href: "/dashboard" }, { label: organization.name }]} />
                 <h1 className="text-2xl font-semibold tracking-tight">{organization.name}</h1>
                 <p className="font-mono text-xs text-muted-foreground">{organization.slug}</p>
             </div>
@@ -70,7 +65,7 @@ export default async function OrganizationPage({ params }: { params: Promise<{ o
                     <div className="grid gap-4 sm:grid-cols-2">
                         {organization.projects.map((project) => (
                             <Link key={project.id} href={`/dashboard/projects/${project.id}`} className="group">
-                                <Card className="transition-colors group-hover:border-foreground/20">
+                                <Card className="h-full transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-md">
                                     <CardHeader>
                                         <div className="flex items-center justify-between">
                                             <CardTitle>{project.name}</CardTitle>

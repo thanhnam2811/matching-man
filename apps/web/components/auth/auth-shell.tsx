@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Check } from "lucide-react";
+import { BrandMark } from "@/components/brand-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const POINTS = [
@@ -18,7 +19,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-primary/10 to-transparent" />
 
                 <Link href="/" className="relative flex items-center gap-2 font-semibold">
-                    <span className="inline-block size-2 rounded-full bg-success" />
+                    <BrandMark />
                     Matching Hub
                 </Link>
 

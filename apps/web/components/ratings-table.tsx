@@ -29,7 +29,7 @@ export function RatingsTable({
 
     return (
         <div className="space-y-4">
-            <Card className="p-0">
+            <Card className="overflow-hidden p-0">
                 <CardContent className="p-0">
                     {result.data.length === 0 ? (
                         <EmptyState

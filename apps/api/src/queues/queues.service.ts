@@ -500,41 +500,51 @@ export class QueuesService {
             return [];
         }
 
-        const anchor = ratedEntries[0];
+        // Sliding anchor: try each entry as the anchor in wait-time order. The
+        // longest-waiting team keeps first claim on a match, but an anchor whose
+        // window covers nobody no longer head-of-line blocks well-matched pairs
+        // queued behind it. Eligibility always uses the current anchor's own
+        // window.
+        for (const [anchorIndex, anchor] of ratedEntries.entries()) {
+            const effectiveWindow = this.computeEffectiveWindow(
+                anchor.queueEntry.queuedAt,
+                initialRatingWindow,
+                windowExpandIntervalSeconds,
+                windowExpandStep,
+            );
 
-        const effectiveWindow = this.computeEffectiveWindow(
-            anchor.queueEntry.queuedAt,
-            initialRatingWindow,
-            windowExpandIntervalSeconds,
-            windowExpandStep,
-        );
+            const eligibleRest = ratedEntries.filter((entry, index) => {
+                if (index === anchorIndex) {
+                    return false;
+                }
+                if (effectiveWindow === null) {
+                    return true;
+                }
+                return Math.abs(entry.teamRating - anchor.teamRating) <= effectiveWindow;
+            });
 
-        const eligibleRest = ratedEntries.slice(1).filter((entry) => {
-            if (effectiveWindow === null) {
-                return true;
+            if (eligibleRest.length < requiredSlots - 1) {
+                continue;
             }
-            return Math.abs(entry.teamRating - anchor.teamRating) <= effectiveWindow;
-        });
 
-        if (eligibleRest.length < requiredSlots - 1) {
-            return [];
+            const selected = eligibleRest
+                .toSorted((left, right) => {
+                    const delta =
+                        Math.abs(left.teamRating - anchor.teamRating) - Math.abs(right.teamRating - anchor.teamRating);
+                    if (delta !== 0) {
+                        return delta;
+                    }
+                    return left.queueEntry.queuedAt.getTime() - right.queueEntry.queuedAt.getTime();
+                })
+                .slice(0, requiredSlots - 1)
+                .map((entry) => entry.queueEntry);
+
+            return [anchor.queueEntry, ...selected].toSorted(
+                (left, right) => left.queuedAt.getTime() - right.queuedAt.getTime(),
+            );
         }
 
-        const selected = eligibleRest
-            .toSorted((left, right) => {
-                const delta =
-                    Math.abs(left.teamRating - anchor.teamRating) - Math.abs(right.teamRating - anchor.teamRating);
-                if (delta !== 0) {
-                    return delta;
-                }
-                return left.queueEntry.queuedAt.getTime() - right.queueEntry.queuedAt.getTime();
-            })
-            .slice(0, requiredSlots - 1)
-            .map((entry) => entry.queueEntry);
-
-        return [anchor.queueEntry, ...selected].toSorted(
-            (left, right) => left.queuedAt.getTime() - right.queuedAt.getTime(),
-        );
+        return [];
     }
 
     private computeEffectiveWindow(

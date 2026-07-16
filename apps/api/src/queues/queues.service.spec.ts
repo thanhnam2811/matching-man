@@ -468,6 +468,67 @@ describe("QueuesService", () => {
             expect(selected).toHaveLength(0);
         });
 
+        it("slides the anchor past an out-of-range head so pairs behind it still match", () => {
+            // Head (1500) queued 5s ago: window 50 covers neither 1119. Under a
+            // fixed anchor this pool would deadlock until the head's window grew;
+            // the sliding anchor lets the identical 1119s pair immediately.
+            const selected = service["selectCandidateQueueEntries"](
+                [
+                    {
+                        id: "entry_head",
+                        teamId: "team_head",
+                        queuedAt: new Date(Date.now() - 5000),
+                        team: { members: [{ playerId: "p1", ratingSnapshot: 1500 }] },
+                    },
+                    {
+                        id: "entry_2",
+                        teamId: "team_2",
+                        queuedAt: new Date(Date.now() - 4000),
+                        team: { members: [{ playerId: "p2", ratingSnapshot: 1119 }] },
+                    },
+                    {
+                        id: "entry_3",
+                        teamId: "team_3",
+                        queuedAt: new Date(Date.now() - 3000),
+                        team: { members: [{ playerId: "p3", ratingSnapshot: 1119 }] },
+                    },
+                ],
+                { ...baseGameMode, initialRatingWindow: 50, windowExpandIntervalSeconds: 15, windowExpandStep: 50 },
+            );
+
+            expect(selected.map((entry) => entry.id)).toEqual(["entry_2", "entry_3"]);
+        });
+
+        it("still gives the longest-waiting anchor first claim when it can fill a match", () => {
+            // Head (1000, window 50) covers 1030, so it must match first even
+            // though 1030 and 1031 are closer to each other.
+            const selected = service["selectCandidateQueueEntries"](
+                [
+                    {
+                        id: "entry_head",
+                        teamId: "team_head",
+                        queuedAt: new Date(Date.now() - 5000),
+                        team: { members: [{ playerId: "p1", ratingSnapshot: 1000 }] },
+                    },
+                    {
+                        id: "entry_2",
+                        teamId: "team_2",
+                        queuedAt: new Date(Date.now() - 4000),
+                        team: { members: [{ playerId: "p2", ratingSnapshot: 1030 }] },
+                    },
+                    {
+                        id: "entry_3",
+                        teamId: "team_3",
+                        queuedAt: new Date(Date.now() - 3000),
+                        team: { members: [{ playerId: "p3", ratingSnapshot: 1031 }] },
+                    },
+                ],
+                { ...baseGameMode, initialRatingWindow: 50, windowExpandIntervalSeconds: 15, windowExpandStep: 50 },
+            );
+
+            expect(selected.map((entry) => entry.id)).toEqual(["entry_head", "entry_2"]);
+        });
+
         it("expands the window as the anchor entry waits longer", () => {
             // anchor queued 20s ago: initial 50 + 1 expansion (20/15=1) * 50 = 100
             const anchor = new Date(Date.now() - 20000);

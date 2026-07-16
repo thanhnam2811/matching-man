@@ -18,6 +18,12 @@ type SweepCandidate = {
  * before a pool fills up, this sweep catches it on the next tick. tryCreateMatch's
  * own FOR UPDATE SKIP LOCKED guards against double-matching, so it's safe for this
  * to overlap with a concurrent fire-and-forget attempt on the same pool.
+ *
+ * The tick is also the only place expanding rating windows get re-evaluated —
+ * the enqueue-time attempt runs once, while windows are still narrow — so its
+ * cadence bounds how stale a "now in range" pair can get. 5s keeps that wait
+ * short; the scan itself is one cheap aggregate, and tryCreateMatch only runs
+ * for pools that can actually fill a match.
  */
 @Injectable()
 export class MatchMakerSweepProcessor {
@@ -29,7 +35,7 @@ export class MatchMakerSweepProcessor {
         private readonly schedulerHealthService: SchedulerHealthService,
     ) {}
 
-    @Cron("*/20 * * * * *")
+    @Cron("*/5 * * * * *")
     async sweepStalledPools() {
         this.schedulerHealthService.recordRun(SCHEDULER_JOBS.MATCH_MAKER_SWEEP);
 

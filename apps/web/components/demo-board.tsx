@@ -163,7 +163,7 @@ export function DemoBoard({
         async (queueEntryId: string) => {
             // Poll until the entry reaches a terminal state (matched / cancelled /
             // timed out) instead of a fixed short window: skill matches formed by
-            // the 20s server sweep can take 20-30s+ to appear (issue #18). Fast
+            // the periodic server sweep can take 20s+ to appear (issue #18). Fast
             // cadence at first so instant matches feel instant, then a backoff to
             // stay friendly to the free-tier API. The hard cap sits past the demo
             // mode's max queue time (300s), by which point the entry has timed out.

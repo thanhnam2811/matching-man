@@ -3,10 +3,10 @@ import { PrismaService } from "../prisma/prisma.service";
 import { SCHEDULER_JOBS, SchedulerHealthService } from "../common/scheduler-health/scheduler-health.service";
 
 // 3x each cron's own interval (webhook-retry: */30s, queue-timeout: 0 * * * * * = 60s,
-// match-maker-sweep: */20s).
+// match-maker-sweep: */5s).
 const WEBHOOK_RETRY_STALE_AFTER_MS = 90_000;
 const QUEUE_TIMEOUT_STALE_AFTER_MS = 180_000;
-const MATCH_MAKER_SWEEP_STALE_AFTER_MS = 60_000;
+const MATCH_MAKER_SWEEP_STALE_AFTER_MS = 15_000;
 
 @Injectable()
 export class HealthService {

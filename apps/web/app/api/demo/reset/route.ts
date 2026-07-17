@@ -1,7 +1,7 @@
 import { demoDequeue, isDemoEnabled } from "@/lib/demo";
 
 export async function POST(request: Request) {
-    if (!isDemoEnabled()) {
+    if (!(await isDemoEnabled())) {
         return Response.json({ error: "Demo is not configured" }, { status: 503 });
     }
 

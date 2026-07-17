@@ -7,8 +7,8 @@ import { DemoBoard } from "@/components/demo-board";
 // Matches the seeded skill-1v1 game mode (apps/api/scripts/seed-demo.mjs).
 const SKILL_WINDOW = { initial: 50, intervalSeconds: 3, step: 100 };
 
-export default function DemoPage() {
-    const enabled = isDemoEnabled();
+export default async function DemoPage() {
+    const enabled = await isDemoEnabled();
 
     return (
         <main className="mx-auto flex min-h-screen max-w-5xl flex-col px-6 py-10">
@@ -31,10 +31,8 @@ export default function DemoPage() {
                 ) : (
                     <Card>
                         <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                            The demo is not configured. Run{" "}
-                            <code className="font-mono">node apps/api/scripts/seed-demo.mjs</code> and set the{" "}
-                            <code className="font-mono">DEMO_*</code> variables in{" "}
-                            <code className="font-mono">apps/web/.env.local</code>.
+                            The demo is temporarily unavailable — the API may be waking up or unreachable. Try
+                            refreshing in a moment.
                         </CardContent>
                     </Card>
                 )}

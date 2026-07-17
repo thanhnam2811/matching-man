@@ -1,7 +1,7 @@
 import { demoMatch, isDemoEnabled } from "@/lib/demo";
 
 export async function GET(request: Request) {
-    if (!isDemoEnabled()) {
+    if (!(await isDemoEnabled())) {
         return Response.json({ error: "Demo is not configured" }, { status: 503 });
     }
 

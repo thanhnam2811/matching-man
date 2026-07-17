@@ -55,5 +55,11 @@ export const DEMO_GAME_MODES = [
 // SystemSetting key holding the ISO timestamp of the last successful reset.
 export const DEMO_LAST_RESET_SETTING_KEY = "demo:last_reset_at";
 
+// SystemSetting key holding the raw (unhashed) current demo API key, so
+// GET /demo/config can hand it to the public /demo sandbox without a
+// separate manual seed step. Safe to store in the clear: it only unlocks
+// the single sandboxed demo-arena project, which purges/reseeds hourly.
+export const DEMO_API_KEY_SETTING_KEY = "demo:api_key";
+
 // Webhook endpoint ensured for the demo project so the Deliveries tab has data.
 export const DEMO_WEBHOOK_URL = "https://demo.matchinghub.dev/webhooks";

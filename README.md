@@ -9,6 +9,16 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-4169E1?logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-deployed-2496ED?logo=docker&logoColor=white)
 
+**Live:** [match.namtt.dev](https://match.namtt.dev) · [Try the live demo](https://match.namtt.dev/demo)
+
+## 📸 Demo
+
+<p align="center">
+  <img src="docs/screenshots/landing.jpg" width="80%" alt="Matching Hub landing page" />
+  <br/><br/>
+  <img src="docs/screenshots/live-demo.jpg" width="80%" alt="Live matchmaking demo — two players paired into a match" />
+</p>
+
 ## Overview
 
 Game studios repeatedly rebuild the same matchmaking plumbing: queues, rating windows, timeouts, result callbacks. Matching Hub centralizes that into one API. A game server registers a project, gets an API key, enqueues players into pools, and receives HMAC-signed webhooks when a match is found, times out, or fails. Operators manage everything through a web dashboard.

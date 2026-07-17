@@ -1,6 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { ProjectMemberRole } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { ROLE_RANK } from "../organizations/organizations.service";
+import type { DashboardAuthContext } from "../common/interfaces/dashboard-auth-request";
 import { CreateProjectMemberDto } from "./dto/create-project-member.dto";
 import { UpdateProjectMemberDto } from "./dto/update-project-member.dto";
 
@@ -35,36 +37,23 @@ export class ProjectMembersService {
         }));
     }
 
-    async create(projectId: string, createProjectMemberDto: CreateProjectMemberDto) {
-        await this.ensureProjectExists(projectId);
+    async create(context: DashboardAuthContext, projectId: string, createProjectMemberDto: CreateProjectMemberDto) {
+        await this.assertManageAccess(context, projectId);
 
-        const user = await this.prismaService.client.user.upsert({
-            where: {
-                email: createProjectMemberDto.email.toLowerCase(),
-            },
-            update: {
-                name: createProjectMemberDto.name ?? undefined,
-            },
-            create: {
-                email: createProjectMemberDto.email.toLowerCase(),
-                name: createProjectMemberDto.name,
-            },
+        const user = await this.prismaService.client.user.findUnique({
+            where: { email: createProjectMemberDto.email.toLowerCase() },
+            select: { id: true, email: true, name: true },
         });
+
+        if (!user) {
+            throw new NotFoundException("No registered user with that email; ask them to sign up first");
+        }
 
         const existing = await this.prismaService.client.projectMember.findUnique({
             where: {
                 projectId_userId: {
                     projectId,
                     userId: user.id,
-                },
-            },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        email: true,
-                        name: true,
-                    },
                 },
             },
         });
@@ -98,7 +87,14 @@ export class ProjectMembersService {
         };
     }
 
-    async update(projectId: string, memberId: string, updateProjectMemberDto: UpdateProjectMemberDto) {
+    async update(
+        context: DashboardAuthContext,
+        projectId: string,
+        memberId: string,
+        updateProjectMemberDto: UpdateProjectMemberDto,
+    ) {
+        await this.assertManageAccess(context, projectId);
+
         const member = await this.getMember(projectId, memberId);
 
         if (member.role === ProjectMemberRole.OWNER && updateProjectMemberDto.role !== ProjectMemberRole.OWNER) {
@@ -131,7 +127,9 @@ export class ProjectMembersService {
         };
     }
 
-    async remove(projectId: string, memberId: string) {
+    async remove(context: DashboardAuthContext, projectId: string, memberId: string) {
+        await this.assertManageAccess(context, projectId);
+
         const member = await this.getMember(projectId, memberId);
 
         if (member.role === ProjectMemberRole.OWNER) {
@@ -148,6 +146,47 @@ export class ProjectMembersService {
             id: member.id,
             deleted: true,
         };
+    }
+
+    /**
+     * Requires org role >= ADMIN OR project role >= ADMIN. Super-admins bypass.
+     */
+    private async assertManageAccess(context: DashboardAuthContext, projectId: string) {
+        if (context.isSuperAdmin) {
+            return;
+        }
+
+        const userId = context.authUserId;
+        if (!userId) {
+            throw new ForbiddenException("You do not have permission to manage this project's members");
+        }
+
+        const project = await this.prismaService.client.project.findUnique({
+            where: { id: projectId },
+            select: { organizationId: true },
+        });
+
+        if (!project) {
+            throw new NotFoundException("Project not found");
+        }
+
+        const orgMembership = await this.prismaService.client.organizationMember.findUnique({
+            where: { organizationId_userId: { organizationId: project.organizationId, userId } },
+            select: { role: true },
+        });
+
+        if (orgMembership && ROLE_RANK[orgMembership.role] >= ROLE_RANK[ProjectMemberRole.ADMIN]) {
+            return;
+        }
+
+        const projectMembership = await this.prismaService.client.projectMember.findUnique({
+            where: { projectId_userId: { projectId, userId } },
+            select: { role: true },
+        });
+
+        if (!projectMembership || ROLE_RANK[projectMembership.role] < ROLE_RANK[ProjectMemberRole.ADMIN]) {
+            throw new ForbiddenException("You do not have permission to manage this project's members");
+        }
     }
 
     private async ensureProjectExists(projectId: string) {

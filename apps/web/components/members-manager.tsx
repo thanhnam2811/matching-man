@@ -13,6 +13,8 @@ type Member = {
     user: { id: string; email: string; name: string | null };
 };
 
+type MemberScope = "organizations" | "projects";
+
 const ROLES = ["OWNER", "ADMIN", "MEMBER"];
 const selectClass =
     "h-9 rounded-md border border-input bg-transparent px-2 text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:text-sm";
@@ -20,21 +22,24 @@ const selectClass =
 const initialState: FormState = {};
 
 export function MembersManager({
-    organizationId,
+    scope,
+    scopeId,
     members,
     canManage,
 }: {
-    organizationId: string;
+    scope: MemberScope;
+    scopeId: string;
     members: Member[];
     canManage: boolean;
 }) {
     const [state, action, pending] = useActionState(inviteMember, initialState);
+    const scopeFieldName = scope === "organizations" ? "organizationId" : "projectId";
 
     return (
         <div className="space-y-4">
             {canManage ? (
                 <form action={action} className="flex flex-col gap-2 sm:flex-row sm:items-start">
-                    <input type="hidden" name="organizationId" value={organizationId} />
+                    <input type="hidden" name={scopeFieldName} value={scopeId} />
                     <Input name="email" type="email" placeholder="teammate@example.com" className="flex-1" required />
                     <select name="role" defaultValue="MEMBER" className={selectClass} aria-label="Role">
                         {ROLES.map((role) => (
@@ -61,7 +66,7 @@ export function MembersManager({
                         {canManage ? (
                             <div className="flex shrink-0 items-center gap-1">
                                 <form action={updateMemberRole} className="flex items-center gap-1">
-                                    <input type="hidden" name="organizationId" value={organizationId} />
+                                    <input type="hidden" name={scopeFieldName} value={scopeId} />
                                     <input type="hidden" name="memberId" value={member.id} />
                                     <select
                                         name="role"
@@ -80,7 +85,7 @@ export function MembersManager({
                                     </Button>
                                 </form>
                                 <form action={removeMember}>
-                                    <input type="hidden" name="organizationId" value={organizationId} />
+                                    <input type="hidden" name={scopeFieldName} value={scopeId} />
                                     <input type="hidden" name="memberId" value={member.id} />
                                     <ConfirmButton confirmLabel="Remove member">Remove</ConfirmButton>
                                 </form>

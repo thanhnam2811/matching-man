@@ -90,7 +90,12 @@ export default async function OrganizationPage({ params }: { params: Promise<{ o
                     <CardDescription>{members.length} in this organization</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <MembersManager organizationId={organization.id} members={members} canManage={canManage} />
+                    <MembersManager
+                        scope="organizations"
+                        scopeId={organization.id}
+                        members={members}
+                        canManage={canManage}
+                    />
                 </CardContent>
             </Card>
         </div>

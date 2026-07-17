@@ -104,6 +104,41 @@
                 "tags": ["Auth"]
             }
         },
+        "/v1/demo/config": {
+            "get": {
+                "operationId": "DemoController_getConfig",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "summary": "Live config for the public matchmaking sandbox — project id, API key, and game mode ids.",
+                "tags": ["Demo"]
+            }
+        },
+        "/v1/demo/webhook-sink": {
+            "post": {
+                "operationId": "DemoController_receiveWebhook",
+                "parameters": [
+                    {
+                        "name": "x-webhook-event",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "summary": "Delivery target for the demo project's webhook endpoint — logs and acknowledges receipt.",
+                "tags": ["Demo"]
+            }
+        },
         "/v1/organizations": {
             "post": {
                 "operationId": "OrganizationsController_create",
@@ -584,7 +619,7 @@
                         "sessionToken": []
                     }
                 ],
-                "summary": "Add a project member.",
+                "summary": "Add a project member. Requires org ADMIN+ or project ADMIN+.",
                 "tags": ["Project Members"]
             }
         },
@@ -629,7 +664,7 @@
                         "sessionToken": []
                     }
                 ],
-                "summary": "Change a project member's role.",
+                "summary": "Change a project member's role. Requires org ADMIN+ or project ADMIN+.",
                 "tags": ["Project Members"]
             },
             "delete": {
@@ -662,7 +697,7 @@
                         "sessionToken": []
                     }
                 ],
-                "summary": "Remove a project member.",
+                "summary": "Remove a member. Requires org ADMIN+ or project ADMIN+; a project must keep at least one owner.",
                 "tags": ["Project Members"]
             }
         },
@@ -1036,6 +1071,33 @@
                     }
                 ],
                 "summary": "List active pools and waiting counts for the authenticated project.",
+                "tags": ["Queues"]
+            }
+        },
+        "/v1/queues/entries/{queueEntryId}": {
+            "get": {
+                "operationId": "QueuesController_getEntry",
+                "parameters": [
+                    {
+                        "name": "queueEntryId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "projectApiKey": []
+                    }
+                ],
+                "summary": "Get the current state of a queue entry - poll this to learn when a match has been assigned.",
                 "tags": ["Queues"]
             }
         },
@@ -1637,11 +1699,9 @@
                 "type": "object",
                 "properties": {
                     "email": {
-                        "type": "string"
-                    },
-                    "name": {
                         "type": "string",
-                        "maxLength": 120
+                        "description": "The invitee must already be registered.",
+                        "maxLength": 160
                     },
                     "role": {
                         "type": "string",

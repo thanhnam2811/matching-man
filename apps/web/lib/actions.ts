@@ -21,6 +21,20 @@ function humanize(error: unknown): string {
     return "Something went wrong";
 }
 
+type MemberScope = "organizations" | "projects";
+
+function memberScopeFromForm(formData: FormData): { scope: MemberScope; scopeId: string } {
+    const organizationId = String(formData.get("organizationId") ?? "");
+    if (organizationId) {
+        return { scope: "organizations", scopeId: organizationId };
+    }
+    return { scope: "projects", scopeId: String(formData.get("projectId") ?? "") };
+}
+
+function memberScopePath(scope: MemberScope, scopeId: string): string {
+    return scope === "organizations" ? `/dashboard/organizations/${scopeId}` : `/dashboard/projects/${scopeId}`;
+}
+
 export async function createOrganization(_prev: FormState, formData: FormData): Promise<FormState> {
     const name = String(formData.get("name") ?? "").trim();
     if (!name) {
@@ -159,7 +173,7 @@ export async function deleteEnvironment(formData: FormData): Promise<void> {
 }
 
 export async function inviteMember(_prev: FormState, formData: FormData): Promise<FormState> {
-    const organizationId = String(formData.get("organizationId") ?? "");
+    const { scope, scopeId } = memberScopeFromForm(formData);
     const email = String(formData.get("email") ?? "").trim();
     const role = String(formData.get("role") ?? "MEMBER");
 
@@ -168,7 +182,7 @@ export async function inviteMember(_prev: FormState, formData: FormData): Promis
     }
 
     try {
-        await apiFetch(`/organizations/${organizationId}/members`, {
+        await apiFetch(`/${scope}/${scopeId}/members`, {
             method: "POST",
             body: JSON.stringify({ email, role }),
         });
@@ -179,24 +193,24 @@ export async function inviteMember(_prev: FormState, formData: FormData): Promis
         return { error: humanize(error) };
     }
 
-    revalidatePath(`/dashboard/organizations/${organizationId}`);
+    revalidatePath(memberScopePath(scope, scopeId));
     return {};
 }
 
 export async function updateMemberRole(formData: FormData): Promise<void> {
-    const organizationId = String(formData.get("organizationId") ?? "");
+    const { scope, scopeId } = memberScopeFromForm(formData);
     const memberId = String(formData.get("memberId") ?? "");
     const role = String(formData.get("role") ?? "MEMBER");
-    await apiFetch(`/organizations/${organizationId}/members/${memberId}`, {
+    await apiFetch(`/${scope}/${scopeId}/members/${memberId}`, {
         method: "PATCH",
         body: JSON.stringify({ role }),
     }).catch(() => undefined);
-    revalidatePath(`/dashboard/organizations/${organizationId}`);
+    revalidatePath(memberScopePath(scope, scopeId));
 }
 
 export async function removeMember(formData: FormData): Promise<void> {
-    const organizationId = String(formData.get("organizationId") ?? "");
+    const { scope, scopeId } = memberScopeFromForm(formData);
     const memberId = String(formData.get("memberId") ?? "");
-    await apiFetch(`/organizations/${organizationId}/members/${memberId}`, { method: "DELETE" }).catch(() => undefined);
-    revalidatePath(`/dashboard/organizations/${organizationId}`);
+    await apiFetch(`/${scope}/${scopeId}/members/${memberId}`, { method: "DELETE" }).catch(() => undefined);
+    revalidatePath(memberScopePath(scope, scopeId));
 }

@@ -1,4 +1,5 @@
 import { ExecutionContext, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { ProjectMemberRole } from "../../../generated/prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { ProjectAccessGuard } from "./project-access.guard";
 
@@ -14,6 +15,7 @@ describe("ProjectAccessGuard", () => {
         client: {
             project: { findUnique: jest.Mock };
             organizationMember: { findUnique: jest.Mock };
+            projectMember: { findUnique: jest.Mock };
         };
     };
 
@@ -22,6 +24,7 @@ describe("ProjectAccessGuard", () => {
             client: {
                 project: { findUnique: jest.fn() },
                 organizationMember: { findUnique: jest.fn() },
+                projectMember: { findUnique: jest.fn() },
             },
         };
         guard = new ProjectAccessGuard(prismaService as unknown as PrismaService);
@@ -34,26 +37,47 @@ describe("ProjectAccessGuard", () => {
         expect(prismaService.client.project.findUnique).not.toHaveBeenCalled();
     });
 
-    it("allows a member of the project's organization", async () => {
+    it("allows an org OWNER/ADMIN without a ProjectMember row", async () => {
         prismaService.client.project.findUnique.mockResolvedValue({ organizationId: "org_1" });
-        prismaService.client.organizationMember.findUnique.mockResolvedValue({ id: "member_1" });
+        prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.ADMIN });
 
         await expect(
             guard.canActivate(contextFor({ isSuperAdmin: false, authUserId: "user_1", params: { projectId: "p1" } })),
         ).resolves.toBe(true);
-        expect(prismaService.client.organizationMember.findUnique).toHaveBeenCalledWith(
+        expect(prismaService.client.projectMember.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("allows an org MEMBER with a matching ProjectMember row", async () => {
+        prismaService.client.project.findUnique.mockResolvedValue({ organizationId: "org_1" });
+        prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.MEMBER });
+        prismaService.client.projectMember.findUnique.mockResolvedValue({ id: "pm_1" });
+
+        await expect(
+            guard.canActivate(contextFor({ isSuperAdmin: false, authUserId: "user_1", params: { projectId: "p1" } })),
+        ).resolves.toBe(true);
+        expect(prismaService.client.projectMember.findUnique).toHaveBeenCalledWith(
             expect.objectContaining({
-                where: { organizationId_userId: { organizationId: "org_1", userId: "user_1" } },
+                where: { projectId_userId: { projectId: "p1", userId: "user_1" } },
             }),
         );
     });
 
-    it("rejects a non-member with 403", async () => {
+    it("rejects an org MEMBER without a ProjectMember row", async () => {
+        prismaService.client.project.findUnique.mockResolvedValue({ organizationId: "org_1" });
+        prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.MEMBER });
+        prismaService.client.projectMember.findUnique.mockResolvedValue(null);
+
+        await expect(
+            guard.canActivate(contextFor({ isSuperAdmin: false, authUserId: "user_2", params: { projectId: "p1" } })),
+        ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("rejects a non-member of the organization", async () => {
         prismaService.client.project.findUnique.mockResolvedValue({ organizationId: "org_1" });
         prismaService.client.organizationMember.findUnique.mockResolvedValue(null);
 
         await expect(
-            guard.canActivate(contextFor({ isSuperAdmin: false, authUserId: "user_2", params: { projectId: "p1" } })),
+            guard.canActivate(contextFor({ isSuperAdmin: false, authUserId: "user_3", params: { projectId: "p1" } })),
         ).rejects.toBeInstanceOf(ForbiddenException);
     });
 

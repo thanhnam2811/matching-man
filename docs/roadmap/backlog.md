@@ -35,7 +35,6 @@ sufficient for hobby-scale traffic.
 ## Auth and Platform (future increments beyond Phase 7)
 
 - [ ] OAuth / social login (Phase 7 ships email + password only)
-- [ ] Per-project member roles enforced distinctly from org roles
 - [ ] Org-level billing / usage metering
 - [ ] Audit log for control-plane mutations
 - [ ] Email verification and password reset flows
@@ -47,6 +46,8 @@ sufficient for hobby-scale traffic.
 - Production-hardening items (OpenAPI docs, coverage reporting, rate limiting,
   observability, performance baseline) graduated to
   [`phase-9-production-hardening.md`](phase-9-production-hardening.md) — the active phase.
+- Per-project member roles graduated to
+  [`phase-13-project-members-enforcement.md`](phase-13-project-members-enforcement.md).
 - The Redis/BullMQ decision above should be revisited with real numbers once Phase 9
   Stage 6 (performance baseline) lands.
 - No source evidence yet for any item in this file.

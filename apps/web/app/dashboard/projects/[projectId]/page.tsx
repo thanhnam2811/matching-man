@@ -1,20 +1,24 @@
 import { notFound } from "next/navigation";
-import { Layers, Swords, TrendingUp, Webhook } from "lucide-react";
+import { Layers, Lock, Swords, TrendingUp, Webhook } from "lucide-react";
 import {
     ApiError,
     apiFetch,
+    getCurrentUser,
     type ApiKey,
     type Delivery,
     type Environment,
     type MatchSummary,
     type Paginated,
     type Pool,
+    type ProjectDetail,
     type RatingHistoryEntry,
     type Webhook as WebhookEndpoint,
 } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiKeysManager } from "@/components/api-keys-manager";
+import { EmptyState } from "@/components/ui/empty-state";
 import { EnvironmentsManager } from "@/components/environments-manager";
+import { MembersManager } from "@/components/members-manager";
 import { StatCard } from "@/components/stat-card";
 import { WebhooksManager } from "@/components/webhooks-manager";
 
@@ -39,6 +43,8 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
     const since7d = new Date(Date.now() - 7 * DAY_MS).toISOString();
     const since14d = new Date(Date.now() - (SPARKLINE_DAYS - 1) * DAY_MS).toISOString();
 
+    let project: ProjectDetail;
+    let me: Awaited<ReturnType<typeof getCurrentUser>>;
     let environments: Environment[];
     let apiKeys: ApiKey[];
     let webhooks: WebhookEndpoint[];
@@ -51,6 +57,8 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
     let ratings: Paginated<RatingHistoryEntry>;
     try {
         [
+            project,
+            me,
             environments,
             apiKeys,
             webhooks,
@@ -62,6 +70,8 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
             deliveriesDelivered,
             ratings,
         ] = await Promise.all([
+            apiFetch<ProjectDetail>(`/projects/${projectId}`),
+            getCurrentUser(),
             apiFetch<Environment[]>(`/projects/${projectId}/environments`),
             apiFetch<ApiKey[]>(`/projects/${projectId}/api-keys`),
             apiFetch<WebhookEndpoint[]>(`/projects/${projectId}/webhooks`),
@@ -79,8 +89,27 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
         if (error instanceof ApiError && error.status === 404) {
             notFound();
         }
+        if (error instanceof ApiError && error.status === 403) {
+            return (
+                <Card>
+                    <CardContent className="p-0">
+                        <EmptyState
+                            icon={Lock}
+                            title="You don't have access to this project"
+                            description="Ask a project or organization admin to grant you access."
+                            action={{ label: "Back to dashboard", href: "/dashboard" }}
+                        />
+                    </CardContent>
+                </Card>
+            );
+        }
         throw error;
     }
+
+    const orgRole = me.organizations.find((organization) => organization.id === project.organization.id)?.role;
+    const myProjectRole = project.members.find((member) => member.user.id === me.id)?.role;
+    const canManageMembers =
+        orgRole === "OWNER" || orgRole === "ADMIN" || myProjectRole === "OWNER" || myProjectRole === "ADMIN";
 
     const queuedTotal = pools.reduce((sum, pool) => sum + pool.queuedCount, 0);
     const deliveryRate =
@@ -155,6 +184,21 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
                     </CardContent>
                 </Card>
             </div>
+
+            <Card className="min-w-0">
+                <CardHeader>
+                    <CardTitle>Members</CardTitle>
+                    <CardDescription>{project.members.length} in this project</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <MembersManager
+                        scope="projects"
+                        scopeId={project.id}
+                        members={project.members}
+                        canManage={canManageMembers}
+                    />
+                </CardContent>
+            </Card>
         </div>
     );
 }

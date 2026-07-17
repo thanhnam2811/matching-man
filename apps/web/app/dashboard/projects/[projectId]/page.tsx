@@ -85,7 +85,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
             apiFetch<Paginated<RatingHistoryEntry>>(`/projects/${projectId}/rating-history?limit=1`),
         ]);
     } catch (error) {
-        if (error instanceof ApiError && error.status === 404) {
+        if (error instanceof ApiError && (error.status === 404 || error.status === 403)) {
             notFound();
         }
         throw error;

@@ -60,5 +60,8 @@ export const DEMO_LAST_RESET_SETTING_KEY = "demo:last_reset_at";
 // the single sandboxed demo-arena project, which purges/reseeds hourly.
 export const DEMO_API_KEY_SETTING_KEY = "demo:api_key";
 
-// Webhook endpoint ensured for the demo project so the Deliveries tab has data.
-export const DEMO_WEBHOOK_URL = "https://demo.matchinghub.dev/webhooks";
+// Webhook endpoint ensured for the demo project so the Deliveries tab has data,
+// and so live matches from the public /demo sandbox (Phase 12) get a real,
+// successful delivery instead of failing against a placeholder host. Points at
+// this API's own sink (DemoController.webhookSink), which just logs and 200s.
+export const DEMO_WEBHOOK_URL = "https://match-api.namtt.dev/v1/demo/webhook-sink";

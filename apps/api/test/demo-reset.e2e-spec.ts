@@ -3,6 +3,7 @@ import { buildTestApp } from "./support/build-app";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { PasswordService } from "../src/auth/password.service";
 import { DemoService } from "../src/demo/demo.service";
+import { DEMO_WEBHOOK_URL } from "../src/demo/demo.constants";
 
 describe("DemoService.reset (real DB)", () => {
     let app: INestApplication;
@@ -120,6 +121,33 @@ describe("DemoService.reset (real DB)", () => {
         expect(config!.apiKey).toMatch(/^mhub_[0-9a-f]{48}$/);
 
         // ...but the expensive full reset did not run, since the interval hadn't elapsed.
+        const matchesAfter = await prisma.client.match.count({ where: { projectId: project.id } });
+        expect(matchesAfter).toBe(matchesBefore);
+    });
+
+    it("resetIfDue() migrates a stale webhook endpoint URL immediately, without waiting for the interval", async () => {
+        await demo.reset();
+        const project = await prisma.client.project.findUniqueOrThrow({ where: { slug: "demo-arena" } });
+        const matchesBefore = await prisma.client.match.count({ where: { projectId: project.id } });
+
+        // Simulate an older deployment's row pointing at a placeholder host
+        // that doesn't resolve, plus a recent reset (interval nowhere near
+        // elapsed) -- exactly the state this fix needs to self-heal from.
+        await prisma.client.systemSetting.update({
+            where: { key: "demo:last_reset_at" },
+            data: { value: new Date().toISOString() },
+        });
+        await prisma.client.webhookEndpoint.updateMany({
+            where: { projectId: project.id },
+            data: { url: "https://demo.matchinghub.dev/webhooks" },
+        });
+
+        await demo.resetIfDue();
+
+        const endpoint = await prisma.client.webhookEndpoint.findFirstOrThrow({ where: { projectId: project.id } });
+        expect(endpoint.url).toBe(DEMO_WEBHOOK_URL);
+
+        // The expensive full reset did not run, since the interval hadn't elapsed.
         const matchesAfter = await prisma.client.match.count({ where: { projectId: project.id } });
         expect(matchesAfter).toBe(matchesBefore);
     });

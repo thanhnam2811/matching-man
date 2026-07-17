@@ -9,8 +9,11 @@ this file in the same change.
 
 - Next.js 15 (App Router) + React 19, TypeScript.
 - Tailwind CSS v3 with CSS-variable theming (`tailwind.config.ts`, `app/globals.css`).
-- Hand-written shadcn-style primitives in `components/ui/` (new-york flavor). **No Radix** —
-  kept out deliberately to minimize deps; use native elements styled with tokens instead.
+- Hand-written shadcn-style primitives in `components/ui/` (new-york flavor). Native elements
+  styled with tokens by default; `radix-ui` (the single tree-shakeable package, not per-component
+  packages) is the one exception, used where a real floating/listbox UI is needed and a native
+  element can't deliver it — currently just `select` (native `<select>` can't be themed past its
+  closed state; see Select below).
 - Geist Sans / Geist Mono via the `geist` package; icons from `lucide-react`.
 - Lint/format: the repo's `oxlint` + `oxfmt`. **No eslint, no `create-next-app` configs.**
 
@@ -58,26 +61,27 @@ palette classes for foundational surfaces.** (The only raw color is the drawer s
 Pattern for every primitive: `React.forwardRef`, `cn()` for class merge, `cva` for variants.
 Sizing is via Tailwind classes, not variant props (icons `size-4` / `size-3`).
 
-| Primitive                     | Notes                                                                                                                                                                             |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `button`                      | Variants `default \| destructive \| outline \| secondary \| ghost \| link`; sizes `default \| sm \| lg \| icon`                                                                   |
-| `badge`                       | Variants `default \| secondary \| destructive \| success \| warning \| outline`                                                                                                   |
-| `card`                        | Compound: `Card / CardHeader / CardTitle / CardDescription / CardContent`                                                                                                         |
-| `table`                       | Compound table parts                                                                                                                                                              |
-| `input`, `label`, `separator` | Form and layout basics                                                                                                                                                            |
-| `spinner`                     | `cva`-sized `Loader2`, `text-muted-foreground`                                                                                                                                    |
-| `toast`                       | Dependency-free pub/sub toaster; call `toast(...)` from any client component; a single `<Toaster />` is mounted in the root layout                                                |
-| `skeleton`                    | `animate-pulse` placeholder block; compose with sizing classes (`<Skeleton className="h-4 w-32" />`) inside `loading.tsx` files                                                   |
-| `empty-state`                 | `EmptyState` — icon + title + description + optional action link, for lists with zero items                                                                                       |
-| `error-display`               | `ErrorDisplay` (title + message + optional retry/back) and `parseError(error)` — used inside `error.tsx` boundaries                                                               |
-| `not-found`                   | `NotFoundView` — icon + title + description + back link, for `notFound()` / `not-found.tsx` pages                                                                                 |
-| `avatar`                      | `Avatar` circle (initials fallback via `initialsFrom`) — account affordance in the header                                                                                         |
-| `dropdown-menu`               | Hand-rolled `DropdownMenu` (+ `DropdownItem/Label/Separator`); outside-click + Escape to close. No Radix. Used by `UserMenu`                                                      |
-| `drawer`                      | Hand-rolled off-canvas `Drawer` (backdrop, slide, Escape + body-scroll lock, `md:hidden`) for mobile navigation                                                                   |
-| `copy-button`                 | `CopyButton` — clipboard icon button for mono values (project/match IDs, keys, webhook URLs); shows a check for ~1.5s                                                             |
-| `confirm-button`              | `ConfirmButton` — inline two-step confirm for destructive form submits (arms → destructive `type="submit"` + Cancel); spinner via `useFormStatus` while the action runs. No modal |
-| `password-input`              | `PasswordInput` — `<Input>` with a show/hide toggle + Caps Lock warning; forwards ref/props so it drops into forms                                                                |
-| `password-strength`           | `PasswordStrength` — advisory 4-bar meter + label from a simple heuristic (register only); API still enforces the real rules                                                      |
+| Primitive                     | Notes                                                                                                                                                                                                                                                             |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `button`                      | Variants `default \| destructive \| outline \| secondary \| ghost \| link`; sizes `default \| sm \| lg \| icon`                                                                                                                                                   |
+| `badge`                       | Variants `default \| secondary \| destructive \| success \| warning \| outline`                                                                                                                                                                                   |
+| `card`                        | Compound: `Card / CardHeader / CardTitle / CardDescription / CardContent`                                                                                                                                                                                         |
+| `table`                       | Compound table parts                                                                                                                                                                                                                                              |
+| `input`, `label`, `separator` | Form and layout basics                                                                                                                                                                                                                                            |
+| `select`                      | `Select/SelectTrigger/SelectValue/SelectContent/SelectItem`, built on `radix-ui`'s `Select` primitive (portal + listbox), themed to match `input`/`dropdown-menu`. Submits via a `name` prop like a native select — no extra wiring needed in server-action forms |
+| `spinner`                     | `cva`-sized `Loader2`, `text-muted-foreground`                                                                                                                                                                                                                    |
+| `toast`                       | Dependency-free pub/sub toaster; call `toast(...)` from any client component; a single `<Toaster />` is mounted in the root layout                                                                                                                                |
+| `skeleton`                    | `animate-pulse` placeholder block; compose with sizing classes (`<Skeleton className="h-4 w-32" />`) inside `loading.tsx` files                                                                                                                                   |
+| `empty-state`                 | `EmptyState` — icon + title + description + optional action link, for lists with zero items                                                                                                                                                                       |
+| `error-display`               | `ErrorDisplay` (title + message + optional retry/back) and `parseError(error)` — used inside `error.tsx` boundaries                                                                                                                                               |
+| `not-found`                   | `NotFoundView` — icon + title + description + back link, for `notFound()` / `not-found.tsx` pages                                                                                                                                                                 |
+| `avatar`                      | `Avatar` circle (initials fallback via `initialsFrom`) — account affordance in the header                                                                                                                                                                         |
+| `dropdown-menu`               | Hand-rolled `DropdownMenu` (+ `DropdownItem/Label/Separator`); outside-click + Escape to close. No Radix. Used by `UserMenu`                                                                                                                                      |
+| `drawer`                      | Hand-rolled off-canvas `Drawer` (backdrop, slide, Escape + body-scroll lock, `md:hidden`) for mobile navigation                                                                                                                                                   |
+| `copy-button`                 | `CopyButton` — clipboard icon button for mono values (project/match IDs, keys, webhook URLs); shows a check for ~1.5s                                                                                                                                             |
+| `confirm-button`              | `ConfirmButton` — inline two-step confirm for destructive form submits (arms → destructive `type="submit"` + Cancel); spinner via `useFormStatus` while the action runs. No modal                                                                                 |
+| `password-input`              | `PasswordInput` — `<Input>` with a show/hide toggle + Caps Lock warning; forwards ref/props so it drops into forms                                                                                                                                                |
+| `password-strength`           | `PasswordStrength` — advisory 4-bar meter + label from a simple heuristic (register only); API still enforces the real rules                                                                                                                                      |
 
 Domain helpers on top of primitives: `status-badge.tsx` maps a domain status to a badge
 variant (`StatusBadge`); `pagination.tsx` for list paging.
@@ -216,13 +220,16 @@ Apple HIG, common SaaS-console conventions), tuned for a tenant-shaped hierarchy
 - **Tables** already wrap in an `overflow-auto` container (`ui/table`), so wide rows scroll
   within the card instead of breaking the page on narrow screens.
 
-### No Radix → native, styled
+### Native first; Radix only for `select`
 
-Use a native `<select>` styled with token classes for dropdowns. Prefer dedicated pages or
-inline forms over content modals; there is no Dialog primitive. **Navigation overlays are the
-exception**: the `Drawer` (mobile nav) and `DropdownMenu` (account menu) are allowed, built
-hand-rolled from native elements + tokens (outside-click / Escape / backdrop, no Radix) — they
-carry navigation, not forms.
+Prefer dedicated pages or inline forms over content modals; there is no Dialog primitive.
+**Navigation overlays** — the `Drawer` (mobile nav) and `DropdownMenu` (account menu) — stay
+hand-rolled from native elements + tokens (outside-click / Escape / backdrop), no dependency
+needed there. **`Select` is the one primitive built on a dependency** (`radix-ui`'s `Select`):
+a native `<select>`'s closed state can be themed with tokens, but its open dropdown list renders
+with OS/browser chrome that can't be restyled — which read as visibly off next to the rest of
+the token-themed UI. Don't reach for `radix-ui` for anything else without updating this doc first;
+the bar for a second primitive is the same "a native element structurally can't do this."
 
 ### Landing & demo (public surface)
 
@@ -246,7 +253,9 @@ carry navigation, not forms.
 
 **Don't**
 
-- Add Radix, eslint, or any component library.
+- Add eslint or a full component library. `radix-ui` is the one sanctioned exception, scoped to
+  `Select` (see Native first; Radix only for `select`) — don't reach for it (or any other
+  dependency) for something a native element + tokens can already do.
 - Use ad-hoc hex or Tailwind palette colors for surfaces.
 - Call the API host directly from the browser, or expose any token to the browser. Client
   reads go through a same-origin `/api/*` route handler (SWR); mutations go through server

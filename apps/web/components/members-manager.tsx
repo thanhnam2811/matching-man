@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Member = {
     id: string;
@@ -16,8 +17,6 @@ type Member = {
 type MemberScope = "organizations" | "projects";
 
 const ROLES = ["OWNER", "ADMIN", "MEMBER"];
-const selectClass =
-    "h-9 rounded-md border border-input bg-transparent px-2 text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:text-sm";
 
 const initialState: FormState = {};
 
@@ -41,13 +40,18 @@ export function MembersManager({
                 <form action={action} className="flex flex-col gap-2 sm:flex-row sm:items-start">
                     <input type="hidden" name={scopeFieldName} value={scopeId} />
                     <Input name="email" type="email" placeholder="teammate@example.com" className="flex-1" required />
-                    <select name="role" defaultValue="MEMBER" className={selectClass} aria-label="Role">
-                        {ROLES.map((role) => (
-                            <option key={role} value={role}>
-                                {role.toLowerCase()}
-                            </option>
-                        ))}
-                    </select>
+                    <Select name="role" defaultValue="MEMBER">
+                        <SelectTrigger className="w-28" aria-label="Role">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {ROLES.map((role) => (
+                                <SelectItem key={role} value={role}>
+                                    {role.toLowerCase()}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <Button type="submit" disabled={pending}>
                         {pending ? "Inviting…" : "Invite"}
                     </Button>
@@ -68,18 +72,18 @@ export function MembersManager({
                                 <form action={updateMemberRole} className="flex items-center gap-1">
                                     <input type="hidden" name={scopeFieldName} value={scopeId} />
                                     <input type="hidden" name="memberId" value={member.id} />
-                                    <select
-                                        name="role"
-                                        defaultValue={member.role}
-                                        className={selectClass}
-                                        aria-label="Member role"
-                                    >
-                                        {ROLES.map((role) => (
-                                            <option key={role} value={role}>
-                                                {role.toLowerCase()}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <Select name="role" defaultValue={member.role}>
+                                        <SelectTrigger className="w-28" aria-label="Member role">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {ROLES.map((role) => (
+                                                <SelectItem key={role} value={role}>
+                                                    {role.toLowerCase()}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                     <Button type="submit" variant="ghost" size="sm">
                                         Save
                                     </Button>

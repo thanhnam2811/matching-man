@@ -45,7 +45,6 @@ export class DemoService {
     private readonly demoEmail: string;
     private readonly demoPassword: string;
     private readonly resetIntervalMinutes: number;
-    private readonly disabled: boolean;
 
     constructor(
         private readonly prisma: PrismaService,
@@ -55,8 +54,6 @@ export class DemoService {
         this.demoEmail = (config.get<string>("DEMO_ACCOUNT_EMAIL")?.trim() || DEFAULT_DEMO_EMAIL).toLowerCase();
         this.demoPassword = config.get<string>("DEMO_ACCOUNT_PASSWORD")?.trim() || DEFAULT_DEMO_PASSWORD;
         this.resetIntervalMinutes = config.get<number>("DEMO_RESET_INTERVAL_MINUTES") ?? 60;
-        // The cron bootstraps a real account, so keep it out of the test DB.
-        this.disabled = config.get<string>("NODE_ENV") === "test";
     }
 
     isDemoEmail(email: string): boolean {
@@ -119,9 +116,18 @@ export class DemoService {
         return Number.isNaN(parsed.getTime()) ? null : parsed;
     }
 
-    /** Called by the cron each minute; resets only when the interval has elapsed. */
+    /**
+     * Called by the cron each minute. Account bootstrap/migration (user, org,
+     * project, game modes, recoverable API key) runs on every tick regardless
+     * of the interval below — it's a handful of idempotent reads once the
+     * account exists, and it must not wait for a full reset: an existing,
+     * recently-reset production account upgraded to a new migration (e.g. a
+     * newly-recorded system_setting) would otherwise stay unmigrated for up to
+     * resetIntervalMinutes after deploy. Only the expensive data reset
+     * (wipe + reseed) is gated on the interval.
+     */
     async resetIfDue(): Promise<void> {
-        if (this.disabled) return;
+        await this.ensureAccount();
 
         const lastResetAt = await this.getLastResetAt();
         if (lastResetAt) {

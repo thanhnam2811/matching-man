@@ -70,14 +70,28 @@ describe("ProjectsService", () => {
         expect(prismaService.client.project.create).not.toHaveBeenCalled();
     });
 
-    it("scopes the project list to the caller's organizations", () => {
+    it("scopes the project list to orgs where the caller is OWNER/ADMIN or projects they're a member of", () => {
         prismaService.client.project.findMany.mockResolvedValue([]);
 
         void service.findAll(userContext);
 
         expect(prismaService.client.project.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
-                where: { organization: { members: { some: { userId: "user_1" } } } },
+                where: {
+                    OR: [
+                        {
+                            organization: {
+                                members: {
+                                    some: {
+                                        userId: "user_1",
+                                        role: { in: [ProjectMemberRole.OWNER, ProjectMemberRole.ADMIN] },
+                                    },
+                                },
+                            },
+                        },
+                        { members: { some: { userId: "user_1" } } },
+                    ],
+                },
             }),
         );
     });

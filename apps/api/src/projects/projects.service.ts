@@ -69,7 +69,23 @@ export class ProjectsService {
 
     findAll(context: DashboardAuthContext) {
         return this.prismaService.client.project.findMany({
-            where: context.isSuperAdmin ? {} : { organization: { members: { some: { userId: context.authUserId } } } },
+            where: context.isSuperAdmin
+                ? {}
+                : {
+                      OR: [
+                          {
+                              organization: {
+                                  members: {
+                                      some: {
+                                          userId: context.authUserId,
+                                          role: { in: [ProjectMemberRole.OWNER, ProjectMemberRole.ADMIN] },
+                                      },
+                                  },
+                              },
+                          },
+                          { members: { some: { userId: context.authUserId } } },
+                      ],
+                  },
             orderBy: { createdAt: "desc" },
             select: {
                 id: true,

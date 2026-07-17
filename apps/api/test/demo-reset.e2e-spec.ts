@@ -96,6 +96,34 @@ describe("DemoService.reset (real DB)", () => {
         expect(setting.value).toMatch(/^mhub_[0-9a-f]{48}$/);
     });
 
+    it("resetIfDue() migrates the account immediately even when the reset interval hasn't elapsed", async () => {
+        // Establish a normal, fully-migrated state first.
+        await demo.reset();
+        const project = await prisma.client.project.findUniqueOrThrow({ where: { slug: "demo-arena" } });
+        const matchesBefore = await prisma.client.match.count({ where: { projectId: project.id } });
+
+        // Simulate the exact production scenario this test guards against: the
+        // account was already reset very recently (interval nowhere near
+        // elapsed), but the api-key setting a new deploy relies on doesn't
+        // exist yet (e.g. upgrading a long-running instance mid-cycle).
+        await prisma.client.systemSetting.update({
+            where: { key: "demo:last_reset_at" },
+            data: { value: new Date().toISOString() },
+        });
+        await prisma.client.systemSetting.delete({ where: { key: "demo:api_key" } });
+
+        await demo.resetIfDue();
+
+        // The migration ran immediately, without waiting for the interval...
+        const config = await demo.getPublicConfig();
+        expect(config).not.toBeNull();
+        expect(config!.apiKey).toMatch(/^mhub_[0-9a-f]{48}$/);
+
+        // ...but the expensive full reset did not run, since the interval hadn't elapsed.
+        const matchesAfter = await prisma.client.match.count({ where: { projectId: project.id } });
+        expect(matchesAfter).toBe(matchesBefore);
+    });
+
     it("purges visitor-created junk projects and extra orgs", async () => {
         const user = await prisma.client.user.findUniqueOrThrow({ where: { email: "demo@matchinghub.dev" } });
         const demoProject = await prisma.client.project.findUniqueOrThrow({ where: { slug: "demo-arena" } });

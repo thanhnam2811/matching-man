@@ -119,9 +119,20 @@ export class DemoService {
         return Number.isNaN(parsed.getTime()) ? null : parsed;
     }
 
-    /** Called by the cron each minute; resets only when the interval has elapsed. */
+    /**
+     * Called by the cron each minute. Account bootstrap/migration (user, org,
+     * project, game modes, recoverable API key) runs on every tick regardless
+     * of the interval below — it's a handful of idempotent reads once the
+     * account exists, and it must not wait for a full reset: an existing,
+     * recently-reset production account upgraded to a new migration (e.g. a
+     * newly-recorded system_setting) would otherwise stay unmigrated for up to
+     * resetIntervalMinutes after deploy. Only the expensive data reset
+     * (wipe + reseed) is gated on the interval.
+     */
     async resetIfDue(): Promise<void> {
         if (this.disabled) return;
+
+        await this.ensureAccount();
 
         const lastResetAt = await this.getLastResetAt();
         if (lastResetAt) {

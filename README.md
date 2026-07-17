@@ -160,8 +160,8 @@ Full runbook: [`docs/roadmap/phase-8-deploy.md`](docs/roadmap/phase-8-deploy.md)
 - [Architecture](docs/architecture.md) — subsystem design and rationale
 - [API Spec v1](docs/api-spec-v1.md) — public API contract
 - [Diagrams](docs/diagram/README.md) — Mermaid: modules, ER model, auth, matchmaking flow
-- [Roadmap](docs/roadmap) — phased build plan; phases 0–8 are complete
+- [Roadmap](docs/roadmap) — phased build plan; phases 0–8 and 10–12 are complete, phase 9 is in progress
 
 ## Roadmap
 
-All eight planned phases — from control-plane foundation through internal Elo, admin UI, multi-tenant auth, and public deployment — are **complete**. Phase 9 (production hardening and developer experience) is in progress. Current focus is Phase 10: a one-click shared demo login so visitors can explore the dashboard without registering. See [`docs/roadmap/phase-9-production-hardening.md`](docs/roadmap/phase-9-production-hardening.md), [`docs/roadmap/phase-10-shared-demo-account.md`](docs/roadmap/phase-10-shared-demo-account.md), and [`docs/roadmap/backlog.md`](docs/roadmap/backlog.md) for unscheduled ideas.
+All eight planned phases — from control-plane foundation through internal Elo, admin UI, multi-tenant auth, and public deployment — are **complete**. Phases 10–12 layered on top: loading/error/not-found states and demo UX polish, a one-click shared demo login, and wiring the public `/demo` sandbox live into that same demo account. Phase 9 (production hardening and developer experience) is still in progress — see [`docs/roadmap/phase-9-production-hardening.md`](docs/roadmap/phase-9-production-hardening.md) and [`docs/roadmap/backlog.md`](docs/roadmap/backlog.md) for unscheduled ideas.

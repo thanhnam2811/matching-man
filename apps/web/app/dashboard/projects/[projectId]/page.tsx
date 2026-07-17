@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Layers, Swords, TrendingUp, Webhook } from "lucide-react";
+import { Layers, Lock, Swords, TrendingUp, Webhook } from "lucide-react";
 import {
     ApiError,
     apiFetch,
@@ -16,6 +16,7 @@ import {
 } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiKeysManager } from "@/components/api-keys-manager";
+import { EmptyState } from "@/components/ui/empty-state";
 import { EnvironmentsManager } from "@/components/environments-manager";
 import { MembersManager } from "@/components/members-manager";
 import { StatCard } from "@/components/stat-card";
@@ -85,8 +86,22 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
             apiFetch<Paginated<RatingHistoryEntry>>(`/projects/${projectId}/rating-history?limit=1`),
         ]);
     } catch (error) {
-        if (error instanceof ApiError && (error.status === 404 || error.status === 403)) {
+        if (error instanceof ApiError && error.status === 404) {
             notFound();
+        }
+        if (error instanceof ApiError && error.status === 403) {
+            return (
+                <Card>
+                    <CardContent className="p-0">
+                        <EmptyState
+                            icon={Lock}
+                            title="You don't have access to this project"
+                            description="Ask a project or organization admin to grant you access."
+                            action={{ label: "Back to dashboard", href: "/dashboard" }}
+                        />
+                    </CardContent>
+                </Card>
+            );
         }
         throw error;
     }

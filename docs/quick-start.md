@@ -18,11 +18,11 @@ pnpm --dir apps/api prisma:migrate:dev
 pnpm --dir apps/api start:dev   # http://localhost:3000/v1
 ```
 
-Fastest way to see the system working: `pnpm api:seed:demo` idempotently creates a "Demo
-Arena" project with a skill-based and a casual 1v1 game mode, mints an API key, and queues
-a few players (most match immediately; one is left waiting to show the rating window
-expanding). It prints a `DEMO_*` env block — paste that into `apps/web/.env` and
-`pnpm --dir apps/web dev` to drive the public `/demo` page against it. To integrate your
+Fastest way to see the system working: within a minute of the API starting, a self-healing
+cron auto-creates a "Demo Arena" project with a skill-based and a casual 1v1 game mode, an
+API key, and a few queued players (most match immediately; one is left waiting to show the
+rating window expanding). Run `pnpm --dir apps/web dev` and open the public `/demo` page —
+it fetches that project's config live from the API, no env vars needed. To integrate your
 own game server instead, keep reading — the walkthrough below builds a project from
 scratch with plain `curl`.
 

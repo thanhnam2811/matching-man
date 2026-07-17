@@ -9,7 +9,6 @@
         "api:test": "pnpm --dir apps/api test",
         "api:test:cov": "pnpm --dir apps/api test:cov",
         "api:test:e2e": "pnpm --dir apps/api test:e2e",
-        "api:seed:demo": "pnpm --dir apps/api seed:demo",
         "docker:up": "docker compose up -d postgres",
         "docker:down": "docker compose down",
         "docker:build": "docker compose build",

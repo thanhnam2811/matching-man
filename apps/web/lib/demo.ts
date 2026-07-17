@@ -1,20 +1,46 @@
-// Server-only helpers for the public /demo page. They call the matchmaking API with a
-// seeded demo project's API key (held in env, never sent to the browser).
+// Server-only helpers for the public /demo page. The demo project's identity and
+// API key come live from the API's self-healing demo account
+// (apps/api/src/demo/demo.service.ts) via GET /demo/config, instead of manual
+// DEMO_* env vars — so /demo always targets whatever demo-arena project the
+// hourly reset cron currently maintains, and every visitor action is logged
+// under that same account.
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:3000/v1";
-const DEMO_API_KEY = process.env.DEMO_API_KEY;
-const DEMO_PROJECT_ID = process.env.DEMO_PROJECT_ID;
-const DEMO_ENVIRONMENT = process.env.DEMO_ENVIRONMENT ?? "production";
-
-const GAME_MODES: Record<DemoMode, string | undefined> = {
-    skill: process.env.DEMO_GAME_MODE_SKILL,
-    casual: process.env.DEMO_GAME_MODE_CASUAL,
-};
 
 export type DemoMode = "skill" | "casual";
 
-export function isDemoEnabled() {
-    return Boolean(DEMO_API_KEY && DEMO_PROJECT_ID && GAME_MODES.skill && GAME_MODES.casual);
+type DemoConfig = {
+    projectId: string;
+    apiKey: string;
+    environment: string;
+    gameModes: Record<DemoMode, string>;
+};
+
+// Short TTL: cheap to refetch, but avoids hitting the API on every single
+// request from a busy /demo session.
+const CONFIG_TTL_MS = 60_000;
+let cachedConfig: { value: DemoConfig; fetchedAt: number } | null = null;
+
+async function getDemoConfig(): Promise<DemoConfig | null> {
+    if (cachedConfig && Date.now() - cachedConfig.fetchedAt < CONFIG_TTL_MS) {
+        return cachedConfig.value;
+    }
+    try {
+        const response = await fetch(`${API_BASE_URL}/demo/config`, {
+            cache: "no-store",
+            signal: AbortSignal.timeout(8000),
+        });
+        if (!response.ok) return null;
+        const value = (await response.json()) as DemoConfig;
+        cachedConfig = { value, fetchedAt: Date.now() };
+        return value;
+    } catch {
+        return null;
+    }
+}
+
+export async function isDemoEnabled(): Promise<boolean> {
+    return (await getDemoConfig()) !== null;
 }
 
 // Pings the API's /health endpoint (which lives outside the /v1 prefix) so the
@@ -30,10 +56,10 @@ export async function demoHealth(): Promise<boolean> {
     }
 }
 
-async function demoFetch<T>(path: string, init?: RequestInit): Promise<T> {
+async function demoFetch<T>(config: DemoConfig, path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${path}`, {
         ...init,
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEMO_API_KEY}`, ...init?.headers },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.apiKey}`, ...init?.headers },
         cache: "no-store",
     });
 
@@ -54,17 +80,21 @@ export type DemoEnqueueResult = {
 };
 
 export async function demoEnqueue(mode: DemoMode, rating: number): Promise<DemoEnqueueResult> {
-    const gameModeId = GAME_MODES[mode];
+    const config = await getDemoConfig();
+    if (!config) throw new Error("demo not configured");
+
+    const gameModeId = config.gameModes[mode];
     const playerId = `p_${Math.random().toString(36).slice(2, 8)}`;
 
     const result = await demoFetch<{ queueEntryId: string; status: string; matchId: string | null }>(
+        config,
         "/queues/enqueue",
         {
             method: "POST",
             body: JSON.stringify({
-                projectId: DEMO_PROJECT_ID,
+                projectId: config.projectId,
                 gameModeId,
-                environment: DEMO_ENVIRONMENT,
+                environment: config.environment,
                 team: { members: [{ playerId, rating }] },
             }),
         },
@@ -79,8 +109,10 @@ export type DemoMatch = {
     slots: { slotIndex: number; groupIndex: number; members: { playerId: string; rating: number | null }[] }[];
 };
 
-export function demoMatch(matchId: string) {
-    return demoFetch<DemoMatch>(`/matches/${matchId}`);
+export async function demoMatch(matchId: string) {
+    const config = await getDemoConfig();
+    if (!config) throw new Error("demo not configured");
+    return demoFetch<DemoMatch>(config, `/matches/${matchId}`);
 }
 
 export type DemoQueueEntry = {
@@ -93,13 +125,17 @@ export type DemoQueueEntry = {
 
 // Matching now runs in the background after enqueue responds, so the client
 // polls this to learn when a queue entry has been matched.
-export function demoQueueEntry(queueEntryId: string) {
-    return demoFetch<DemoQueueEntry>(`/queues/entries/${queueEntryId}`);
+export async function demoQueueEntry(queueEntryId: string) {
+    const config = await getDemoConfig();
+    if (!config) throw new Error("demo not configured");
+    return demoFetch<DemoQueueEntry>(config, `/queues/entries/${queueEntryId}`);
 }
 
 export async function demoDequeue(queueEntryId: string) {
+    const config = await getDemoConfig();
+    if (!config) return null;
     try {
-        return await demoFetch("/queues/dequeue", {
+        return await demoFetch(config, "/queues/dequeue", {
             method: "POST",
             body: JSON.stringify({ queueEntryId, reason: "demo_reset" }),
         });

@@ -65,6 +65,37 @@ describe("DemoService.reset (real DB)", () => {
         expect(matchesAfter).toBe(matchesBefore); // deterministic snapshot size
     });
 
+    it("records a recoverable raw API key and reuses it across resets", async () => {
+        const project = await prisma.client.project.findUniqueOrThrow({ where: { slug: "demo-arena" } });
+        const setting = await prisma.client.systemSetting.findUnique({ where: { key: "demo:api_key" } });
+        expect(setting).not.toBeNull();
+        expect(setting!.value).toMatch(/^mhub_[0-9a-f]{48}$/);
+
+        const config = await demo.getPublicConfig();
+        expect(config).not.toBeNull();
+        expect(config!.projectId).toBe(project.id);
+        expect(config!.apiKey).toBe(setting!.value);
+
+        await demo.reset();
+        const settingAfter = await prisma.client.systemSetting.findUnique({ where: { key: "demo:api_key" } });
+        expect(settingAfter!.value).toBe(setting!.value); // stable across resets
+    });
+
+    it("rotates an old key that has no recorded raw value (pre-migration deployments)", async () => {
+        const project = await prisma.client.project.findUniqueOrThrow({ where: { slug: "demo-arena" } });
+        const oldKey = await prisma.client.apiKey.findFirstOrThrow({ where: { projectId: project.id } });
+
+        // Simulate a deployment that predates this feature: key row exists, no setting.
+        await prisma.client.systemSetting.delete({ where: { key: "demo:api_key" } });
+
+        await demo.reset();
+
+        const newKey = await prisma.client.apiKey.findFirstOrThrow({ where: { projectId: project.id } });
+        expect(newKey.id).not.toBe(oldKey.id); // rotated, not reused (raw value was unrecoverable)
+        const setting = await prisma.client.systemSetting.findUniqueOrThrow({ where: { key: "demo:api_key" } });
+        expect(setting.value).toMatch(/^mhub_[0-9a-f]{48}$/);
+    });
+
     it("purges visitor-created junk projects and extra orgs", async () => {
         const user = await prisma.client.user.findUniqueOrThrow({ where: { email: "demo@matchinghub.dev" } });
         const demoProject = await prisma.client.project.findUniqueOrThrow({ where: { slug: "demo-arena" } });

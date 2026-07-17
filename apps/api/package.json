@@ -21,8 +21,7 @@
         "prisma:migrate:dev": "prisma migrate dev",
         "prisma:migrate:deploy": "prisma migrate deploy",
         "prisma:studio": "prisma studio",
-        "openapi:generate": "nest build && node dist/src/generate-openapi.js",
-        "seed:demo": "node scripts/seed-demo.mjs"
+        "openapi:generate": "nest build && node dist/src/generate-openapi.js"
     },
     "dependencies": {
         "@nestjs/common": "^11.0.1",

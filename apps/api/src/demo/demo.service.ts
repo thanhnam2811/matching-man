@@ -11,6 +11,7 @@ import {
     DEFAULT_DEMO_EMAIL,
     DEFAULT_DEMO_NAME,
     DEFAULT_DEMO_PASSWORD,
+    DEMO_API_KEY_SETTING_KEY,
     DEMO_ENVIRONMENT,
     DEMO_GAME_MODES,
     DEMO_LAST_RESET_SETTING_KEY,
@@ -29,6 +30,13 @@ export type DemoStatus = {
     resetIntervalMinutes: number;
     lastResetAt: string | null;
     nextResetAt: string | null;
+};
+
+export type DemoPublicConfig = {
+    projectId: string;
+    apiKey: string;
+    environment: string;
+    gameModes: { skill: string; casual: string };
 };
 
 @Injectable()
@@ -76,6 +84,29 @@ export class DemoService {
             resetIntervalMinutes: this.resetIntervalMinutes,
             lastResetAt: lastResetAt?.toISOString() ?? null,
             nextResetAt: nextResetAt?.toISOString() ?? null,
+        };
+    }
+
+    /** Live config for the public /demo sandbox: whatever demo-arena actually is right now. */
+    async getPublicConfig(): Promise<DemoPublicConfig | null> {
+        const client = this.prisma.client;
+
+        const project = await client.project.findUnique({ where: { slug: DEMO_PROJECT_SLUG } });
+        if (!project) return null;
+
+        const keySetting = await client.systemSetting.findUnique({ where: { key: DEMO_API_KEY_SETTING_KEY } });
+        if (!keySetting) return null;
+
+        const modes = await client.gameMode.findMany({ where: { projectId: project.id } });
+        const skillMode = modes.find((mode) => mode.key === DEMO_SKILL_MODE_KEY);
+        const casualMode = modes.find((mode) => mode.key === DEMO_CASUAL_MODE_KEY);
+        if (!skillMode || !casualMode) return null;
+
+        return {
+            projectId: project.id,
+            apiKey: keySetting.value,
+            environment: DEMO_ENVIRONMENT,
+            gameModes: { skill: skillMode.id, casual: casualMode.id },
         };
     }
 
@@ -220,7 +251,13 @@ export class DemoService {
         const casualMode = modes.find((mode) => mode.key === DEMO_CASUAL_MODE_KEY)!;
 
         const anyKey = await client.apiKey.findFirst({ where: { projectId: project.id } });
-        if (!anyKey) {
+        const keySetting = await client.systemSetting.findUnique({ where: { key: DEMO_API_KEY_SETTING_KEY } });
+        if (!keySetting) {
+            // No recoverable raw key on file. If an old key row exists (e.g. a
+            // deployment that predates this feature), it's a one-way hash we can't
+            // read back, so rotate it — the demo key protects nothing but a
+            // sandboxed project that resets hourly, so rotation is free.
+            if (anyKey) await client.apiKey.delete({ where: { id: anyKey.id } });
             const generated = generateApiKey();
             await client.apiKey.create({
                 data: {
@@ -230,6 +267,9 @@ export class DemoService {
                     lastFour: generated.lastFour,
                     hashedKey: generated.hashed,
                 },
+            });
+            await client.systemSetting.create({
+                data: { key: DEMO_API_KEY_SETTING_KEY, value: generated.raw },
             });
         }
 

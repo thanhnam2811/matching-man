@@ -59,9 +59,10 @@ class EnvironmentVariables {
     @Min(1)
     SLOW_QUERY_THRESHOLD_MS = 200;
 
-    // Email of the shared demo dashboard account (see apps/api/scripts/seed-demo.mjs).
-    // When set, the demo-reset cron periodically restores that account's showcase
-    // data and /auth/me reports demo status + next reset time. Unset disables both.
+    // Email of the shared demo dashboard account (bootstrapped automatically by the
+    // demo-reset cron, see apps/api/src/demo/demo.service.ts). When set, the cron
+    // periodically restores that account's showcase data and /auth/me reports demo
+    // status + next reset time. Unset disables both.
     @IsOptional()
     @IsString()
     DEMO_ACCOUNT_EMAIL?: string;

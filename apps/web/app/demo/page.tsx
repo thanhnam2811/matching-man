@@ -4,7 +4,7 @@ import { isDemoEnabled } from "@/lib/demo";
 import { Card, CardContent } from "@/components/ui/card";
 import { DemoBoard } from "@/components/demo-board";
 
-// Matches the seeded skill-1v1 game mode (apps/api/scripts/seed-demo.mjs).
+// Matches the seeded skill-1v1 game mode (apps/api/src/demo/demo.constants.ts).
 const SKILL_WINDOW = { initial: 50, intervalSeconds: 3, step: 100 };
 
 export default async function DemoPage() {

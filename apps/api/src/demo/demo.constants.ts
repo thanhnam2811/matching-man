@@ -21,8 +21,7 @@ export const DEMO_REGION_KEY = "global";
 export const DEMO_SKILL_MODE_KEY = "skill-1v1";
 export const DEMO_CASUAL_MODE_KEY = "casual-1v1";
 
-// Game-mode specs mirror apps/api/scripts/seed-demo.mjs so the two bootstrap
-// paths agree on the demo project's shape.
+// Game-mode specs the demo-reset cron bootstraps the demo project with.
 export const DEMO_GAME_MODES = [
     {
         key: DEMO_SKILL_MODE_KEY,

@@ -85,17 +85,7 @@ auto-suspend (`pg_isready` retry loop) before starting `node dist/src/main`.
    to `localhost:3000` (for the API itself).
 3. Verify: `curl https://<your-vps-api-hostname>/health` → should return `200`.
 
-## Step 3 — Seed the demo project
-
-Run against the **production** API (not localhost):
-
-```bash
-API_BASE_URL=https://<your-vps-api-hostname>/v1 node apps/api/scripts/seed-demo.mjs
-```
-
-Copy the printed `DEMO_*` block — you'll paste it into Vercel next.
-
-## Step 4 — Web (Vercel)
+## Step 3 — Web (Vercel)
 
 1. **New Project** → import this repo.
 2. Set **Root Directory = `apps/web`** (Vercel then auto-runs the pnpm workspace
@@ -105,7 +95,6 @@ Copy the printed `DEMO_*` block — you'll paste it into Vercel next.
 4. Add Environment Variables (Production) — see
    [`apps/web/.env.production.example`](../../apps/web/.env.production.example):
     - `API_BASE_URL` = `https://<your-vps-api-hostname>/v1`
-    - the five `DEMO_*` values from Step 3
 5. Deploy. Visit `/` (landing) and `/demo` (should show the live board, not the
    "demo is not configured" card).
 
@@ -136,8 +125,10 @@ Copy the printed `DEMO_*` block — you'll paste it into Vercel next.
 - Custom domain: add in Vercel (web) and point the VPS's Cloudflare Tunnel hostname
   (API) at your domain; update `API_BASE_URL` if the API domain changes.
 - Rotating secrets: change `SESSION_SECRET` in the VPS's `apps/api/.env.production`
-  and restart the container to invalidate all dashboard sessions. Re-run the seed
-  script if you rotate the demo project's API key.
+  and restart the container to invalidate all dashboard sessions. To rotate the demo
+  project's API key, delete its row in the DB — the demo-reset cron (`DemoService`)
+  self-heals by minting a fresh key and persisting it to `system_settings` within a
+  minute, and `/demo/config` picks it up automatically.
 - If you later add client-side calls directly to the API, enable CORS in
   `apps/api/src/main.ts` first.
 - No cold-start mitigation is needed on a VPS (always-on) — Neon itself still

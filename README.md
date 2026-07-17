@@ -120,10 +120,11 @@ pnpm --dir apps/api start:dev
 
 # 6. Run the dashboard (http://localhost:3001)
 pnpm --dir apps/web dev
-
-# 7. (optional) Seed a demo project — org, project, game modes, API key, queued players
-pnpm api:seed:demo
 ```
+
+The API self-heals a "Demo Arena" project (org, project, game modes, API key)
+within a minute of starting, no seed step required — open `/demo` on the
+dashboard to see it live.
 
 See [`docs/quick-start.md`](docs/quick-start.md) to integrate a game server end-to-end.
 

@@ -9,6 +9,7 @@ describe("ProjectsService", () => {
     let prismaService: {
         client: {
             project: { create: jest.Mock; findMany: jest.Mock; findUnique: jest.Mock };
+            organizationMember: { findUnique: jest.Mock };
         };
     };
     let organizationsService: { assertAccess: jest.Mock };
@@ -19,6 +20,7 @@ describe("ProjectsService", () => {
         prismaService = {
             client: {
                 project: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
+                organizationMember: { findUnique: jest.fn() },
             },
         };
         organizationsService = { assertAccess: jest.fn().mockResolvedValue(undefined) };
@@ -105,6 +107,7 @@ describe("ProjectsService", () => {
     });
 
     it("asserts access and sanitizes webhook secrets from project detail responses", async () => {
+        prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.ADMIN });
         prismaService.client.project.findUnique.mockResolvedValue({
             id: "project_1",
             name: "Arena",
@@ -131,9 +134,69 @@ describe("ProjectsService", () => {
 
         const project = await service.findOne(userContext, "project_1");
 
-        expect(organizationsService.assertAccess).toHaveBeenCalledWith(userContext, "org_1");
+        expect(prismaService.client.organizationMember.findUnique).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { organizationId_userId: { organizationId: "org_1", userId: "user_1" } },
+            }),
+        );
         expect(project.webhookEndpoints[0]).toEqual(expect.objectContaining({ id: "wh_1", hasSecret: true }));
         expect(project.webhookEndpoints[0]).not.toHaveProperty("secret");
+    });
+
+    it("allows an org MEMBER who is a project member", async () => {
+        prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.MEMBER });
+        prismaService.client.project.findUnique.mockResolvedValue({
+            id: "project_1",
+            name: "Arena",
+            slug: "arena",
+            defaultRegion: null,
+            organizationId: "org_1",
+            createdAt: new Date("2026-06-12T00:00:00.000Z"),
+            updatedAt: new Date("2026-06-12T00:00:00.000Z"),
+            organization: { id: "org_1", name: "Arena Studio", slug: "arena-studio" },
+            environments: [],
+            members: [
+                {
+                    id: "pm_1",
+                    role: ProjectMemberRole.MEMBER,
+                    createdAt: new Date(),
+                    userId: "user_1",
+                    user: { id: "user_1", email: "a@b.com", name: null },
+                },
+            ],
+            webhookEndpoints: [],
+        });
+
+        await expect(service.findOne(userContext, "project_1")).resolves.toEqual(
+            expect.objectContaining({ id: "project_1" }),
+        );
+    });
+
+    it("rejects an org MEMBER with no matching ProjectMember row", async () => {
+        prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.MEMBER });
+        prismaService.client.project.findUnique.mockResolvedValue({
+            id: "project_1",
+            name: "Arena",
+            slug: "arena",
+            defaultRegion: null,
+            organizationId: "org_1",
+            createdAt: new Date("2026-06-12T00:00:00.000Z"),
+            updatedAt: new Date("2026-06-12T00:00:00.000Z"),
+            organization: { id: "org_1", name: "Arena Studio", slug: "arena-studio" },
+            environments: [],
+            members: [
+                {
+                    id: "pm_2",
+                    role: ProjectMemberRole.MEMBER,
+                    createdAt: new Date(),
+                    userId: "someone_else",
+                    user: { id: "someone_else", email: "c@d.com", name: null },
+                },
+            ],
+            webhookEndpoints: [],
+        });
+
+        await expect(service.findOne(userContext, "project_1")).rejects.toBeInstanceOf(ForbiddenException);
     });
 
     it("throws when the project does not exist", async () => {

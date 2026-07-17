@@ -1,9 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, ProjectMemberRole } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { normalizeSlug } from "../common/utils/slug.util";
 import type { DashboardAuthContext } from "../common/interfaces/dashboard-auth-request";
-import { OrganizationsService } from "../organizations/organizations.service";
+import { OrganizationsService, ROLE_RANK } from "../organizations/organizations.service";
 import { CreateProjectDto } from "./dto/create-project.dto";
 
 @Injectable()
@@ -115,7 +115,7 @@ export class ProjectsService {
             throw new NotFoundException("Project not found");
         }
 
-        await this.organizationsService.assertAccess(context, project.organizationId);
+        await this.assertProjectAccess(context, project.organizationId, project.members);
 
         return {
             id: project.id,
@@ -142,5 +142,37 @@ export class ProjectsService {
                 hasSecret: true,
             })),
         };
+    }
+
+    private async assertProjectAccess(
+        context: DashboardAuthContext,
+        organizationId: string,
+        projectMembers: { userId: string }[],
+    ) {
+        if (context.isSuperAdmin) {
+            return;
+        }
+
+        const userId = context.authUserId;
+        if (!userId) {
+            throw new ForbiddenException("You do not have access to this project");
+        }
+
+        const orgMembership = await this.prismaService.client.organizationMember.findUnique({
+            where: { organizationId_userId: { organizationId, userId } },
+            select: { role: true },
+        });
+
+        if (!orgMembership) {
+            throw new ForbiddenException("You do not have access to this project");
+        }
+
+        if (ROLE_RANK[orgMembership.role] >= ROLE_RANK[ProjectMemberRole.ADMIN]) {
+            return;
+        }
+
+        if (!projectMembers.some((member) => member.userId === userId)) {
+            throw new ForbiddenException("You do not have access to this project");
+        }
     }
 }

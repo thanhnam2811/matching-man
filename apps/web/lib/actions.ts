@@ -8,12 +8,12 @@ export type FormState = { error?: string };
 
 function humanize(error: unknown): string {
     if (error instanceof ApiError) {
-        if (error.status === 409) return "That name or slug is already taken";
-        if (error.status === 403) return "You do not have permission to do that";
-        if (error.status === 400) return "Please check the form and try again";
-        if (error.status === 404) return "The requested resource was not found.";
+        // 429/5xx: keep generic wording, a raw backend message isn't user-actionable here.
         if (error.status === 429) return "Too many requests — please slow down and try again.";
         if (error.status >= 500) return `The server encountered an error (${error.status}). Please try again later.`;
+        // Everything else (400/403/404/409/...): the API's message is specific and
+        // safe to show as-is (e.g. "Project must keep at least one owner").
+        return error.message || "Please check the form and try again";
     }
     if (error instanceof NetworkError || error instanceof TimeoutError) {
         return error.message;
@@ -197,20 +197,34 @@ export async function inviteMember(_prev: FormState, formData: FormData): Promis
     return {};
 }
 
-export async function updateMemberRole(formData: FormData): Promise<void> {
+export async function updateMemberRole(_prev: FormState, formData: FormData): Promise<FormState> {
     const { scope, scopeId } = memberScopeFromForm(formData);
     const memberId = String(formData.get("memberId") ?? "");
     const role = String(formData.get("role") ?? "MEMBER");
-    await apiFetch(`/${scope}/${scopeId}/members/${memberId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ role }),
-    }).catch(() => undefined);
+
+    try {
+        await apiFetch(`/${scope}/${scopeId}/members/${memberId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ role }),
+        });
+    } catch (error) {
+        return { error: humanize(error) };
+    }
+
     revalidatePath(memberScopePath(scope, scopeId));
+    return {};
 }
 
-export async function removeMember(formData: FormData): Promise<void> {
+export async function removeMember(_prev: FormState, formData: FormData): Promise<FormState> {
     const { scope, scopeId } = memberScopeFromForm(formData);
     const memberId = String(formData.get("memberId") ?? "");
-    await apiFetch(`/${scope}/${scopeId}/members/${memberId}`, { method: "DELETE" }).catch(() => undefined);
+
+    try {
+        await apiFetch(`/${scope}/${scopeId}/members/${memberId}`, { method: "DELETE" });
+    } catch (error) {
+        return { error: humanize(error) };
+    }
+
     revalidatePath(memberScopePath(scope, scopeId));
+    return {};
 }

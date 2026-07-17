@@ -45,7 +45,6 @@ export class DemoService {
     private readonly demoEmail: string;
     private readonly demoPassword: string;
     private readonly resetIntervalMinutes: number;
-    private readonly disabled: boolean;
 
     constructor(
         private readonly prisma: PrismaService,
@@ -55,8 +54,6 @@ export class DemoService {
         this.demoEmail = (config.get<string>("DEMO_ACCOUNT_EMAIL")?.trim() || DEFAULT_DEMO_EMAIL).toLowerCase();
         this.demoPassword = config.get<string>("DEMO_ACCOUNT_PASSWORD")?.trim() || DEFAULT_DEMO_PASSWORD;
         this.resetIntervalMinutes = config.get<number>("DEMO_RESET_INTERVAL_MINUTES") ?? 60;
-        // The cron bootstraps a real account, so keep it out of the test DB.
-        this.disabled = config.get<string>("NODE_ENV") === "test";
     }
 
     isDemoEmail(email: string): boolean {
@@ -130,8 +127,6 @@ export class DemoService {
      * (wipe + reseed) is gated on the interval.
      */
     async resetIfDue(): Promise<void> {
-        if (this.disabled) return;
-
         await this.ensureAccount();
 
         const lastResetAt = await this.getLastResetAt();

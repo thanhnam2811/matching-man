@@ -10,6 +10,7 @@ import { API_GLOBAL_PREFIX, API_GLOBAL_PREFIX_EXCLUDE } from "../../src/swagger"
 import { WebhookRetryProcessor } from "../../src/deliveries/webhook-retry.processor";
 import { QueueTimeoutProcessor } from "../../src/queues/queue-timeout.processor";
 import { MatchMakerSweepProcessor } from "../../src/queues/match-maker-sweep.processor";
+import { DemoResetProcessor } from "../../src/demo/demo-reset.processor";
 
 /**
  * Boots the real Nest app (real Prisma/Postgres, no mocked providers) with the same
@@ -37,6 +38,8 @@ export async function buildTestApp(): Promise<INestApplication> {
         .useValue({ processTimedOutEntries: async () => {} })
         .overrideProvider(MatchMakerSweepProcessor)
         .useValue({ sweepStalledPools: async () => {} })
+        .overrideProvider(DemoResetProcessor)
+        .useValue({ processDemoReset: async () => {} })
         .compile();
 
     const app = moduleFixture.createNestApplication<NestExpressApplication>({ bufferLogs: true });

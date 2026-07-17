@@ -9,8 +9,10 @@
 The public `/demo` matchmaking sandbox required an operator to run
 `apps/api/scripts/seed-demo.mjs` by hand and paste five `DEMO_*` values into
 `apps/web`'s env — a manual step that could drift from the `demo-arena` project
-the shared dashboard demo account (Phase 11) and its hourly reset cron actually
-maintain. This phase removes the manual step entirely: `/demo` now fetches its
+the shared dashboard demo account (Phase 11) actually maintains, whose match/
+queue/rating data a reset cron purges and reseeds hourly (the account and its
+API key are long-lived, not part of that hourly reset). This phase removes
+the manual step entirely: `/demo` now fetches its
 project id, API key, and game mode ids live from the API, so every visitor
 action is automatically logged inside the same demo account visible from the
 dashboard's "View the demo" login.
@@ -38,11 +40,16 @@ environment, gameModes }` for the current `demo-arena` project.
 3. Add a player on `/demo`, then log into the dashboard demo account
    (`/login` → "View the demo") and confirm the queue entry / resulting match
    shows up in the `demo-arena` project's Queues/Matches tabs.
-4. Confirm the shared dashboard demo login and its hourly reset still work
-   unaffected (Phase 11 behavior unchanged).
+4. Confirm the shared dashboard demo login still works, and that its
+   project data still resets hourly, unaffected (Phase 11 behavior unchanged).
 
 ## Non-Goals
 
 - Any change to `DemoService.reset()`'s snapshot content or cadence.
 - A new auth mechanism between web and api — `/demo/config` stays
   unauthenticated, protected only by the existing global per-IP throttler.
+- Isolating the demo project's rate limit per visitor — `ProjectThrottlerGuard`
+  keys off the API key id, so all `/demo` traffic (legitimate visitors and
+  anyone who fetches `/demo/config` directly) shares one project-scoped
+  rate-limit bucket. This was already true when the key lived in env vars;
+  it's a known, accepted tradeoff, not a regression from this change.

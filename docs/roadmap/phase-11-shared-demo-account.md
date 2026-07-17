@@ -19,7 +19,8 @@ user `demo@matchinghub.dev` / `demo-password-123`, owning an org "Demo" and proj
 "demo-arena" with two game modes and five queued/matched players. It was written only
 to mint an API key for the public `/demo` game sandbox, but the user it creates is a
 normal, fully-functional dashboard account — no backend changes are required to make
-it loggable-into from `/login`.
+it loggable-into from `/login`. (Since Phase 12, the account self-bootstraps via
+`DemoService`'s cron and this script no longer exists.)
 
 Auth flow recap: `apps/web/components/login-form.tsx` → `POST /api/session`
 (`apps/web/app/api/session/route.ts`) → NestJS `POST /auth/login`
@@ -37,13 +38,13 @@ Auth flow recap: `apps/web/components/login-form.tsx` → `POST /api/session`
 ## Stage 1 — Demo login route
 
 - [x] Add `DEMO_ACCOUNT_EMAIL` / `DEMO_ACCOUNT_PASSWORD` to `apps/web/.env.example`
-      (matches the user seeded by `seed-demo.mjs`)
+      (matches the user seeded by `seed-demo.mjs`, since removed — see Phase 12)
 - [x] Extract a `loginAndSetSessionCookie(email, password)` helper in `apps/web/lib/api.ts`;
       refactor `apps/web/app/api/session/route.ts` to use it
 - [x] New `POST apps/web/app/api/session/demo/route.ts`: reads the demo env vars, calls
       the shared helper, returns `503` if unconfigured or `401` if the account can't log in
 - [x] Update the `seed-demo.mjs` header comment to note the seeded user now doubles as
-      the dashboard's shared demo login
+      the dashboard's shared demo login (script since retired — see Phase 12)
 
 ## Stage 2 — Login UI
 

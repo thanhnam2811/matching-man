@@ -14,7 +14,7 @@ import { CreateOrganizationDto } from "./dto/create-organization.dto";
 import type { AddOrganizationMemberDto } from "./dto/add-organization-member.dto";
 import type { UpdateOrganizationMemberDto } from "./dto/update-organization-member.dto";
 
-const ROLE_RANK: Record<ProjectMemberRole, number> = {
+export const ROLE_RANK: Record<ProjectMemberRole, number> = {
     [ProjectMemberRole.OWNER]: 3,
     [ProjectMemberRole.ADMIN]: 2,
     [ProjectMemberRole.MEMBER]: 1,

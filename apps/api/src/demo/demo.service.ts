@@ -127,7 +127,8 @@ export class DemoService {
      * (wipe + reseed) is gated on the interval.
      */
     async resetIfDue(): Promise<void> {
-        await this.ensureAccount();
+        const account = await this.ensureAccount();
+        await this.ensureWebhookEndpoint(account.project.id);
 
         const lastResetAt = await this.getLastResetAt();
         if (lastResetAt) {
@@ -306,7 +307,18 @@ export class DemoService {
 
     private async ensureWebhookEndpoint(projectId: string) {
         const existing = await this.prisma.client.webhookEndpoint.findFirst({ where: { projectId } });
-        if (existing) return existing;
+        if (existing) {
+            // Keep the URL in sync with the current constant -- e.g. an older
+            // deployment's row pointing at a placeholder host that doesn't
+            // resolve, migrated forward to the real sink without a manual step.
+            if (existing.url !== DEMO_WEBHOOK_URL) {
+                return this.prisma.client.webhookEndpoint.update({
+                    where: { id: existing.id },
+                    data: { url: DEMO_WEBHOOK_URL },
+                });
+            }
+            return existing;
+        }
 
         return this.prisma.client.webhookEndpoint.create({
             data: {

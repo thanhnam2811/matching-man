@@ -33,3 +33,25 @@ describe("GET /v1/demo/config (real DB)", () => {
         expect(typeof response.body.gameModes.casual).toBe("string");
     });
 });
+
+describe("POST /v1/demo/webhook-sink (real DB)", () => {
+    let app: INestApplication;
+
+    beforeAll(async () => {
+        app = await buildTestApp();
+    });
+
+    afterAll(async () => {
+        await app.close();
+    });
+
+    it("accepts any webhook payload and acknowledges receipt", async () => {
+        const response = await request(app.getHttpServer() as Parameters<typeof request>[0])
+            .post("/v1/demo/webhook-sink")
+            .set("X-Webhook-Event", "match.created")
+            .send({ event: "match.created", data: { matchId: "match_test" } })
+            .expect(200);
+
+        expect(response.body).toEqual({ ok: true });
+    });
+});

@@ -114,6 +114,24 @@ export type Project = {
     createdAt: string;
 };
 
+export type ProjectMember = {
+    id: string;
+    role: string;
+    createdAt: string;
+    user: { id: string; email: string; name: string | null };
+};
+
+export type ProjectDetail = {
+    id: string;
+    name: string;
+    slug: string;
+    defaultRegion: string | null;
+    createdAt: string;
+    updatedAt: string;
+    organization: { id: string; name: string; slug: string };
+    members: ProjectMember[];
+};
+
 export type OrganizationSummary = {
     id: string;
     name: string;

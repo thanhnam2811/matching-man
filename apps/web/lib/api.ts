@@ -10,6 +10,19 @@ export { ApiError, NetworkError, TimeoutError } from "./api-errors";
  * Server-side fetch against the NestJS API. Reads the dashboard admin token
  * from the httpOnly cookie so it never reaches the browser.
  */
+// The API's GlobalExceptionFilter (apps/api/src/common/filters/global-exception.filter.ts)
+// wraps every error response as `{ success: false, error: { statusCode, code, message,
+// details? }, requestId, timestamp, path }`. Pull the real message out of that envelope
+// instead of surfacing the raw JSON body to callers.
+function extractErrorMessage(raw: string): string {
+    try {
+        const parsed = JSON.parse(raw) as { error?: { message?: string } };
+        return parsed.error?.message || raw;
+    } catch {
+        return raw;
+    }
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     const token = (await cookies()).get(TOKEN_COOKIE)?.value;
 
@@ -35,8 +48,8 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     }
 
     if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw new ApiError(response.status, body || response.statusText);
+        const raw = await response.text().catch(() => "");
+        throw new ApiError(response.status, extractErrorMessage(raw) || response.statusText);
     }
 
     return response.json() as Promise<T>;

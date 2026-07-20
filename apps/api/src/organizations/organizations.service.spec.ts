@@ -116,6 +116,40 @@ describe("OrganizationsService", () => {
         });
     });
 
+    describe("checkMemberEmail", () => {
+        beforeEach(() => {
+            prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.ADMIN });
+        });
+
+        it("reports true for a registered email", async () => {
+            prismaService.client.user.findUnique.mockResolvedValue({ id: "user_2" });
+
+            await expect(service.checkMemberEmail(user, "org_1", "Member@Example.com")).resolves.toEqual({
+                exists: true,
+            });
+            expect(prismaService.client.user.findUnique).toHaveBeenCalledWith(
+                expect.objectContaining({ where: { email: "member@example.com" } }),
+            );
+        });
+
+        it("reports false for an unregistered email", async () => {
+            prismaService.client.user.findUnique.mockResolvedValue(null);
+
+            await expect(service.checkMemberEmail(user, "org_1", "ghost@example.com")).resolves.toEqual({
+                exists: false,
+            });
+        });
+
+        it("requires org ADMIN+ to probe emails", async () => {
+            prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.MEMBER });
+
+            await expect(service.checkMemberEmail(user, "org_1", "someone@example.com")).rejects.toBeInstanceOf(
+                ForbiddenException,
+            );
+            expect(prismaService.client.user.findUnique).not.toHaveBeenCalled();
+        });
+    });
+
     describe("removeMember", () => {
         it("refuses to remove the last owner", async () => {
             prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.OWNER });

@@ -49,6 +49,20 @@ export class ProjectMembersService {
             throw new NotFoundException("No registered user with that email; ask them to sign up first");
         }
 
+        const orgMembership = await this.prismaService.client.organizationMember.findFirst({
+            where: {
+                userId: user.id,
+                organization: { projects: { some: { id: projectId } } },
+            },
+            select: { id: true },
+        });
+
+        if (!orgMembership) {
+            throw new ForbiddenException(
+                "User is not a member of this project's organization; add them to the organization first",
+            );
+        }
+
         const existing = await this.prismaService.client.projectMember.findUnique({
             where: {
                 projectId_userId: {

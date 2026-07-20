@@ -142,6 +142,23 @@ export class OrganizationsService {
         return member;
     }
 
+    /**
+     * Existence probe for the invite form's debounced "is this email
+     * registered?" hint. Scoped to ADMIN+ (same as `addMember`) so it can't be
+     * used to enumerate registered users outside of who's already allowed to
+     * invite them.
+     */
+    async checkMemberEmail(context: DashboardAuthContext, organizationId: string, email: string) {
+        await this.assertAccess(context, organizationId, ProjectMemberRole.ADMIN);
+
+        const user = await this.prismaService.client.user.findUnique({
+            where: { email: email.trim().toLowerCase() },
+            select: { id: true },
+        });
+
+        return { exists: Boolean(user) };
+    }
+
     async updateMember(
         context: DashboardAuthContext,
         organizationId: string,

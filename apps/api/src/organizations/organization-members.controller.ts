@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { DashboardAuthGuard } from "../common/guards/dashboard-auth/dashboard-auth.guard";
 import { type DashboardAuthRequest, toDashboardContext } from "../common/interfaces/dashboard-auth-request";
@@ -18,6 +18,18 @@ export class OrganizationMembersController {
     @Get()
     findAll(@Req() request: DashboardAuthRequest, @Param("organizationId") organizationId: string) {
         return this.organizationsService.listMembers(toDashboardContext(request), organizationId);
+    }
+
+    @ApiOperation({
+        summary: "Check whether an email belongs to a registered user, for the invite form. Requires ADMIN or OWNER.",
+    })
+    @Get("check-email")
+    checkEmail(
+        @Req() request: DashboardAuthRequest,
+        @Param("organizationId") organizationId: string,
+        @Query("email") email?: string,
+    ) {
+        return this.organizationsService.checkMemberEmail(toDashboardContext(request), organizationId, email ?? "");
     }
 
     @ApiOperation({ summary: "Add an already-registered user as an organization member. Requires ADMIN or OWNER." })

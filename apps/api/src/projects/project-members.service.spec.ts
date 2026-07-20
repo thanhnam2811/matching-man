@@ -8,7 +8,7 @@ describe("ProjectMembersService", () => {
     let prismaService: {
         client: {
             project: { findUnique: jest.Mock };
-            organizationMember: { findUnique: jest.Mock };
+            organizationMember: { findUnique: jest.Mock; findFirst: jest.Mock };
             user: { findUnique: jest.Mock };
             projectMember: {
                 findMany: jest.Mock;
@@ -28,7 +28,7 @@ describe("ProjectMembersService", () => {
         prismaService = {
             client: {
                 project: { findUnique: jest.fn() },
-                organizationMember: { findUnique: jest.fn() },
+                organizationMember: { findUnique: jest.fn(), findFirst: jest.fn() },
                 user: { findUnique: jest.fn() },
                 projectMember: {
                     findMany: jest.fn(),
@@ -49,6 +49,7 @@ describe("ProjectMembersService", () => {
         beforeEach(() => {
             prismaService.client.project.findUnique.mockResolvedValue({ organizationId: "org_1" });
             prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.ADMIN });
+            prismaService.client.organizationMember.findFirst.mockResolvedValue({ id: "org_membership_1" });
         });
 
         it("creates a project member for an already-registered user", async () => {
@@ -86,6 +87,24 @@ describe("ProjectMembersService", () => {
                     role: ProjectMemberRole.MEMBER,
                 }),
             ).rejects.toBeInstanceOf(NotFoundException);
+            expect(prismaService.client.projectMember.create).not.toHaveBeenCalled();
+        });
+
+        it("rejects a registered user who is not a member of the project's organization", async () => {
+            prismaService.client.user.findUnique.mockResolvedValue({
+                id: "user_outsider",
+                email: "outsider@example.com",
+                name: "Outsider",
+            });
+            prismaService.client.projectMember.findUnique.mockResolvedValue(null);
+            prismaService.client.organizationMember.findFirst.mockResolvedValue(null);
+
+            await expect(
+                service.create(adminContext, "project_1", {
+                    email: "outsider@example.com",
+                    role: ProjectMemberRole.MEMBER,
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenException);
             expect(prismaService.client.projectMember.create).not.toHaveBeenCalled();
         });
     });

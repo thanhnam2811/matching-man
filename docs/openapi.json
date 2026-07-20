@@ -272,6 +272,41 @@
                 "tags": ["Organization Members"]
             }
         },
+        "/v1/organizations/{organizationId}/members/check-email": {
+            "get": {
+                "operationId": "OrganizationMembersController_checkEmail",
+                "parameters": [
+                    {
+                        "name": "organizationId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "email",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Check whether an email belongs to a registered user, for the invite form. Requires ADMIN or OWNER.",
+                "tags": ["Organization Members"]
+            }
+        },
         "/v1/organizations/{organizationId}/members/{memberId}": {
             "patch": {
                 "operationId": "OrganizationMembersController_update",

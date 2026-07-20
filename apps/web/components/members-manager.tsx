@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
+import useSWR from "swr";
 import { type FormState, inviteMember, removeMember, updateMemberRole } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,8 +19,49 @@ type Member = {
 type MemberScope = "organizations" | "projects";
 
 const ROLES = ["OWNER", "ADMIN", "MEMBER"];
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CHECK_DEBOUNCE_MS = 400;
 
 const initialState: FormState = {};
+
+// Debounced "is this email a registered account?" hint for the organization
+// invite field — informational only, the API still enforces it on submit.
+function OrganizationInviteEmailField({ organizationId }: { organizationId: string }) {
+    const [email, setEmail] = useState("");
+    const [debounced, setDebounced] = useState("");
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebounced(email.trim().toLowerCase()), CHECK_DEBOUNCE_MS);
+        return () => clearTimeout(timer);
+    }, [email]);
+
+    const normalized = email.trim().toLowerCase();
+    const looksLikeEmail = EMAIL_PATTERN.test(debounced);
+    const { data, isLoading, error } = useSWR<{ exists: boolean }>(
+        looksLikeEmail
+            ? `/api/organizations/${organizationId}/members/check-email?email=${encodeURIComponent(debounced)}`
+            : null,
+    );
+    const checking = looksLikeEmail && (debounced !== normalized || isLoading);
+
+    return (
+        <div className="flex-1 space-y-1">
+            <Input
+                name="email"
+                type="email"
+                placeholder="teammate@example.com"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+            />
+            {looksLikeEmail && !error ? (
+                <p className="text-xs text-muted-foreground">
+                    {checking ? "Checking…" : data?.exists ? "✓ Registered user" : "No account with this email yet"}
+                </p>
+            ) : null}
+        </div>
+    );
+}
 
 // Toasts a form action's returned error, if any — for actions rendered as plain
 // buttons (no inline error text) so a rejected mutation (e.g. "must keep at
@@ -94,21 +136,48 @@ export function MembersManager({
     scopeId,
     members,
     canManage,
+    orgMembers = [],
 }: {
     scope: MemberScope;
     scopeId: string;
     members: Member[];
     canManage: boolean;
+    // Only used for scope="projects": the project's organization members, to
+    // populate the invite picker (can't invite someone outside the org — see
+    // ProjectMembersService.create's org-membership check).
+    orgMembers?: Member[];
 }) {
     const [state, action, pending] = useActionState(inviteMember, initialState);
     const scopeFieldName = scope === "organizations" ? "organizationId" : "projectId";
+    const eligibleOrgMembers =
+        scope === "projects" ? orgMembers.filter((om) => !members.some((m) => m.user.id === om.user.id)) : [];
 
     return (
         <div className="space-y-4">
-            {canManage ? (
+            {canManage && scope === "projects" && eligibleOrgMembers.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    Every organization member already has access to this project. Add someone to the organization first
+                    to invite them here.
+                </p>
+            ) : canManage ? (
                 <form action={action} className="flex flex-col gap-2 sm:flex-row sm:items-start">
                     <input type="hidden" name={scopeFieldName} value={scopeId} />
-                    <Input name="email" type="email" placeholder="teammate@example.com" className="flex-1" required />
+                    {scope === "projects" ? (
+                        <Select name="email" required>
+                            <SelectTrigger className="flex-1" aria-label="Organization member">
+                                <SelectValue placeholder="Choose an org member…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {eligibleOrgMembers.map((om) => (
+                                    <SelectItem key={om.user.id} value={om.user.email}>
+                                        {om.user.name ?? om.user.email}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    ) : (
+                        <OrganizationInviteEmailField organizationId={scopeId} />
+                    )}
                     <Select name="role" defaultValue="MEMBER">
                         <SelectTrigger className="w-28" aria-label="Role">
                             <SelectValue />

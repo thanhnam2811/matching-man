@@ -8,6 +8,7 @@ import {
     type Delivery,
     type Environment,
     type MatchSummary,
+    type OrganizationMember,
     type Paginated,
     type Pool,
     type ProjectDetail,
@@ -44,6 +45,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
     const since14d = new Date(Date.now() - (SPARKLINE_DAYS - 1) * DAY_MS).toISOString();
 
     let project: ProjectDetail;
+    let orgMembers: OrganizationMember[];
     let me: Awaited<ReturnType<typeof getCurrentUser>>;
     let environments: Environment[];
     let apiKeys: ApiKey[];
@@ -85,6 +87,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
             apiFetch<Paginated<Delivery>>(`/projects/${projectId}/webhook-deliveries?status=DELIVERED&limit=1`),
             apiFetch<Paginated<RatingHistoryEntry>>(`/projects/${projectId}/rating-history?limit=1`),
         ]);
+        orgMembers = await apiFetch<OrganizationMember[]>(`/organizations/${project.organization.id}/members`);
     } catch (error) {
         if (error instanceof ApiError && error.status === 404) {
             notFound();
@@ -196,6 +199,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
                         scopeId={project.id}
                         members={project.members}
                         canManage={canManageMembers}
+                        orgMembers={orgMembers}
                     />
                 </CardContent>
             </Card>

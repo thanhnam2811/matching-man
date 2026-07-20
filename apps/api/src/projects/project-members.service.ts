@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { ProjectMemberRole } from "../generated/prisma/client";
+import { Prisma, ProjectMemberRole } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { ROLE_RANK } from "../organizations/organizations.service";
 import type { DashboardAuthContext } from "../common/interfaces/dashboard-auth-request";
@@ -76,29 +76,36 @@ export class ProjectMembersService {
             throw new ConflictException("Project member already exists");
         }
 
-        const member = await this.prismaService.client.projectMember.create({
-            data: {
-                projectId,
-                userId: user.id,
-                role: createProjectMemberDto.role,
-            },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        email: true,
-                        name: true,
+        try {
+            const member = await this.prismaService.client.projectMember.create({
+                data: {
+                    projectId,
+                    userId: user.id,
+                    role: createProjectMemberDto.role,
+                },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            email: true,
+                            name: true,
+                        },
                     },
                 },
-            },
-        });
+            });
 
-        return {
-            id: member.id,
-            role: member.role,
-            createdAt: member.createdAt,
-            user: member.user,
-        };
+            return {
+                id: member.id,
+                role: member.role,
+                createdAt: member.createdAt,
+                user: member.user,
+            };
+        } catch (error) {
+            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+                throw new ConflictException("Project member already exists");
+            }
+            throw error;
+        }
     }
 
     async update(

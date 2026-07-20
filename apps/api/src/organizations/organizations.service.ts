@@ -134,12 +134,22 @@ export class OrganizationsService {
             throw new ConflictException("User is already a member of this organization");
         }
 
-        const member = await this.prismaService.client.organizationMember.create({
-            data: { organizationId, userId: user.id, role: dto.role },
-            select: { id: true, role: true, createdAt: true, user: { select: { id: true, email: true, name: true } } },
-        });
-
-        return member;
+        try {
+            return await this.prismaService.client.organizationMember.create({
+                data: { organizationId, userId: user.id, role: dto.role },
+                select: {
+                    id: true,
+                    role: true,
+                    createdAt: true,
+                    user: { select: { id: true, email: true, name: true } },
+                },
+            });
+        } catch (error) {
+            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+                throw new ConflictException("User is already a member of this organization");
+            }
+            throw error;
+        }
     }
 
     /**
@@ -173,10 +183,40 @@ export class OrganizationsService {
             await this.assertNotLastOwner(organizationId);
         }
 
-        return this.prismaService.client.organizationMember.update({
-            where: { id: memberId },
-            data: { role: dto.role },
-            select: { id: true, role: true, createdAt: true, user: { select: { id: true, email: true, name: true } } },
+        // Org ADMIN/OWNER bypass ProjectAccessGuard's per-project ProjectMember
+        // check entirely (see ProjectAccessGuard). Demoting one of them to MEMBER
+        // loses that blanket access instantly; without this, anyone who never
+        // picked up an explicit ProjectMember row (the common case) would be
+        // silently locked out of every project they were just using. Backfill
+        // MEMBER-level rows for this org's projects, mirroring the one-time
+        // Phase 13 backfill's intent but applied per-demotion instead of once.
+        const losesBlanketAccess =
+            ROLE_RANK[member.role] >= ROLE_RANK[ProjectMemberRole.ADMIN] &&
+            ROLE_RANK[dto.role] < ROLE_RANK[ProjectMemberRole.ADMIN];
+
+        return this.prismaService.client.$transaction(async (tx) => {
+            if (losesBlanketAccess) {
+                const projects = await tx.project.findMany({ where: { organizationId }, select: { id: true } });
+                await tx.projectMember.createMany({
+                    data: projects.map((project) => ({
+                        projectId: project.id,
+                        userId: member.userId,
+                        role: ProjectMemberRole.MEMBER,
+                    })),
+                    skipDuplicates: true,
+                });
+            }
+
+            return tx.organizationMember.update({
+                where: { id: memberId },
+                data: { role: dto.role },
+                select: {
+                    id: true,
+                    role: true,
+                    createdAt: true,
+                    user: { select: { id: true, email: true, name: true } },
+                },
+            });
         });
     }
 
@@ -189,7 +229,16 @@ export class OrganizationsService {
             await this.assertNotLastOwner(organizationId);
         }
 
-        await this.prismaService.client.organizationMember.delete({ where: { id: memberId } });
+        // ProjectMember has no FK/cascade to OrganizationMember, so leaving this
+        // user's ProjectMember rows in place would let them silently regain
+        // project access (with their old roles) if they're ever re-added to the
+        // org later, and would leave them listed as active project members now.
+        await this.prismaService.client.$transaction(async (tx) => {
+            await tx.projectMember.deleteMany({
+                where: { userId: member.userId, project: { organizationId } },
+            });
+            await tx.organizationMember.delete({ where: { id: memberId } });
+        });
 
         return { id: memberId, removed: true };
     }
@@ -220,7 +269,7 @@ export class OrganizationsService {
     private async findMemberOrThrow(organizationId: string, memberId: string) {
         const member = await this.prismaService.client.organizationMember.findFirst({
             where: { id: memberId, organizationId },
-            select: { id: true, role: true },
+            select: { id: true, role: true, userId: true },
         });
 
         if (!member) {

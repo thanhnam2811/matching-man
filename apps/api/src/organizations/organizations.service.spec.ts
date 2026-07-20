@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
-import { ProjectMemberRole } from "../generated/prisma/client";
+import { Prisma, ProjectMemberRole } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { OrganizationsService } from "./organizations.service";
 
@@ -16,6 +16,8 @@ describe("OrganizationsService", () => {
                 delete: jest.Mock;
                 count: jest.Mock;
             };
+            project: { findMany: jest.Mock };
+            projectMember: { deleteMany: jest.Mock; createMany: jest.Mock };
             user: { findUnique: jest.Mock };
             $transaction: jest.Mock;
         };
@@ -36,6 +38,8 @@ describe("OrganizationsService", () => {
                     delete: jest.fn(),
                     count: jest.fn(),
                 },
+                project: { findMany: jest.fn() },
+                projectMember: { deleteMany: jest.fn(), createMany: jest.fn() },
                 user: { findUnique: jest.fn() },
                 $transaction: jest.fn(),
             },
@@ -114,6 +118,23 @@ describe("OrganizationsService", () => {
                 service.addMember(user, "org_1", { email: "u2@example.com", role: ProjectMemberRole.MEMBER }),
             ).rejects.toBeInstanceOf(ConflictException);
         });
+
+        it("maps a racing duplicate insert (P2002) to a 409 instead of a raw 500", async () => {
+            prismaService.client.user.findUnique.mockResolvedValue({ id: "user_2" });
+            prismaService.client.organizationMember.findUnique
+                .mockResolvedValueOnce({ role: ProjectMemberRole.OWNER })
+                .mockResolvedValueOnce(null);
+            prismaService.client.organizationMember.create.mockRejectedValue(
+                new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+                    code: "P2002",
+                    clientVersion: "0.0.0",
+                }),
+            );
+
+            await expect(
+                service.addMember(user, "org_1", { email: "u2@example.com", role: ProjectMemberRole.MEMBER }),
+            ).rejects.toBeInstanceOf(ConflictException);
+        });
     });
 
     describe("checkMemberEmail", () => {
@@ -161,6 +182,75 @@ describe("OrganizationsService", () => {
 
             await expect(service.removeMember(user, "org_1", "member_1")).rejects.toBeInstanceOf(BadRequestException);
             expect(prismaService.client.organizationMember.delete).not.toHaveBeenCalled();
+        });
+
+        it("cleans up the user's ProjectMember rows across this org's projects", async () => {
+            prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.ADMIN });
+            prismaService.client.organizationMember.findFirst.mockResolvedValue({
+                id: "member_1",
+                role: ProjectMemberRole.MEMBER,
+                userId: "user_2",
+            });
+
+            await expect(service.removeMember(user, "org_1", "member_1")).resolves.toEqual({
+                id: "member_1",
+                removed: true,
+            });
+
+            expect(prismaService.client.projectMember.deleteMany).toHaveBeenCalledWith({
+                where: { userId: "user_2", project: { organizationId: "org_1" } },
+            });
+            expect(prismaService.client.organizationMember.delete).toHaveBeenCalledWith({
+                where: { id: "member_1" },
+            });
+        });
+    });
+
+    describe("updateMember", () => {
+        it("backfills MEMBER-level ProjectMember rows when demoting out of org ADMIN+ blanket access", async () => {
+            prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.OWNER });
+            prismaService.client.organizationMember.findFirst.mockResolvedValue({
+                id: "member_1",
+                role: ProjectMemberRole.ADMIN,
+                userId: "user_2",
+            });
+            prismaService.client.project.findMany.mockResolvedValue([{ id: "project_1" }, { id: "project_2" }]);
+            prismaService.client.organizationMember.update.mockResolvedValue({
+                id: "member_1",
+                role: ProjectMemberRole.MEMBER,
+            });
+
+            await service.updateMember(user, "org_1", "member_1", { role: ProjectMemberRole.MEMBER });
+
+            expect(prismaService.client.project.findMany).toHaveBeenCalledWith({
+                where: { organizationId: "org_1" },
+                select: { id: true },
+            });
+            expect(prismaService.client.projectMember.createMany).toHaveBeenCalledWith({
+                data: [
+                    { projectId: "project_1", userId: "user_2", role: ProjectMemberRole.MEMBER },
+                    { projectId: "project_2", userId: "user_2", role: ProjectMemberRole.MEMBER },
+                ],
+                skipDuplicates: true,
+            });
+        });
+
+        it("does not backfill when the role change doesn't cross the ADMIN threshold", async () => {
+            prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.OWNER });
+            prismaService.client.organizationMember.findFirst.mockResolvedValue({
+                id: "member_1",
+                role: ProjectMemberRole.MEMBER,
+                userId: "user_2",
+            });
+            prismaService.client.organizationMember.update.mockResolvedValue({
+                id: "member_1",
+                role: ProjectMemberRole.ADMIN,
+            });
+
+            await service.updateMember(user, "org_1", "member_1", { role: ProjectMemberRole.ADMIN });
+
+            expect(prismaService.client.project.findMany).not.toHaveBeenCalled();
+            expect(prismaService.client.projectMember.createMany).not.toHaveBeenCalled();
         });
     });
 });

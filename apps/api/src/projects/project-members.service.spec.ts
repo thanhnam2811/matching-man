@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
-import { ProjectMemberRole } from "../generated/prisma/client";
+import { Prisma, ProjectMemberRole } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProjectMembersService } from "./project-members.service";
 
@@ -106,6 +106,28 @@ describe("ProjectMembersService", () => {
                 }),
             ).rejects.toBeInstanceOf(ForbiddenException);
             expect(prismaService.client.projectMember.create).not.toHaveBeenCalled();
+        });
+
+        it("maps a racing duplicate insert (P2002) to a 409 instead of a raw 500", async () => {
+            prismaService.client.user.findUnique.mockResolvedValue({
+                id: "user_1",
+                email: "member@example.com",
+                name: "Member",
+            });
+            prismaService.client.projectMember.findUnique.mockResolvedValue(null);
+            prismaService.client.projectMember.create.mockRejectedValue(
+                new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+                    code: "P2002",
+                    clientVersion: "0.0.0",
+                }),
+            );
+
+            await expect(
+                service.create(adminContext, "project_1", {
+                    email: "member@example.com",
+                    role: ProjectMemberRole.MEMBER,
+                }),
+            ).rejects.toBeInstanceOf(ConflictException);
         });
     });
 

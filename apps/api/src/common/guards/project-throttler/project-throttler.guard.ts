@@ -1,10 +1,13 @@
 import { Injectable } from "@nestjs/common";
+import type { ExecutionContext } from "@nestjs/common";
+import { GUARDS_METADATA } from "@nestjs/common/constants";
 import { ConfigService } from "@nestjs/config";
 import { InjectThrottlerOptions, InjectThrottlerStorage, ThrottlerGuard } from "@nestjs/throttler";
 import type { ThrottlerModuleOptions, ThrottlerRequest, ThrottlerStorage } from "@nestjs/throttler";
 import { Reflector } from "@nestjs/core";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { hashToken } from "../../utils/hash-token.util";
+import { ProjectApiKeyGuard } from "../project-api-key/project-api-key.guard";
 
 const RESOLVED_TRACKER = Symbol("resolvedTracker");
 
@@ -70,15 +73,27 @@ export class ProjectThrottlerGuard extends ThrottlerGuard {
     }
 
     /**
-     * Requests carrying a valid project API key get the public-API budget rather
-     * than the dashboard one. A game server enqueueing players sustains orders of
-     * magnitude more requests than a browser session, so a single shared limit
-     * either throttles the integration or over-serves the dashboard.
+     * The public API gets its own budget: a game server enqueueing players
+     * sustains orders of magnitude more requests than a browser session, so a
+     * single shared limit either throttles the integration or over-serves the
+     * dashboard.
+     *
+     * The decision is made from the *route*, not the caller. Keying it off "does
+     * this request carry a valid API key" would let anyone attach a key to
+     * `POST /auth/login` and trade that route's deliberate 10-per-minute
+     * brute-force bound for 600 — and the demo key is handed out publicly by
+     * `GET /demo/config`, so the key is not a secret. Only routes actually
+     * authenticated by ProjectApiKeyGuard are public-API routes; everything else
+     * keeps whatever the module config or a route-level @Throttle decided.
      *
      * Everything else — key generation, storage, headers, the 429 itself — stays
      * with the base guard; only the budget is swapped.
      */
     protected async handleRequest(requestProps: ThrottlerRequest): Promise<boolean> {
+        if (!this.isProjectApiKeyRoute(requestProps.context)) {
+            return super.handleRequest(requestProps);
+        }
+
         const { req } = this.getRequestResponse(requestProps.context);
         const tracker = await this.getTracker(req as TrackedRequest);
 
@@ -86,10 +101,25 @@ export class ProjectThrottlerGuard extends ThrottlerGuard {
             return super.handleRequest(requestProps);
         }
 
+        const ttl = this.configService.get<number>("PROJECT_THROTTLE_TTL_MS")!;
+
         return super.handleRequest({
             ...requestProps,
             limit: this.configService.get<number>("PROJECT_THROTTLE_LIMIT")!,
-            ttl: this.configService.get<number>("PROJECT_THROTTLE_TTL_MS")!,
+            ttl,
+            // Mirrors the library's own default of blocking for one window. Left
+            // untouched, an over-limit key would be blocked for the dashboard
+            // window while the response headers advertise the project one.
+            blockDuration: ttl,
         });
+    }
+
+    private isProjectApiKeyRoute(context: ExecutionContext): boolean {
+        const guards = [
+            ...(this.reflector.get<unknown[]>(GUARDS_METADATA, context.getHandler()) ?? []),
+            ...(this.reflector.get<unknown[]>(GUARDS_METADATA, context.getClass()) ?? []),
+        ];
+
+        return guards.some((guard) => guard === ProjectApiKeyGuard || guard instanceof ProjectApiKeyGuard);
     }
 }

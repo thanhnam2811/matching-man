@@ -1,7 +1,16 @@
 import { ThrottlerGuard } from "@nestjs/throttler";
 import type { ThrottlerRequest } from "@nestjs/throttler";
 import { hashToken } from "../../utils/hash-token.util";
+import { ProjectApiKeyGuard } from "../project-api-key/project-api-key.guard";
 import { ProjectThrottlerGuard } from "./project-throttler.guard";
+
+// Stand-ins for the resolved route, so getHandler()/getClass() return the same
+// references the reflector stub is asked about.
+const routeHandler = () => undefined;
+const routeController = () => undefined;
+
+const spyOnSuper = () =>
+    jest.spyOn(ThrottlerGuard.prototype, "handleRequest" as keyof ThrottlerGuard).mockResolvedValue(true as never);
 
 describe("ProjectThrottlerGuard", () => {
     const findFirst = jest.fn();
@@ -9,6 +18,7 @@ describe("ProjectThrottlerGuard", () => {
     const configService = {
         get: jest.fn((key: string) => (key === "PROJECT_THROTTLE_LIMIT" ? 600 : 60_000)),
     };
+    const reflectorGet = jest.fn();
 
     let guard: ProjectThrottlerGuard;
 
@@ -23,10 +33,12 @@ describe("ProjectThrottlerGuard", () => {
     beforeEach(() => {
         findFirst.mockReset();
         configService.get.mockClear();
+        reflectorGet.mockReset();
+        reflectorGet.mockReturnValue(undefined);
         guard = new ProjectThrottlerGuard(
             [] as never, // ThrottlerModuleOptions — unused here, only exercised via canActivate
             { increment: jest.fn() } as never,
-            { getAllAndOverride: jest.fn() } as never,
+            { get: reflectorGet, getAllAndOverride: jest.fn() } as never,
             prismaService as never,
             configService as never,
         );
@@ -83,7 +95,7 @@ describe("ProjectThrottlerGuard", () => {
 
     describe("budget selection", () => {
         const baseProps = {
-            context: {},
+            context: { getHandler: () => routeHandler, getClass: () => routeController },
             limit: 120,
             ttl: 60_000,
             throttler: { name: "default" },
@@ -96,28 +108,51 @@ describe("ProjectThrottlerGuard", () => {
             });
         }
 
-        it("applies the public-API budget to requests carrying a valid api key", async () => {
+        /** Mimics @UseGuards(ProjectApiKeyGuard) on the resolved route. */
+        function routeGuardedByApiKey() {
+            reflectorGet.mockImplementation((_key: string, target: unknown) =>
+                typeof target === "function" ? [ProjectApiKeyGuard] : undefined,
+            );
+        }
+
+        it("applies the public-API budget on a project-API-key route with a valid key", async () => {
+            routeGuardedByApiKey();
             findFirst.mockResolvedValue({ id: "key_abc" });
             stubRequest({ headers: { authorization: "Bearer proj_key_123" }, ip: "1.2.3.4" });
-            const superHandleRequest = jest
-                .spyOn(ThrottlerGuard.prototype, "handleRequest" as keyof ThrottlerGuard)
-                .mockResolvedValue(true as never);
+            const superHandleRequest = spyOnSuper();
 
             await handleRequest(baseProps);
 
-            expect(superHandleRequest).toHaveBeenCalledWith(expect.objectContaining({ limit: 600, ttl: 60_000 }));
+            expect(superHandleRequest).toHaveBeenCalledWith(
+                expect.objectContaining({ limit: 600, ttl: 60_000, blockDuration: 60_000 }),
+            );
         });
 
         it("leaves the dashboard budget alone for IP-tracked requests", async () => {
+            routeGuardedByApiKey();
             findFirst.mockResolvedValue(null);
             stubRequest({ headers: {}, ip: "1.2.3.4" });
-            const superHandleRequest = jest
-                .spyOn(ThrottlerGuard.prototype, "handleRequest" as keyof ThrottlerGuard)
-                .mockResolvedValue(true as never);
+            const superHandleRequest = spyOnSuper();
 
             await handleRequest(baseProps);
 
             expect(superHandleRequest).toHaveBeenCalledWith(expect.objectContaining({ limit: 120, ttl: 60_000 }));
+        });
+
+        // The demo API key is handed out publicly by GET /demo/config, so a valid
+        // key proves nothing about intent. Without this, anyone could attach it to
+        // POST /auth/login and trade that route's 10-per-minute brute-force bound
+        // for the public API's 600.
+        it("does not raise the budget on a route that is not guarded by the api key guard", async () => {
+            reflectorGet.mockReturnValue(undefined);
+            findFirst.mockResolvedValue({ id: "key_abc" });
+            stubRequest({ headers: { authorization: "Bearer proj_key_123" }, ip: "1.2.3.4" });
+            const superHandleRequest = spyOnSuper();
+
+            await handleRequest(baseProps);
+
+            expect(superHandleRequest).toHaveBeenCalledWith(expect.objectContaining({ limit: 120, ttl: 60_000 }));
+            expect(findFirst).not.toHaveBeenCalled();
         });
     });
 });

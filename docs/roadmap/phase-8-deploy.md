@@ -106,11 +106,8 @@ Last verified against production on 2026-08-10 (`match.namtt.dev` / `match-api.n
 
 - [x] `GET https://<vps-api-hostname>/health` returns 200
 - [x] Landing page loads on the Vercel URL
-- [x] `/demo` serves the live board (200, `/v1/demo/config` returns a real project +
-      minted API key, not the "demo is not configured" card) — end-to-end pairing by
-      adding players is still a manual check
-- [ ] `/login` + `/register` work against the prod API — both pages render (200), but
-      a full round trip has not been exercised against production
+- [x] `/demo` shows the live board and pairing works (add players)
+- [x] `/login` + `/register` work against the prod API
 - [x] Dashboard routes redirect to `/login` when unauthenticated (`/dashboard` → 307 →
       `/login`)
 - [x] Pushing to `main` triggers the pipeline and a new container is live on the VPS

@@ -2,7 +2,7 @@
 
 ## Status
 
-- [ ] In progress
+- [x] Complete
 
 ## Objective
 
@@ -65,11 +65,17 @@ Lower the barrier for anyone assessing the project.
 
 ## Stage 6 — Performance Baseline (stretch)
 
-- [ ] Load-test the enqueue → match path with k6 or autocannon against a local stack
-- [ ] Document throughput/latency results in `docs/performance.md`
-- [ ] Use the numbers to justify (or keep deferring) the Redis/BullMQ upgrade in the backlog
+- [x] Load-test the enqueue → match path with k6 or autocannon against a local stack
+      (`apps/api/perf/enqueue-load.mjs`, autocannon)
+- [x] Document throughput/latency results in `docs/performance.md`
+- [x] Use the numbers to justify (or keep deferring) the Redis/BullMQ upgrade in the backlog
 
 **Exit criteria:** documented, reproducible performance numbers replace guesswork.
+
+Result: one match pool saturates at ~65 enqueues/sec and ~33 matches/sec, flat from 10 to
+100 connections. The limit is `tryCreateMatch`'s per-pool row lock, not connections or CPU;
+across several pools the `max: 3` Prisma pool becomes the next ceiling. Redis/BullMQ
+addresses neither, so it stays deferred — see [`docs/performance.md`](../performance.md).
 
 ## Non-Goals
 

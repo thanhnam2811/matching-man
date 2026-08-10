@@ -13,7 +13,7 @@ Improve rating-aware matching without taking ownership of rating state yet.
 - [x] Mode-level rating config
 - [x] Rating window rules
 - [x] Rating-based candidate filtering
-- [ ] History view for rating snapshots if desired (deferred to Phase 6 Admin UI)
+- [x] History view for rating snapshots (deferred to Phase 6 Admin UI, shipped there)
 
 ## NestJS Modules
 
@@ -44,4 +44,6 @@ Improve rating-aware matching without taking ownership of rating state yet.
 
 - `GameMode` now carries `initialRatingWindow`, `windowExpandIntervalSeconds`, `windowExpandStep` — all optional, must be set together, only valid when `ratingMode = EXTERNAL_RATING`.
 - `QueuesService.selectCandidateQueueEntries` enforces the window: anchor entry's elapsed queue time determines the current window via `initialRatingWindow + floor(elapsed / interval) * step`. Candidates outside the window are excluded. When no window is configured, behavior falls back to closest-rating selection.
-- History view for rating snapshots deferred to Phase 6 when Admin UI is available.
+- History view for rating snapshots was deferred to Phase 6 and shipped there: the
+  dashboard's ratings page reads `/projects/:projectId/rating-history` with pagination
+  (`apps/web/app/dashboard/projects/[projectId]/ratings/page.tsx`).

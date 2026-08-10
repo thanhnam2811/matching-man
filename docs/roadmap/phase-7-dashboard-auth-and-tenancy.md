@@ -87,7 +87,9 @@ Broken into shippable slices, each its own commit.
 ### Stage 4d — Member management
 
 - [x] Organization members: list, invite by email, change role, remove (role-gated to ADMIN+)
-- [~] Project members deferred — org membership is the tenant boundary in V1
+- [x] Project members — deferred in V1 (org membership was the tenant boundary), then
+      shipped in [Phase 13](phase-13-project-members-enforcement.md): org `MEMBER`s now
+      need a `ProjectMember` row, while org `OWNER`/`ADMIN` keep org-wide access
 
 ## Done Checklist
 

@@ -102,13 +102,20 @@ auto-suspend (`pg_isready` retry loop) before starting `node dist/src/main`.
 
 ## Validation checklist
 
-- [ ] `GET https://<vps-api-hostname>/health` returns 200
-- [ ] Landing page loads on the Vercel URL
-- [ ] `/demo` shows the live board and pairing works (add players)
-- [ ] `/login` + `/register` work against the prod API
-- [ ] Dashboard routes redirect to `/login` when unauthenticated
-- [ ] Pushing to `main` triggers the pipeline and a new container is live on the VPS
-      (`docker ps` on the VPS shows a fresh `CreatedAt` for `matching-man-app`)
+Last verified against production on 2026-08-10 (`match.namtt.dev` / `match-api.namtt.dev`).
+
+- [x] `GET https://<vps-api-hostname>/health` returns 200
+- [x] Landing page loads on the Vercel URL
+- [x] `/demo` serves the live board (200, `/v1/demo/config` returns a real project +
+      minted API key, not the "demo is not configured" card) — end-to-end pairing by
+      adding players is still a manual check
+- [ ] `/login` + `/register` work against the prod API — both pages render (200), but
+      a full round trip has not been exercised against production
+- [x] Dashboard routes redirect to `/login` when unauthenticated (`/dashboard` → 307 →
+      `/login`)
+- [x] Pushing to `main` triggers the pipeline and a new container is live on the VPS
+      (run `31351019614` for `46976a4`: lint/test, migrate, GHCR push, and
+      `Deploy to Production (VPS)` all succeeded)
 
 ## Rollback
 

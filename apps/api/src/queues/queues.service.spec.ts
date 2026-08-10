@@ -87,6 +87,59 @@ describe("QueuesService", () => {
             expect(prismaService.client.$queryRaw).not.toHaveBeenCalled();
         });
 
+        it("rejects an unrated member in an external-rating mode instead of queueing an entry that can never match", async () => {
+            prismaService.client.projectEnvironment.findUnique.mockResolvedValue({ name: "production" });
+            gameModesService.findOne.mockResolvedValue({
+                id: "mode_1",
+                teamSizeMin: 1,
+                teamSizeMax: 2,
+                ratingMode: RatingMode.EXTERNAL_RATING,
+            });
+
+            await expect(
+                service.enqueue("project_1", {
+                    projectId: "project_1",
+                    gameModeId: "mode_1",
+                    environment: "production",
+                    team: {
+                        members: [{ playerId: "player_1", rating: 1500 }, { playerId: "player_2" }],
+                    },
+                }),
+            ).rejects.toBeInstanceOf(BadRequestException);
+
+            expect(prismaService.client.$queryRaw).not.toHaveBeenCalled();
+        });
+
+        it("accepts a fully rated team in an external-rating mode", async () => {
+            prismaService.client.projectEnvironment.findUnique.mockResolvedValue({ name: "production" });
+            gameModesService.findOne.mockResolvedValue({
+                id: "mode_1",
+                teamSizeMin: 1,
+                teamSizeMax: 2,
+                ratingMode: RatingMode.EXTERNAL_RATING,
+            });
+            prismaService.client.queueEntry.findFirst.mockResolvedValue(null);
+            prismaService.client.$queryRaw.mockResolvedValue([
+                {
+                    queueEntryId: "entry_1",
+                    queuedAt: new Date("2026-06-12T00:00:00.000Z"),
+                    matchPoolId: "pool_1",
+                },
+            ]);
+
+            const result = await service.enqueue("project_1", {
+                projectId: "project_1",
+                gameModeId: "mode_1",
+                environment: "production",
+                team: {
+                    members: [{ playerId: "player_1", rating: 1500 }],
+                },
+            });
+
+            expect(result.queueEntryId).toBe("entry_1");
+            expect(prismaService.client.$queryRaw).toHaveBeenCalled();
+        });
+
         it("normalizes the environment, inserts via a single raw query, and returns matchId: null synchronously", async () => {
             prismaService.client.projectEnvironment.findUnique.mockResolvedValue({ name: "production" });
             gameModesService.findOne.mockResolvedValue({

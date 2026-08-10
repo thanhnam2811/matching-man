@@ -47,6 +47,18 @@ export class QueuesService {
             throw new BadRequestException("Team size is outside the allowed range");
         }
 
+        // Candidate selection computes a team rating and drops any entry whose
+        // rating is null (see computeTeamRating), so an unrated member in an
+        // external-rating mode would be accepted here and then sit in the queue
+        // until it times out, never matching and never explaining why. Reject it
+        // up front rather than acknowledging work that cannot be done.
+        if (
+            gameMode.ratingMode === RatingMode.EXTERNAL_RATING &&
+            enqueueDto.team.members.some((member) => member.rating === undefined || member.rating === null)
+        ) {
+            throw new BadRequestException("Every team member needs a rating in an external-rating game mode");
+        }
+
         const environment = await this.projectEnvironmentsService.assertExists(authProjectId, enqueueDto.environment);
 
         if (enqueueDto.idempotencyKey) {

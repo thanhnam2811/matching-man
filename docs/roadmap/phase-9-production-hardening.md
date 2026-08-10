@@ -37,7 +37,9 @@ The domain logic worth testing is the logic that differentiates the project.
 
 ## Stage 3 — API Protection
 
-- [x] Rate limiting with `@nestjs/throttler` (per API key for public routes, per IP for auth routes)
+- [x] Rate limiting with `@nestjs/throttler` (per API key for public routes, per IP for auth routes;
+      API-key traffic gets its own larger budget via `PROJECT_THROTTLE_LIMIT` — see
+      [`docs/performance.md`](../performance.md))
 - [x] Security headers via `helmet`
 - [x] Request payload size limits
 - [x] Return standard `429` error in the existing error format

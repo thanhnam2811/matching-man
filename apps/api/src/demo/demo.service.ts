@@ -229,6 +229,8 @@ export class DemoService {
             this.logger.log(`Bootstrapped demo project ${DEMO_PROJECT_SLUG}`);
         }
 
+        await this.ensureEnvironment(project.id);
+
         for (const spec of DEMO_GAME_MODES) {
             const existing = await client.gameMode.findUnique({
                 where: { projectId_key: { projectId: project.id, key: spec.key } },
@@ -328,6 +330,22 @@ export class DemoService {
                 events: ["match.created", "match.completed", "queue.timeout"],
                 isActive: true,
             },
+        });
+    }
+
+    /**
+     * Without this row every enqueue against the demo project fails with
+     * "Environment is not configured for this project" — QueuesService resolves
+     * the environment through ProjectEnvironmentsService.assertExists, which only
+     * accepts names that exist as rows. Pools alone are not enough, so a freshly
+     * provisioned database would otherwise serve a /demo board that cannot queue
+     * anyone until someone creates the environment by hand.
+     */
+    private async ensureEnvironment(projectId: string) {
+        return this.prisma.client.projectEnvironment.upsert({
+            where: { projectId_name: { projectId, name: DEMO_ENVIRONMENT } },
+            create: { projectId, name: DEMO_ENVIRONMENT, isDefault: true },
+            update: {},
         });
     }
 

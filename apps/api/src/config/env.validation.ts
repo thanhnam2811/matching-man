@@ -36,6 +36,19 @@ class EnvironmentVariables {
     @Min(1)
     THROTTLE_LIMIT = 120;
 
+    // Public API routes authenticated by a project API key. A game server polls
+    // and enqueues far more often than a human clicks around the dashboard, so
+    // the abuse bound that fits a session would throttle a working integration.
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    PROJECT_THROTTLE_TTL_MS = 60_000;
+
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    PROJECT_THROTTLE_LIMIT = 600;
+
     @Type(() => Number)
     @IsInt()
     @Min(1)

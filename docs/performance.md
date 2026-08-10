@@ -24,13 +24,13 @@ pnpm --dir apps/api build
 # 3. Run the API compiled, not in watch mode
 NODE_ENV=production PORT=3010 DATABASE_URL="$PERF_DB" DATABASE_DIRECT_URL="$PERF_DB" \
   DASHBOARD_ADMIN_TOKEN=perf-admin-token SESSION_SECRET=perf-session-secret-long-enough \
-  THROTTLE_LIMIT=10000000 LOG_LEVEL=warn \
+  PROJECT_THROTTLE_LIMIT=10000000 LOG_LEVEL=warn \
   node apps/api/dist/src/main
 
 # 4. The demo cron self-heals a project + API key within ~35s; read them back
 curl -s http://localhost:3010/v1/demo/config
 
-# 5. Drive load (see "Two prerequisites" below before the first run)
+# 5. Drive load (read the prerequisite below before the first run)
 DATABASE_URL="$PERF_DB" node apps/api/perf/enqueue-load.mjs \
   --url http://localhost:3010 --api-key <apiKey> --project <projectId> \
   --game-mode <gameModes.casual> --connections 50 --duration 30
@@ -40,17 +40,12 @@ The harness lives at [`apps/api/perf/enqueue-load.mjs`](../apps/api/perf/enqueue
 It drives `POST /v1/queues/enqueue` with autocannon, then reads match counts from the
 database so the report covers the whole path instead of just the HTTP hop.
 
-### Two prerequisites that are not obvious
+### One prerequisite that is not obvious
 
-1. **Create a project environment.** The demo cron provisions org, project, game modes,
-   API key, and pools — but not a `project_environments` row, and `enqueue` rejects any
-   environment that has none (`ProjectEnvironmentsService.assertExists`). Create
-   `production` on the demo project via the dashboard or directly in SQL, or every
-   request comes back `400 Environment is not configured for this project`.
-2. **Remove the demo webhook endpoint.** The demo project ships pointing at
-   `https://match-api.namtt.dev/v1/demo/webhook-sink` — the _live_ API. A load run would
-   fire thousands of deliveries at production. Delete the `webhook_endpoints` row before
-   testing; every number below therefore excludes webhook fan-out.
+**Remove the demo webhook endpoint.** The demo project ships pointing at
+`https://match-api.namtt.dev/v1/demo/webhook-sink` — the _live_ API. A load run would
+fire thousands of deliveries at production. Delete the `webhook_endpoints` row before
+testing; every number below therefore excludes webhook fan-out.
 
 ## Environment
 
@@ -149,18 +144,34 @@ Ordered by evidence, the changes that would actually raise the ceiling:
    serialized pool into several parallel ones.
 3. Only then reconsider queue infrastructure, with fresh numbers.
 
-## Also worth knowing
+## The rate limit, not the throughput ceiling, is what you hit first
 
-The throughput ceiling is not what production hits first. `THROTTLE_LIMIT` defaults to
-**120 requests per 60s per API key** — 2 req/sec, roughly 3% of what one pool can absorb.
-Any real integration hits the rate limit long before the matchmaking path breaks a sweat.
-That is a deliberate abuse bound from Phase 9 Stage 3, but it means the numbers above
-describe headroom behind a much lower gate, and any capacity planning should start from
-`THROTTLE_LIMIT`, not from these figures.
+Public API requests are bounded by `PROJECT_THROTTLE_LIMIT`, which defaults to **600
+requests per 60s per API key** — 10 req/sec, about 15% of what one pool can absorb. So the
+figures above describe headroom behind a lower gate, and capacity planning should start
+from the rate limit rather than from these numbers.
 
-Separately, this run surfaced a sharp edge worth recording: enqueueing an **unrated**
-player into an `EXTERNAL_RATING` game mode returns `200`, but the entry can never be
-matched. `selectCandidateQueueEntries` drops entries whose team rating is `null`, so they
-sit queued until they time out. A run of 1950 such enqueues produced **0 matches** and
-2000 stuck entries. The load harness has a `--rating-spread` flag precisely because the
-first attempt at measuring the rating path silently measured nothing.
+That default exists because of this exercise. The public API originally shared the
+dashboard's `THROTTLE_LIMIT` of 120/60s — 2 req/sec, roughly 3% of one pool's capacity,
+which throttles a working game server long before matchmaking breaks a sweat. Requests
+carrying a valid project API key now get their own budget; sessions and unauthenticated
+IPs keep the stricter 120.
+
+## Three findings this exercise produced
+
+All three were found by load-testing and are **fixed** — recorded here because the
+symptoms are worth recognizing, not because they are still open.
+
+1. **The demo project could not queue anyone on a fresh database.** The demo cron
+   provisioned org, project, game modes, API key, and pools — but no `project_environments`
+   row, which `enqueue` requires via `ProjectEnvironmentsService.assertExists`. Every
+   request came back `400 Environment is not configured for this project`, so a brand-new
+   deployment served a `/demo` board that could not accept a player until someone created
+   the environment by hand. `DemoService.ensureEnvironment` now provisions it.
+2. **Unrated players silently vanished into external-rating modes.** Enqueueing a player
+   with no `rating` into an `EXTERNAL_RATING` game mode returned `200`, but the entry could
+   never match: `selectCandidateQueueEntries` drops entries whose team rating is `null`.
+   A run of 1950 such enqueues produced **0 matches** and 2000 stuck entries. `enqueue` now
+   rejects them up front. The harness has a `--rating-spread` flag precisely because the
+   first attempt at measuring the rating path silently measured nothing.
+3. **The public API was rate-limited as if it were a dashboard** — see above.

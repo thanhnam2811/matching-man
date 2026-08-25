@@ -1,4 +1,4 @@
-import { BadRequestException, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { Queue } from "bullmq";
 import { MatchStructure, QueueEntryStatus, RatingMode } from "../generated/prisma/enums";
 import { WebhookDeliveryService } from "../deliveries/deliveries.service";
@@ -6,8 +6,6 @@ import { GameModesService } from "../game-modes/game-modes.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProjectEnvironmentsService } from "../projects/project-environments.service";
 import { QueuesService } from "./queues.service";
-
-const flushMicrotasks = () => new Promise((resolve) => setImmediate(resolve));
 
 describe("QueuesService", () => {
     let service: QueuesService;
@@ -31,6 +29,9 @@ describe("QueuesService", () => {
         scheduleDelivery: jest.Mock;
     };
     let queueTimeoutQueue: {
+        add: jest.Mock;
+    };
+    let matchmakingPoolQueue: {
         add: jest.Mock;
     };
     let projectEnvironmentsService: ProjectEnvironmentsService;
@@ -62,6 +63,10 @@ describe("QueuesService", () => {
             add: jest.fn().mockResolvedValue(undefined),
         };
 
+        matchmakingPoolQueue = {
+            add: jest.fn().mockResolvedValue(undefined),
+        };
+
         projectEnvironmentsService = new ProjectEnvironmentsService(prismaService as unknown as PrismaService);
         service = new QueuesService(
             prismaService as unknown as PrismaService,
@@ -69,6 +74,7 @@ describe("QueuesService", () => {
             projectEnvironmentsService,
             webhookDeliveryService as unknown as WebhookDeliveryService,
             queueTimeoutQueue as unknown as Queue,
+            matchmakingPoolQueue as unknown as Queue,
         );
     });
 
@@ -183,9 +189,14 @@ describe("QueuesService", () => {
                 { queueEntryId: "entry_1", projectId: "project_1" },
                 { delay: 120_000, jobId: "timeout:entry_1" },
             );
+            expect(matchmakingPoolQueue.add).toHaveBeenCalledWith(
+                "matchmaking",
+                { matchPoolId: "pool_1", projectId: "project_1" },
+                { delay: 50, jobId: "pool:pool_1", removeOnComplete: true },
+            );
         });
 
-        it("normalizes the environment, inserts via a single raw query, and returns matchId: null synchronously", async () => {
+        it("normalizes the environment, inserts via a single raw query, and triggers debounced pool matching", async () => {
             prismaService.client.projectEnvironment.findUnique.mockResolvedValue({ name: "production" });
             gameModesService.findOne.mockResolvedValue({
                 id: "mode_1",
@@ -202,10 +213,6 @@ describe("QueuesService", () => {
                     teamId: "team_1",
                 },
             ]);
-            // Background fire-and-forget match-making attempt; its outcome isn't
-            // under test here, an unconfigured mock resolving `undefined` is enough
-            // for tryCreateMatch to no-op cleanly.
-            prismaService.client.$transaction.mockResolvedValue(undefined);
 
             const result = await service.enqueue("project_1", {
                 projectId: "project_1",
@@ -227,50 +234,23 @@ describe("QueuesService", () => {
             const [sqlArg] = prismaService.client.$queryRaw.mock.calls[0] as [{ values: unknown[] }];
             expect(sqlArg.values).toContain("production");
             expect(sqlArg.values).not.toContain(" Production ");
-        });
-
-        it("resolves with matchId: null and does not crash when the background match-making attempt fails", async () => {
-            const errorSpy = jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
-
-            prismaService.client.projectEnvironment.findUnique.mockResolvedValue({ name: "production" });
-            gameModesService.findOne.mockResolvedValue({
-                id: "mode_1",
-                teamSizeMin: 1,
-                teamSizeMax: 2,
-                ratingMode: RatingMode.DISABLED,
-            });
-            prismaService.client.queueEntry.findFirst.mockResolvedValue(null);
-            prismaService.client.$queryRaw.mockResolvedValue([
-                {
-                    queueEntryId: "entry_1",
-                    queuedAt: new Date("2026-06-12T00:00:00.000Z"),
-                    matchPoolId: "pool_1",
-                    teamId: "team_1",
-                },
-            ]);
-            prismaService.client.$transaction.mockRejectedValue(new Error("connection lost"));
-
-            const result = await service.enqueue("project_1", {
-                projectId: "project_1",
-                gameModeId: "mode_1",
-                environment: "production",
-                team: {
-                    members: [{ playerId: "player_1" }],
-                },
-            });
-
-            expect(result.matchId).toBeNull();
-
-            // Let the un-awaited background promise's rejection propagate to its .catch().
-            await flushMicrotasks();
-            await flushMicrotasks();
-
-            expect(errorSpy).toHaveBeenCalledWith(
-                expect.stringContaining("Background match-making failed"),
-                expect.any(Error),
+            expect(matchmakingPoolQueue.add).toHaveBeenCalledWith(
+                "matchmaking",
+                { matchPoolId: "pool_1", projectId: "project_1" },
+                { delay: 50, jobId: "pool:pool_1", removeOnComplete: true },
             );
+        });
+    });
 
-            errorSpy.mockRestore();
+    describe("triggerPoolMatching", () => {
+        it("adds a debounced job to the matchmaking-pool queue with 50ms delay and removeOnComplete", async () => {
+            await service.triggerPoolMatching("pool_1", "project_1");
+
+            expect(matchmakingPoolQueue.add).toHaveBeenCalledWith(
+                "matchmaking",
+                { matchPoolId: "pool_1", projectId: "project_1" },
+                { delay: 50, jobId: "pool:pool_1", removeOnComplete: true },
+            );
         });
     });
 

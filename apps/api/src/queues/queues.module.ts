@@ -21,6 +21,9 @@ import { MatchMakerSweepProcessor } from "./match-maker-sweep.processor";
         BullModule.registerQueue({
             name: "queue-timeout",
         }),
+        BullModule.registerQueue({
+            name: "matchmaking-pool",
+        }),
     ],
     providers: [QueuesService, QueueTimeoutProcessor, MatchMakerSweepProcessor, ProjectApiKeyGuard],
     controllers: [QueuesController],

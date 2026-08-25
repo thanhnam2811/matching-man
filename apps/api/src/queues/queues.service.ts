@@ -36,6 +36,7 @@ export class QueuesService {
         private readonly projectEnvironmentsService: ProjectEnvironmentsService,
         private readonly webhookDeliveryService: WebhookDeliveryService,
         @InjectQueue("queue-timeout") private readonly queueTimeoutQueue: Queue,
+        @InjectQueue("matchmaking-pool") private readonly matchmakingPoolQueue: Queue,
     ) {}
 
     async enqueue(authProjectId: string, enqueueDto: EnqueueDto) {
@@ -101,20 +102,7 @@ export class QueuesService {
             },
         );
 
-        // Fire-and-forget: match-making runs in the background after the response is
-        // sent so the client isn't blocked on it. Must never throw unhandled - an
-        // un-awaited rejected promise with no catch crashes the process. A periodic
-        // sweep (MatchMakerSweepProcessor) is the safety net if this attempt is lost
-        // (e.g. process restart between the response and this completing).
-        void this.dispatchMatchMakingAsync(
-            inserted.matchPoolId,
-            authProjectId,
-            gameMode.id,
-            environment,
-            regionKey,
-        ).catch((error: unknown) => {
-            this.logger.error(`Background match-making failed for pool ${inserted.matchPoolId}`, error);
-        });
+        await this.triggerPoolMatching(inserted.matchPoolId, authProjectId);
 
         return {
             queueEntryId: inserted.queueEntryId,
@@ -308,18 +296,19 @@ export class QueuesService {
         return rows[0];
     }
 
-    private async dispatchMatchMakingAsync(
-        matchPoolId: string,
-        projectId: string,
-        gameModeId: string,
-        environment: string,
-        regionKey: string,
-    ) {
-        const matchId = await this.tryCreateMatch(matchPoolId);
-
-        if (matchId) {
-            await this.scheduleMatchCreatedWebhook(projectId, matchId, gameModeId, environment, regionKey);
-        }
+    async triggerPoolMatching(matchPoolId: string, projectId: string): Promise<void> {
+        await this.matchmakingPoolQueue.add(
+            "matchmaking",
+            {
+                matchPoolId,
+                projectId,
+            },
+            {
+                delay: 50,
+                jobId: `pool:${matchPoolId}`,
+                removeOnComplete: true,
+            },
+        );
     }
 
     async scheduleMatchCreatedWebhook(

@@ -1,4 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
 import { createId } from "@paralleldrive/cuid2";
 import { MatchStatus, MatchStructure, Prisma, QueueEntryStatus, RatingMode } from "../generated/prisma/client";
 import { GameModesService } from "../game-modes/game-modes.service";
@@ -33,6 +35,7 @@ export class QueuesService {
         private readonly gameModesService: GameModesService,
         private readonly projectEnvironmentsService: ProjectEnvironmentsService,
         private readonly webhookDeliveryService: WebhookDeliveryService,
+        @InjectQueue("queue-timeout") private readonly queueTimeoutQueue: Queue,
     ) {}
 
     async enqueue(authProjectId: string, enqueueDto: EnqueueDto) {
@@ -84,6 +87,19 @@ export class QueuesService {
         const regionKey = enqueueDto.region?.trim() || "global";
 
         const inserted = await this.insertQueueEntry(authProjectId, gameMode, environment, regionKey, enqueueDto);
+
+        const delayMs = (gameMode.maxQueueSeconds ?? 300) * 1000;
+        await this.queueTimeoutQueue.add(
+            "timeout",
+            {
+                queueEntryId: inserted.queueEntryId,
+                projectId: authProjectId,
+            },
+            {
+                delay: delayMs,
+                jobId: `timeout:${inserted.queueEntryId}`,
+            },
+        );
 
         // Fire-and-forget: match-making runs in the background after the response is
         // sent so the client isn't blocked on it. Must never throw unhandled - an

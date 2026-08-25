@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { BullModule } from "@nestjs/bullmq";
 import { QueuesService } from "./queues.service";
 import { QueuesController } from "./queues.controller";
 import { PrismaModule } from "../prisma/prisma.module";
@@ -11,7 +12,16 @@ import { QueueTimeoutProcessor } from "./queue-timeout.processor";
 import { MatchMakerSweepProcessor } from "./match-maker-sweep.processor";
 
 @Module({
-    imports: [PrismaModule, GameModesModule, ProjectsModule, DeliveriesModule, SchedulerHealthModule],
+    imports: [
+        PrismaModule,
+        GameModesModule,
+        ProjectsModule,
+        DeliveriesModule,
+        SchedulerHealthModule,
+        BullModule.registerQueue({
+            name: "queue-timeout",
+        }),
+    ],
     providers: [QueuesService, QueueTimeoutProcessor, MatchMakerSweepProcessor, ProjectApiKeyGuard],
     controllers: [QueuesController],
     exports: [QueuesService],

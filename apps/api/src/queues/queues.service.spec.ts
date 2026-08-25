@@ -1,4 +1,5 @@
 import { BadRequestException, Logger, NotFoundException } from "@nestjs/common";
+import { Queue } from "bullmq";
 import { MatchStructure, QueueEntryStatus, RatingMode } from "../generated/prisma/enums";
 import { WebhookDeliveryService } from "../deliveries/deliveries.service";
 import { GameModesService } from "../game-modes/game-modes.service";
@@ -29,6 +30,9 @@ describe("QueuesService", () => {
     let webhookDeliveryService: {
         scheduleDelivery: jest.Mock;
     };
+    let queueTimeoutQueue: {
+        add: jest.Mock;
+    };
     let projectEnvironmentsService: ProjectEnvironmentsService;
 
     beforeEach(() => {
@@ -54,12 +58,17 @@ describe("QueuesService", () => {
             scheduleDelivery: jest.fn(),
         };
 
+        queueTimeoutQueue = {
+            add: jest.fn().mockResolvedValue(undefined),
+        };
+
         projectEnvironmentsService = new ProjectEnvironmentsService(prismaService as unknown as PrismaService);
         service = new QueuesService(
             prismaService as unknown as PrismaService,
             gameModesService as unknown as GameModesService,
             projectEnvironmentsService,
             webhookDeliveryService as unknown as WebhookDeliveryService,
+            queueTimeoutQueue as unknown as Queue,
         );
     });
 
@@ -138,6 +147,42 @@ describe("QueuesService", () => {
 
             expect(result.queueEntryId).toBe("entry_1");
             expect(prismaService.client.$queryRaw).toHaveBeenCalled();
+        });
+
+        it("schedules a delayed timeout job in the queue-timeout queue on successful enqueue", async () => {
+            prismaService.client.projectEnvironment.findUnique.mockResolvedValue({ name: "production" });
+            gameModesService.findOne.mockResolvedValue({
+                id: "mode_1",
+                teamSizeMin: 1,
+                teamSizeMax: 2,
+                ratingMode: RatingMode.DISABLED,
+                maxQueueSeconds: 120,
+            });
+            prismaService.client.queueEntry.findFirst.mockResolvedValue(null);
+            prismaService.client.$queryRaw.mockResolvedValue([
+                {
+                    queueEntryId: "entry_1",
+                    queuedAt: new Date("2026-06-12T00:00:00.000Z"),
+                    matchPoolId: "pool_1",
+                    teamId: "team_1",
+                },
+            ]);
+            prismaService.client.$transaction.mockResolvedValue(undefined);
+
+            await service.enqueue("project_1", {
+                projectId: "project_1",
+                gameModeId: "mode_1",
+                environment: "production",
+                team: {
+                    members: [{ playerId: "player_1" }],
+                },
+            });
+
+            expect(queueTimeoutQueue.add).toHaveBeenCalledWith(
+                "timeout",
+                { queueEntryId: "entry_1", projectId: "project_1" },
+                { delay: 120_000, jobId: "timeout:entry_1" },
+            );
         });
 
         it("normalizes the environment, inserts via a single raw query, and returns matchId: null synchronously", async () => {

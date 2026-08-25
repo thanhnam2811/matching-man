@@ -21,6 +21,7 @@ import { QueuesModule } from "./queues/queues.module";
 import { MatchesModule } from "./matches/matches.module";
 import { DeliveriesModule } from "./deliveries/deliveries.module";
 import { RatingsModule } from "./ratings/ratings.module";
+import { DisputesModule } from "./disputes/disputes.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { DemoModule } from "./demo/demo.module";
 import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project-throttler.guard";
@@ -63,6 +64,7 @@ import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project
         MatchesModule,
         DeliveriesModule,
         RatingsModule,
+        DisputesModule,
         DashboardModule,
         DemoModule,
     ],

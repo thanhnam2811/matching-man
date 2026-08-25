@@ -9,6 +9,7 @@ import { buildPinoHttpOptions } from "./config/pino-http.options";
 import { AuthModule } from "./auth/auth.module";
 import { QueuesModule } from "./queues/queues.module";
 import { DeliveriesModule } from "./deliveries/deliveries.module";
+import { DisputesModule } from "./disputes/disputes.module";
 import { DemoModule } from "./demo/demo.module";
 
 @Module({
@@ -31,6 +32,7 @@ import { DemoModule } from "./demo/demo.module";
         AuthModule,
         QueuesModule,
         DeliveriesModule,
+        DisputesModule,
         DemoModule,
     ],
 })

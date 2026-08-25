@@ -8,6 +8,7 @@ import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { HealthModule } from "./health/health.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { BullMQConfigModule } from "./common/redis/bullmq-config.module";
 import { validateEnv } from "./config/env.validation";
 import { buildPinoHttpOptions } from "./config/pino-http.options";
 import { AuthModule } from "./auth/auth.module";
@@ -49,6 +50,7 @@ import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project
             ],
         }),
         ScheduleModule.forRoot(),
+        BullMQConfigModule,
         HealthModule,
         PrismaModule,
         AuthModule,

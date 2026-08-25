@@ -98,7 +98,7 @@ export class QueuesService {
             },
             {
                 delay: delayMs,
-                jobId: `timeout:${inserted.queueEntryId}`,
+                jobId: `timeout-${inserted.queueEntryId}`,
             },
         );
 
@@ -305,7 +305,7 @@ export class QueuesService {
             },
             {
                 delay: 50,
-                jobId: `pool:${matchPoolId}`,
+                jobId: `pool-${matchPoolId}`,
                 removeOnComplete: true,
             },
         );

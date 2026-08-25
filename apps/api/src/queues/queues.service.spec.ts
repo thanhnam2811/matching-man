@@ -187,12 +187,12 @@ describe("QueuesService", () => {
             expect(queueTimeoutQueue.add).toHaveBeenCalledWith(
                 "timeout",
                 { queueEntryId: "entry_1", projectId: "project_1" },
-                { delay: 120_000, jobId: "timeout:entry_1" },
+                { delay: 120_000, jobId: "timeout-entry_1" },
             );
             expect(matchmakingPoolQueue.add).toHaveBeenCalledWith(
                 "matchmaking",
                 { matchPoolId: "pool_1", projectId: "project_1" },
-                { delay: 50, jobId: "pool:pool_1", removeOnComplete: true },
+                { delay: 50, jobId: "pool-pool_1", removeOnComplete: true },
             );
         });
 
@@ -237,7 +237,7 @@ describe("QueuesService", () => {
             expect(matchmakingPoolQueue.add).toHaveBeenCalledWith(
                 "matchmaking",
                 { matchPoolId: "pool_1", projectId: "project_1" },
-                { delay: 50, jobId: "pool:pool_1", removeOnComplete: true },
+                { delay: 50, jobId: "pool-pool_1", removeOnComplete: true },
             );
         });
     });
@@ -249,7 +249,7 @@ describe("QueuesService", () => {
             expect(matchmakingPoolQueue.add).toHaveBeenCalledWith(
                 "matchmaking",
                 { matchPoolId: "pool_1", projectId: "project_1" },
-                { delay: 50, jobId: "pool:pool_1", removeOnComplete: true },
+                { delay: 50, jobId: "pool-pool_1", removeOnComplete: true },
             );
         });
     });

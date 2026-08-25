@@ -406,6 +406,7 @@ export class DemoService {
         const inProjects = { in: projectIds };
 
         await tx.ratingHistory.deleteMany({ where: { ratingProfile: { projectId: inProjects } } });
+        await tx.matchDispute.deleteMany({ where: { projectId: inProjects } });
         await tx.matchResult.deleteMany({ where: { match: { projectId: inProjects } } });
         await tx.matchSlot.deleteMany({ where: { match: { projectId: inProjects } } });
         await tx.match.deleteMany({ where: { projectId: inProjects } });
@@ -426,6 +427,7 @@ export class DemoService {
     // game modes, API keys and the webhook endpoint are intentionally preserved.
     private async wipeActivity(tx: Prisma.TransactionClient, projectId: string): Promise<void> {
         await tx.ratingHistory.deleteMany({ where: { ratingProfile: { projectId } } });
+        await tx.matchDispute.deleteMany({ where: { projectId } });
         await tx.matchResult.deleteMany({ where: { match: { projectId } } });
         await tx.matchSlot.deleteMany({ where: { match: { projectId } } });
         await tx.match.deleteMany({ where: { projectId } });

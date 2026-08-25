@@ -29,6 +29,7 @@ async function getDemoConfig() {
 async function cleanDb(projectId) {
     // Delete transactional rows for clean measurements
     await prisma.ratingHistory.deleteMany({ where: { ratingProfile: { projectId } } });
+    await prisma.matchDispute.deleteMany({ where: { projectId } });
     await prisma.matchResult.deleteMany({ where: { match: { projectId } } });
     await prisma.matchSlot.deleteMany({ where: { match: { projectId } } });
     await prisma.match.deleteMany({ where: { projectId } });

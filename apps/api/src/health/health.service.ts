@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { RedisService } from "../common/redis/redis.service";
 import { SCHEDULER_JOBS, SchedulerHealthService } from "../common/scheduler-health/scheduler-health.service";
 
 // 3x each cron's own interval (webhook-retry: */30s, queue-timeout: 0 * * * * * = 60s,
@@ -12,11 +13,13 @@ const MATCH_MAKER_SWEEP_STALE_AFTER_MS = 15_000;
 export class HealthService {
     constructor(
         private readonly prismaService: PrismaService,
+        private readonly redisService: RedisService,
         private readonly schedulerHealthService: SchedulerHealthService,
     ) {}
 
     async getHealth() {
         const database = await this.prismaService.isHealthy();
+        const redis = await this.redisService.isHealthy();
         const webhookRetry = this.schedulerHealthService.getStatus(
             SCHEDULER_JOBS.WEBHOOK_RETRY,
             WEBHOOK_RETRY_STALE_AFTER_MS,
@@ -35,9 +38,10 @@ export class HealthService {
         const schedulerOk = webhookRetry !== "down" && queueTimeout !== "down" && matchMakerSweep !== "down";
 
         return {
-            status: database && schedulerOk ? "ok" : "degraded",
+            status: database && redis && schedulerOk ? "ok" : "degraded",
             checks: {
                 database: database ? "up" : "down",
+                redis: redis ? "up" : "down",
                 scheduler: { webhookRetry, queueTimeout, matchMakerSweep },
             },
             timestamp: new Date().toISOString(),

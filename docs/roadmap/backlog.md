@@ -58,4 +58,6 @@ deferred.** The two changes with evidence behind them, in order:
   [`phase-9-production-hardening.md`](phase-9-production-hardening.md), now complete.
 - Per-project member roles graduated to
   [`phase-13-project-members-enforcement.md`](phase-13-project-members-enforcement.md).
-- No source evidence yet for any item in this file.
+- Redis & BullMQ adoption, worker process separation, partitioned pool processing, and dispute states graduated to
+  [`phase-14-scale-and-dispute-resolution.md`](phase-14-scale-and-dispute-resolution.md).
+- No source evidence yet for remaining items in this file.

@@ -1,4 +1,16 @@
 services:
+    redis:
+        image: redis:7-alpine
+        container_name: matching-man-redis
+        ports: ["6379:6379"]
+        restart: unless-stopped
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 5s
+            timeout: 3s
+            retries: 10
+            start_period: 5s
+
     app:
         image: ghcr.io/thanhnam2811/matching-man:latest
         container_name: matching-man-app
@@ -8,6 +20,8 @@ services:
         environment:
             NODE_ENV: production
             PORT: 3000
+        depends_on:
+            redis: { condition: service_healthy }
         restart: unless-stopped
         healthcheck:
             test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/health || exit 1"]
@@ -15,3 +29,15 @@ services:
             timeout: 3s
             retries: 5
             start_period: 20s
+
+    worker:
+        image: ghcr.io/thanhnam2811/matching-man:latest
+        container_name: matching-man-worker
+        command: ["worker"]
+        env_file:
+            - apps/api/.env.production
+        environment:
+            NODE_ENV: production
+        depends_on:
+            redis: { condition: service_healthy }
+        restart: unless-stopped

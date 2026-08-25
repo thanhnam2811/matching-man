@@ -1257,6 +1257,43 @@
                 "tags": ["Matches"]
             }
         },
+        "/v1/matches/{matchId}/dispute": {
+            "post": {
+                "operationId": "MatchesController_createDispute",
+                "parameters": [
+                    {
+                        "name": "matchId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateMatchDisputeDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "projectApiKey": []
+                    }
+                ],
+                "summary": "File a dispute against a match.",
+                "tags": ["Matches"]
+            }
+        },
         "/v1/ratings/history": {
             "get": {
                 "operationId": "RatingsController_listHistory",
@@ -1313,6 +1350,191 @@
                 ],
                 "summary": "Return paginated rating history (when internal_elo is enabled).",
                 "tags": ["Ratings"]
+            }
+        },
+        "/v1/projects/{projectId}/disputes": {
+            "get": {
+                "operationId": "DisputesController_findAll",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter by dispute status (OPEN, RESOLVED, REJECTED).",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["OPEN", "RESOLVED", "REJECTED"]
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Maximum number of disputes to return.",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 50,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of records to skip for pagination.",
+                        "schema": {
+                            "minimum": 0,
+                            "default": 0,
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "List match disputes for a project with optional status filter.",
+                "tags": ["Disputes"]
+            }
+        },
+        "/v1/projects/{projectId}/disputes/{disputeId}": {
+            "get": {
+                "operationId": "DisputesController_findOne",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "disputeId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Get detailed dispute information including match slots and evidence.",
+                "tags": ["Disputes"]
+            }
+        },
+        "/v1/projects/{projectId}/disputes/{disputeId}/resolve": {
+            "post": {
+                "operationId": "DisputesController_resolve",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "disputeId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResolveDisputeDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Resolve a dispute with optional winner override and Elo rating reconciliation.",
+                "tags": ["Disputes"]
+            }
+        },
+        "/v1/projects/{projectId}/disputes/{disputeId}/reject": {
+            "post": {
+                "operationId": "DisputesController_reject",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "disputeId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RejectDisputeDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Reject a dispute and restore match status.",
+                "tags": ["Disputes"]
             }
         },
         "/v1/projects/{projectId}/pools": {
@@ -2003,6 +2225,62 @@
                     }
                 },
                 "required": ["endedAt"]
+            },
+            "CreateMatchDisputeDto": {
+                "type": "object",
+                "properties": {
+                    "claimantTeamId": {
+                        "type": "string",
+                        "example": "team_1",
+                        "description": "The ID of the team filing the dispute."
+                    },
+                    "reason": {
+                        "type": "string",
+                        "example": "Player was using unauthorized third-party software during the match.",
+                        "maxLength": 500,
+                        "description": "Detailed reason for the dispute (maximum 500 characters)."
+                    },
+                    "evidence": {
+                        "type": "object",
+                        "additionalProperties": true,
+                        "example": {
+                            "replayUrl": "https://example.com/replays/match_1.dem",
+                            "round": 4
+                        },
+                        "description": "Optional metadata or evidence supporting the dispute claim."
+                    }
+                },
+                "required": ["reason"]
+            },
+            "ResolveDisputeDto": {
+                "type": "object",
+                "properties": {
+                    "overrideWinnerGroupIndex": {
+                        "type": "object",
+                        "minimum": 1,
+                        "example": 2,
+                        "description": "The winning group index override (1-based), or omit/null to declare a draw/void."
+                    },
+                    "resolutionNotes": {
+                        "type": "string",
+                        "example": "Reviewed match replay clip. Player in team 1 was using prohibited client modifications.",
+                        "maxLength": 1000,
+                        "description": "Mandatory operator resolution notes explaining the rationale for the resolution."
+                    }
+                },
+                "required": ["resolutionNotes"]
+            },
+            "RejectDisputeDto": {
+                "type": "object",
+                "properties": {
+                    "resolutionNotes": {
+                        "type": "string",
+                        "example": "Insufficient evidence provided. Replay shows legitimate game behavior.",
+                        "maxLength": 1000,
+                        "description": "Mandatory operator resolution notes explaining the rationale for rejecting the dispute."
+                    }
+                },
+                "required": ["resolutionNotes"]
             }
         }
     }

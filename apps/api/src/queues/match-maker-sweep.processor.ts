@@ -1,8 +1,15 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import { Job } from "bullmq";
 import { PrismaService } from "../prisma/prisma.service";
 import { SCHEDULER_JOBS, SchedulerHealthService } from "../common/scheduler-health/scheduler-health.service";
 import { QueuesService } from "./queues.service";
+
+export interface MatchmakingPoolJobData {
+    matchPoolId: string;
+    projectId: string;
+}
 
 type SweepCandidate = {
     matchPoolId: string;
@@ -12,28 +19,50 @@ type SweepCandidate = {
     regionKey: string;
 };
 
-/**
- * Safety net for the fire-and-forget match-making attempt QueuesService kicks off
- * right after enqueue: if that attempt is lost (process restart, unhandled error)
- * before a pool fills up, this sweep catches it on the next tick. tryCreateMatch's
- * own FOR UPDATE SKIP LOCKED guards against double-matching, so it's safe for this
- * to overlap with a concurrent fire-and-forget attempt on the same pool.
- *
- * The tick is also the only place expanding rating windows get re-evaluated —
- * the enqueue-time attempt runs once, while windows are still narrow — so its
- * cadence bounds how stale a "now in range" pair can get. 5s keeps that wait
- * short; the scan itself is one cheap aggregate, and tryCreateMatch only runs
- * for pools that can actually fill a match.
- */
-@Injectable()
-export class MatchMakerSweepProcessor {
+@Processor("matchmaking-pool", { concurrency: 5 })
+export class MatchMakerSweepProcessor extends WorkerHost {
     private readonly logger = new Logger(MatchMakerSweepProcessor.name);
 
     constructor(
         private readonly prismaService: PrismaService,
         private readonly queuesService: QueuesService,
         private readonly schedulerHealthService: SchedulerHealthService,
-    ) {}
+    ) {
+        super();
+    }
+
+    async process(job: Job<MatchmakingPoolJobData>): Promise<void> {
+        const { matchPoolId } = job.data;
+
+        try {
+            const matchId = await this.queuesService.tryCreateMatch(matchPoolId);
+
+            if (matchId) {
+                const pool = await this.prismaService.client.matchPool.findUnique({
+                    where: { id: matchPoolId },
+                    select: {
+                        projectId: true,
+                        gameModeId: true,
+                        environment: true,
+                        regionKey: true,
+                    },
+                });
+
+                if (pool) {
+                    await this.queuesService.scheduleMatchCreatedWebhook(
+                        pool.projectId,
+                        matchId,
+                        pool.gameModeId,
+                        pool.environment,
+                        pool.regionKey,
+                    );
+                }
+            }
+        } catch (err) {
+            this.logger.error(`Failed to process matchmaking pool job for ${matchPoolId}`, err);
+            throw err;
+        }
+    }
 
     @Cron("*/5 * * * * *")
     async sweepStalledPools() {
@@ -49,28 +78,10 @@ export class MatchMakerSweepProcessor {
     private async sweep() {
         const candidates = await this.findPoolsWithEnoughQueuedEntries();
 
-        // Sequential on purpose: tryCreateMatch opens its own transaction against a
-        // Prisma pool capped at 3 connections, so running many pools concurrently
-        // here would starve regular request traffic.
         for (const pool of candidates) {
-            const matchId = await this.queuesService.tryCreateMatch(pool.matchPoolId).catch((err: unknown) => {
-                this.logger.error(`tryCreateMatch failed for pool ${pool.matchPoolId}`, err);
-                return null;
+            await this.queuesService.triggerPoolMatching(pool.matchPoolId, pool.projectId).catch((err: unknown) => {
+                this.logger.error(`Failed to trigger pool matching for ${pool.matchPoolId}`, err);
             });
-
-            if (matchId) {
-                await this.queuesService
-                    .scheduleMatchCreatedWebhook(
-                        pool.projectId,
-                        matchId,
-                        pool.gameModeId,
-                        pool.environment,
-                        pool.regionKey,
-                    )
-                    .catch((err: unknown) => {
-                        this.logger.error(`Failed to schedule match.created webhook for match ${matchId}`, err);
-                    });
-            }
         }
     }
 

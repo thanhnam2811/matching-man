@@ -1,10 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
 import { createHmac } from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { WebhookDeliveryStatus } from "../generated/prisma/client";
 import type { ListDeliveriesQueryDto } from "./dto/list-deliveries-query.dto";
 
-const RETRY_DELAYS_MS = [0, 30_000, 300_000, 1_800_000, 7_200_000];
+export const RETRY_DELAYS_MS = [0, 30_000, 300_000, 1_800_000, 7_200_000];
 const MAX_ATTEMPTS = RETRY_DELAYS_MS.length;
 const DELIVERY_TIMEOUT_MS = 10_000;
 
@@ -12,7 +14,10 @@ const DELIVERY_TIMEOUT_MS = 10_000;
 export class WebhookDeliveryService {
     private readonly logger = new Logger(WebhookDeliveryService.name);
 
-    constructor(private readonly prismaService: PrismaService) {}
+    constructor(
+        private readonly prismaService: PrismaService,
+        @InjectQueue("webhook-delivery") private readonly webhookDeliveryQueue: Queue,
+    ) {}
 
     async scheduleDelivery(projectId: string, eventType: string, payload: unknown) {
         const endpoints = await this.prismaService.client.webhookEndpoint.findMany({
@@ -31,15 +36,43 @@ export class WebhookDeliveryService {
             return;
         }
 
-        await this.prismaService.client.webhookDelivery.createMany({
-            data: subscribedEndpoints.map((ep) => ({
-                webhookEndpointId: ep.id,
-                eventType,
-                payload: payload as object,
-                status: WebhookDeliveryStatus.PENDING,
-                nextRetryAt: new Date(),
-            })),
+        await Promise.all(
+            subscribedEndpoints.map(async (ep) => {
+                const delivery = await this.prismaService.client.webhookDelivery.create({
+                    data: {
+                        webhookEndpointId: ep.id,
+                        eventType,
+                        payload: payload as object,
+                        status: WebhookDeliveryStatus.PENDING,
+                        nextRetryAt: new Date(),
+                    },
+                });
+                await this.webhookDeliveryQueue.add("deliver", { deliveryId: delivery.id });
+            }),
+        );
+    }
+
+    async executeSingleDelivery(deliveryId: string): Promise<void> {
+        const delivery = await this.prismaService.client.webhookDelivery.findUnique({
+            where: { id: deliveryId },
+            include: {
+                webhookEndpoint: true,
+            },
         });
+
+        if (!delivery) {
+            this.logger.warn(`Webhook delivery ${deliveryId} not found`);
+            return;
+        }
+
+        if (
+            delivery.status === WebhookDeliveryStatus.DELIVERED ||
+            delivery.status === WebhookDeliveryStatus.EXHAUSTED
+        ) {
+            return;
+        }
+
+        await this.sendDelivery(delivery);
     }
 
     async sendPendingDeliveries() {
@@ -123,6 +156,10 @@ export class WebhookDeliveryService {
 
         if (!success) {
             this.logger.warn(`Webhook delivery ${delivery.id} attempt ${nextAttemptCount} failed: ${error}`);
+            if (!exhausted) {
+                const delayMs = this.getRetryDelayMs(nextAttemptCount);
+                await this.webhookDeliveryQueue.add("deliver", { deliveryId: delivery.id }, { delay: delayMs });
+            }
         }
     }
 
@@ -132,8 +169,12 @@ export class WebhookDeliveryService {
         return createHmac("sha256", key).update(`${timestamp}.${body}`).digest("hex");
     }
 
+    private getRetryDelayMs(attemptCount: number) {
+        return RETRY_DELAYS_MS[attemptCount] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1];
+    }
+
     private computeNextRetry(attemptCount: number) {
-        const delayMs = RETRY_DELAYS_MS[attemptCount] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1];
+        const delayMs = this.getRetryDelayMs(attemptCount);
         return new Date(Date.now() + delayMs);
     }
 

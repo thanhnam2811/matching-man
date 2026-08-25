@@ -1,14 +1,22 @@
 import { Module } from "@nestjs/common";
+import { BullModule } from "@nestjs/bullmq";
 import { PrismaModule } from "../prisma/prisma.module";
 import { SchedulerHealthModule } from "../common/scheduler-health/scheduler-health.module";
 import { ProjectApiKeyGuard } from "../common/guards/project-api-key/project-api-key.guard";
 import { WebhookDeliveryService } from "./deliveries.service";
+import { WebhookDeliveryProcessor } from "./webhook-delivery.processor";
 import { WebhookRetryProcessor } from "./webhook-retry.processor";
 import { DeliveriesController } from "./deliveries.controller";
 
 @Module({
-    imports: [PrismaModule, SchedulerHealthModule],
-    providers: [WebhookDeliveryService, WebhookRetryProcessor, ProjectApiKeyGuard],
+    imports: [
+        PrismaModule,
+        SchedulerHealthModule,
+        BullModule.registerQueue({
+            name: "webhook-delivery",
+        }),
+    ],
+    providers: [WebhookDeliveryService, WebhookDeliveryProcessor, WebhookRetryProcessor, ProjectApiKeyGuard],
     controllers: [DeliveriesController],
     exports: [WebhookDeliveryService],
 })

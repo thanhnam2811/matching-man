@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ApiError, NetworkError, TimeoutError, apiFetch } from "./api";
+import { ApiError, NetworkError, TimeoutError, apiFetch, rejectDispute, resolveDispute } from "./api";
 
 export type FormState = { error?: string };
 
@@ -226,5 +226,56 @@ export async function removeMember(_prev: FormState, formData: FormData): Promis
     }
 
     revalidatePath(memberScopePath(scope, scopeId));
+    return {};
+}
+
+export async function resolveDisputeAction(_prev: FormState, formData: FormData): Promise<FormState> {
+    const projectId = String(formData.get("projectId") ?? "");
+    const disputeId = String(formData.get("disputeId") ?? "");
+    const resolutionNotes = String(formData.get("resolutionNotes") ?? "").trim();
+    const winnerRaw = formData.get("overrideWinnerGroupIndex");
+    const overrideWinnerGroupIndex =
+        winnerRaw !== null && winnerRaw !== undefined && String(winnerRaw).trim() !== "" ? Number(winnerRaw) : null;
+
+    if (!resolutionNotes) {
+        return { error: "Resolution notes are required" };
+    }
+
+    try {
+        await resolveDispute(projectId, disputeId, {
+            overrideWinnerGroupIndex:
+                overrideWinnerGroupIndex !== null && !Number.isNaN(overrideWinnerGroupIndex)
+                    ? overrideWinnerGroupIndex
+                    : null,
+            resolutionNotes,
+        });
+    } catch (error) {
+        return { error: humanize(error) };
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}/disputes`);
+    revalidatePath(`/dashboard/projects/${projectId}/disputes/${disputeId}`);
+    return {};
+}
+
+export async function rejectDisputeAction(_prev: FormState, formData: FormData): Promise<FormState> {
+    const projectId = String(formData.get("projectId") ?? "");
+    const disputeId = String(formData.get("disputeId") ?? "");
+    const resolutionNotes = String(formData.get("resolutionNotes") ?? "").trim();
+
+    if (!resolutionNotes) {
+        return { error: "Resolution notes are required" };
+    }
+
+    try {
+        await rejectDispute(projectId, disputeId, {
+            resolutionNotes,
+        });
+    } catch (error) {
+        return { error: humanize(error) };
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}/disputes`);
+    revalidatePath(`/dashboard/projects/${projectId}/disputes/${disputeId}`);
     return {};
 }

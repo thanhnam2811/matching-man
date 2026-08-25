@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { Queue } from "bullmq";
 import { PrismaService } from "../prisma/prisma.service";
 import { WebhookDeliveryStatus } from "../generated/prisma/client";
 import { WebhookDeliveryService } from "./deliveries.service";
@@ -8,9 +9,17 @@ describe("WebhookDeliveryService", () => {
     let prismaService: {
         client: {
             webhookEndpoint: { findMany: jest.Mock };
-            webhookDelivery: { createMany: jest.Mock; findMany: jest.Mock; update: jest.Mock; count: jest.Mock };
+            webhookDelivery: {
+                create: jest.Mock;
+                createMany: jest.Mock;
+                findUnique: jest.Mock;
+                findMany: jest.Mock;
+                update: jest.Mock;
+                count: jest.Mock;
+            };
         };
     };
+    let queue: { add: jest.Mock };
     let fetchSpy: jest.SpyInstance;
 
     beforeEach(() => {
@@ -18,15 +27,20 @@ describe("WebhookDeliveryService", () => {
             client: {
                 webhookEndpoint: { findMany: jest.fn() },
                 webhookDelivery: {
+                    create: jest.fn(),
                     createMany: jest.fn(),
+                    findUnique: jest.fn(),
                     findMany: jest.fn(),
                     update: jest.fn(),
                     count: jest.fn(),
                 },
             },
         };
+        queue = {
+            add: jest.fn().mockResolvedValue({ id: "job_1" }),
+        };
 
-        service = new WebhookDeliveryService(prismaService as unknown as PrismaService);
+        service = new WebhookDeliveryService(prismaService as unknown as PrismaService, queue as unknown as Queue);
         fetchSpy = jest.spyOn(global, "fetch");
     });
 
@@ -36,33 +50,212 @@ describe("WebhookDeliveryService", () => {
     });
 
     describe("scheduleDelivery", () => {
-        it("creates a pending delivery only for active endpoints subscribed to the event", async () => {
+        it("creates a pending delivery and enqueues BullMQ job only for active endpoints subscribed to the event", async () => {
             prismaService.client.webhookEndpoint.findMany.mockResolvedValue([
                 { id: "ep_subscribed", events: ["match.completed"] },
                 { id: "ep_unsubscribed", events: ["rating.updated"] },
             ]);
+            prismaService.client.webhookDelivery.create.mockResolvedValue({
+                id: "del_created_1",
+                webhookEndpointId: "ep_subscribed",
+                eventType: "match.completed",
+                status: WebhookDeliveryStatus.PENDING,
+            });
 
             await service.scheduleDelivery("project_1", "match.completed", { matchId: "match_1" });
 
-            expect(prismaService.client.webhookDelivery.createMany).toHaveBeenCalledWith({
-                data: [
-                    expect.objectContaining({
-                        webhookEndpointId: "ep_subscribed",
-                        eventType: "match.completed",
-                        status: WebhookDeliveryStatus.PENDING,
-                    }),
-                ],
+            expect(prismaService.client.webhookDelivery.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({
+                    webhookEndpointId: "ep_subscribed",
+                    eventType: "match.completed",
+                    status: WebhookDeliveryStatus.PENDING,
+                }),
             });
+            expect(queue.add).toHaveBeenCalledWith("deliver", { deliveryId: "del_created_1" });
         });
 
-        it("skips creating deliveries when no endpoint is subscribed to the event", async () => {
+        it("skips creating deliveries and queuing jobs when no endpoint is subscribed to the event", async () => {
             prismaService.client.webhookEndpoint.findMany.mockResolvedValue([
                 { id: "ep_1", events: ["rating.updated"] },
             ]);
 
             await service.scheduleDelivery("project_1", "match.completed", {});
 
-            expect(prismaService.client.webhookDelivery.createMany).not.toHaveBeenCalled();
+            expect(prismaService.client.webhookDelivery.create).not.toHaveBeenCalled();
+            expect(queue.add).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("executeSingleDelivery", () => {
+        const endpoint = { url: "https://example.test/webhook", secret: `whsec_${"aa".repeat(24)}` };
+
+        it("dispatches HTTP POST with HMAC signature and marks successful delivery as DELIVERED without retrying", async () => {
+            prismaService.client.webhookDelivery.findUnique.mockResolvedValue({
+                id: "del_1",
+                eventType: "match.completed",
+                payload: { matchId: "match_1" },
+                attemptCount: 0,
+                status: WebhookDeliveryStatus.PENDING,
+                webhookEndpoint: endpoint,
+            });
+            fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+            await service.executeSingleDelivery("del_1");
+
+            expect(fetchSpy).toHaveBeenCalledTimes(1);
+            const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+            const headers = init.headers as Record<string, string>;
+
+            expect(url).toBe("https://example.test/webhook");
+            expect(headers["X-Webhook-Event"]).toBe("match.completed");
+
+            const timestamp = headers["X-Webhook-Timestamp"];
+            const body = init.body as string;
+            const expectedSignature = createHmac("sha256", Buffer.from("aa".repeat(24), "hex"))
+                .update(`${timestamp}.${body}`)
+                .digest("hex");
+
+            expect(headers["X-Webhook-Signature"]).toBe(`sha256=${expectedSignature}`);
+
+            expect(prismaService.client.webhookDelivery.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: "del_1" },
+                    data: expect.objectContaining({
+                        attemptCount: 1,
+                        status: WebhookDeliveryStatus.DELIVERED,
+                        nextRetryAt: null,
+                        lastResponseCode: 200,
+                        lastError: null,
+                    }),
+                }),
+            );
+            expect(queue.add).not.toHaveBeenCalled();
+        });
+
+        it("schedules next retry job with 30s delay in BullMQ after first failed attempt", async () => {
+            jest.useFakeTimers().setSystemTime(new Date("2026-06-12T00:00:00.000Z"));
+            prismaService.client.webhookDelivery.findUnique.mockResolvedValue({
+                id: "del_1",
+                eventType: "match.completed",
+                payload: {},
+                attemptCount: 0,
+                status: WebhookDeliveryStatus.PENDING,
+                webhookEndpoint: endpoint,
+            });
+            fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
+
+            await service.executeSingleDelivery("del_1");
+
+            expect(prismaService.client.webhookDelivery.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: "del_1" },
+                    data: expect.objectContaining({
+                        attemptCount: 1,
+                        status: WebhookDeliveryStatus.FAILED,
+                        nextRetryAt: new Date("2026-06-12T00:00:30.000Z"),
+                        lastResponseCode: 500,
+                        lastError: "HTTP 500",
+                    }),
+                }),
+            );
+            expect(queue.add).toHaveBeenCalledWith("deliver", { deliveryId: "del_1" }, { delay: 30_000 });
+        });
+
+        it("schedules next retry job with 5min delay after second failed attempt", async () => {
+            jest.useFakeTimers().setSystemTime(new Date("2026-06-12T00:00:00.000Z"));
+            prismaService.client.webhookDelivery.findUnique.mockResolvedValue({
+                id: "del_1",
+                eventType: "match.completed",
+                payload: {},
+                attemptCount: 1,
+                status: WebhookDeliveryStatus.FAILED,
+                webhookEndpoint: endpoint,
+            });
+            fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
+
+            await service.executeSingleDelivery("del_1");
+
+            expect(prismaService.client.webhookDelivery.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: "del_1" },
+                    data: expect.objectContaining({
+                        attemptCount: 2,
+                        status: WebhookDeliveryStatus.FAILED,
+                        nextRetryAt: new Date("2026-06-12T00:05:00.000Z"),
+                    }),
+                }),
+            );
+            expect(queue.add).toHaveBeenCalledWith("deliver", { deliveryId: "del_1" }, { delay: 300_000 });
+        });
+
+        it("marks delivery EXHAUSTED and does not queue retry once MAX_ATTEMPTS reached", async () => {
+            jest.useFakeTimers().setSystemTime(new Date("2026-06-12T00:00:00.000Z"));
+            prismaService.client.webhookDelivery.findUnique.mockResolvedValue({
+                id: "del_1",
+                eventType: "match.completed",
+                payload: {},
+                attemptCount: 4,
+                status: WebhookDeliveryStatus.FAILED,
+                webhookEndpoint: endpoint,
+            });
+            fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
+
+            await service.executeSingleDelivery("del_1");
+
+            expect(prismaService.client.webhookDelivery.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: "del_1" },
+                    data: expect.objectContaining({
+                        attemptCount: 5,
+                        status: WebhookDeliveryStatus.EXHAUSTED,
+                        nextRetryAt: null,
+                        exhaustedAt: new Date("2026-06-12T00:00:00.000Z"),
+                    }),
+                }),
+            );
+            expect(queue.add).not.toHaveBeenCalled();
+        });
+
+        it("records network error and schedules retry when fetch throws", async () => {
+            jest.useFakeTimers().setSystemTime(new Date("2026-06-12T00:00:00.000Z"));
+            prismaService.client.webhookDelivery.findUnique.mockResolvedValue({
+                id: "del_1",
+                eventType: "match.completed",
+                payload: {},
+                attemptCount: 0,
+                status: WebhookDeliveryStatus.PENDING,
+                webhookEndpoint: endpoint,
+            });
+            fetchSpy.mockRejectedValue(new Error("fetch failed"));
+
+            await service.executeSingleDelivery("del_1");
+
+            expect(prismaService.client.webhookDelivery.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: "del_1" },
+                    data: expect.objectContaining({
+                        status: WebhookDeliveryStatus.FAILED,
+                        lastError: "fetch failed",
+                        lastResponseCode: null,
+                        nextRetryAt: new Date("2026-06-12T00:00:30.000Z"),
+                    }),
+                }),
+            );
+            expect(queue.add).toHaveBeenCalledWith("deliver", { deliveryId: "del_1" }, { delay: 30_000 });
+        });
+
+        it("ignores already delivered or exhausted deliveries", async () => {
+            prismaService.client.webhookDelivery.findUnique.mockResolvedValue({
+                id: "del_1",
+                status: WebhookDeliveryStatus.DELIVERED,
+                webhookEndpoint: endpoint,
+            });
+
+            await service.executeSingleDelivery("del_1");
+
+            expect(fetchSpy).not.toHaveBeenCalled();
+            expect(prismaService.client.webhookDelivery.update).not.toHaveBeenCalled();
+            expect(queue.add).not.toHaveBeenCalled();
         });
     });
 
@@ -126,7 +319,7 @@ describe("WebhookDeliveryService", () => {
         });
     });
 
-    describe("retry/backoff on delivery attempts", () => {
+    describe("retry/backoff on delivery attempts (sendPendingDeliveries fallback sweep)", () => {
         const endpoint = { url: "https://example.test/webhook", secret: `whsec_${"aa".repeat(24)}` };
 
         it("marks a successful delivery as DELIVERED with no further retry", async () => {
@@ -183,32 +376,7 @@ describe("WebhookDeliveryService", () => {
                     }),
                 }),
             );
-        });
-
-        it("schedules a retry 5 minutes out after the second failed attempt", async () => {
-            jest.useFakeTimers().setSystemTime(new Date("2026-06-12T00:00:00.000Z"));
-            prismaService.client.webhookDelivery.findMany.mockResolvedValue([
-                {
-                    id: "delivery_1",
-                    eventType: "match.completed",
-                    payload: {},
-                    attemptCount: 1,
-                    webhookEndpoint: endpoint,
-                },
-            ]);
-            fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
-
-            await service.sendPendingDeliveries();
-
-            expect(prismaService.client.webhookDelivery.update).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    data: expect.objectContaining({
-                        attemptCount: 2,
-                        status: WebhookDeliveryStatus.FAILED,
-                        nextRetryAt: new Date("2026-06-12T00:05:00.000Z"),
-                    }),
-                }),
-            );
+            expect(queue.add).toHaveBeenCalledWith("deliver", { deliveryId: "delivery_1" }, { delay: 30_000 });
         });
 
         it("marks the delivery EXHAUSTED with no further retry once MAX_ATTEMPTS is reached", async () => {
@@ -236,33 +404,7 @@ describe("WebhookDeliveryService", () => {
                     }),
                 }),
             );
-        });
-
-        it("records the network error and still schedules a retry when fetch throws (e.g. connection refused)", async () => {
-            jest.useFakeTimers().setSystemTime(new Date("2026-06-12T00:00:00.000Z"));
-            prismaService.client.webhookDelivery.findMany.mockResolvedValue([
-                {
-                    id: "delivery_1",
-                    eventType: "match.completed",
-                    payload: {},
-                    attemptCount: 0,
-                    webhookEndpoint: endpoint,
-                },
-            ]);
-            fetchSpy.mockRejectedValue(new Error("fetch failed"));
-
-            await service.sendPendingDeliveries();
-
-            expect(prismaService.client.webhookDelivery.update).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    data: expect.objectContaining({
-                        status: WebhookDeliveryStatus.FAILED,
-                        lastError: "fetch failed",
-                        lastResponseCode: null,
-                        nextRetryAt: new Date("2026-06-12T00:00:30.000Z"),
-                    }),
-                }),
-            );
+            expect(queue.add).not.toHaveBeenCalled();
         });
     });
 });

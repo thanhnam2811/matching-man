@@ -246,3 +246,115 @@ export type Webhook = {
     isActive: boolean;
     createdAt: string;
 };
+
+export type DisputeStatus = "OPEN" | "RESOLVED" | "REJECTED";
+
+export type MatchDisputeSummary = {
+    id: string;
+    projectId: string;
+    matchId: string;
+    claimantTeamId: string | null;
+    reason: string;
+    evidence: unknown;
+    status: DisputeStatus;
+    overrideWinnerGroupIndex: number | null;
+    resolvedByUserId: string | null;
+    resolvedAt: string | null;
+    resolutionNotes: string | null;
+    createdAt: string;
+    updatedAt: string;
+    match: {
+        id: string;
+        gameModeId: string;
+        environment: string;
+        regionKey: string;
+        status: string;
+        createdAt: string;
+    };
+    resolvedByUser: {
+        id: string;
+        name: string | null;
+        email: string;
+    } | null;
+};
+
+export type MatchSlot = {
+    id: string;
+    matchId: string;
+    ticketId: string;
+    groupIndex: number;
+    teamSnapshot: unknown;
+    createdAt: string;
+};
+
+export type MatchDisputeDetail = MatchDisputeSummary & {
+    match: {
+        id: string;
+        projectId: string;
+        gameModeId: string;
+        environment: string;
+        regionKey: string;
+        status: string;
+        ratingMode: string;
+        requiredSlots: number;
+        groupCount: number;
+        createdAt: string;
+        updatedAt: string;
+        slots: MatchSlot[];
+        result: {
+            id?: string;
+            matchId?: string;
+            winnerGroupIndex: number | null;
+            endedAt: string;
+            createdAt?: string;
+        } | null;
+        gameMode?: {
+            id: string;
+            name: string;
+            teamCount: number;
+            teamSize: number;
+        } | null;
+    };
+};
+
+export type ListDisputesQuery = {
+    status?: DisputeStatus | string;
+    limit?: number;
+    offset?: number;
+};
+
+export type ResolveDisputeInput = {
+    overrideWinnerGroupIndex?: number | null;
+    resolutionNotes: string;
+};
+
+export type RejectDisputeInput = {
+    resolutionNotes: string;
+};
+
+export function listDisputes(projectId: string, query?: ListDisputesQuery) {
+    const params = new URLSearchParams();
+    if (query?.status) params.set("status", query.status.toUpperCase());
+    if (query?.limit != null) params.set("limit", String(query.limit));
+    if (query?.offset != null) params.set("offset", String(query.offset));
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    return apiFetch<Paginated<MatchDisputeSummary>>(`/projects/${projectId}/disputes${qs}`);
+}
+
+export function getDispute(projectId: string, disputeId: string) {
+    return apiFetch<MatchDisputeDetail>(`/projects/${projectId}/disputes/${disputeId}`);
+}
+
+export function resolveDispute(projectId: string, disputeId: string, input: ResolveDisputeInput) {
+    return apiFetch<MatchDisputeDetail>(`/projects/${projectId}/disputes/${disputeId}/resolve`, {
+        method: "POST",
+        body: JSON.stringify(input),
+    });
+}
+
+export function rejectDispute(projectId: string, disputeId: string, input: RejectDisputeInput) {
+    return apiFetch<MatchDisputeDetail>(`/projects/${projectId}/disputes/${disputeId}/reject`, {
+        method: "POST",
+        body: JSON.stringify(input),
+    });
+}

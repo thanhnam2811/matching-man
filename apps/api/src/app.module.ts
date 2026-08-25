@@ -8,6 +8,7 @@ import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { HealthModule } from "./health/health.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { BullMQConfigModule } from "./common/redis/bullmq-config.module";
 import { validateEnv } from "./config/env.validation";
 import { buildPinoHttpOptions } from "./config/pino-http.options";
 import { AuthModule } from "./auth/auth.module";
@@ -20,6 +21,7 @@ import { QueuesModule } from "./queues/queues.module";
 import { MatchesModule } from "./matches/matches.module";
 import { DeliveriesModule } from "./deliveries/deliveries.module";
 import { RatingsModule } from "./ratings/ratings.module";
+import { DisputesModule } from "./disputes/disputes.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { DemoModule } from "./demo/demo.module";
 import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project-throttler.guard";
@@ -49,6 +51,7 @@ import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project
             ],
         }),
         ScheduleModule.forRoot(),
+        BullMQConfigModule,
         HealthModule,
         PrismaModule,
         AuthModule,
@@ -61,6 +64,7 @@ import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project
         MatchesModule,
         DeliveriesModule,
         RatingsModule,
+        DisputesModule,
         DashboardModule,
         DemoModule,
     ],

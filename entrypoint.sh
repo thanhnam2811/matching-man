@@ -31,7 +31,10 @@ else
   echo "Database is ready!"
 fi
 
-echo "Starting Matching Hub API..."
-
-# Start the application (flattened by pnpm deploy)
-exec node dist/src/main
+if [ "$1" = "worker" ] || [ "$WORKER_MODE" = "true" ]; then
+  echo "Starting Matching Hub Background Worker..."
+  exec node dist/src/worker.main
+else
+  echo "Starting Matching Hub API..."
+  exec node dist/src/main
+fi

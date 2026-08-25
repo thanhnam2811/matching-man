@@ -1,4 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
 import { createId } from "@paralleldrive/cuid2";
 import { MatchStatus, MatchStructure, Prisma, QueueEntryStatus, RatingMode } from "../generated/prisma/client";
 import { GameModesService } from "../game-modes/game-modes.service";
@@ -33,6 +35,8 @@ export class QueuesService {
         private readonly gameModesService: GameModesService,
         private readonly projectEnvironmentsService: ProjectEnvironmentsService,
         private readonly webhookDeliveryService: WebhookDeliveryService,
+        @InjectQueue("queue-timeout") private readonly queueTimeoutQueue: Queue,
+        @InjectQueue("matchmaking-pool") private readonly matchmakingPoolQueue: Queue,
     ) {}
 
     async enqueue(authProjectId: string, enqueueDto: EnqueueDto) {
@@ -85,20 +89,20 @@ export class QueuesService {
 
         const inserted = await this.insertQueueEntry(authProjectId, gameMode, environment, regionKey, enqueueDto);
 
-        // Fire-and-forget: match-making runs in the background after the response is
-        // sent so the client isn't blocked on it. Must never throw unhandled - an
-        // un-awaited rejected promise with no catch crashes the process. A periodic
-        // sweep (MatchMakerSweepProcessor) is the safety net if this attempt is lost
-        // (e.g. process restart between the response and this completing).
-        void this.dispatchMatchMakingAsync(
-            inserted.matchPoolId,
-            authProjectId,
-            gameMode.id,
-            environment,
-            regionKey,
-        ).catch((error: unknown) => {
-            this.logger.error(`Background match-making failed for pool ${inserted.matchPoolId}`, error);
-        });
+        const delayMs = (gameMode.maxQueueSeconds ?? 300) * 1000;
+        await this.queueTimeoutQueue.add(
+            "timeout",
+            {
+                queueEntryId: inserted.queueEntryId,
+                projectId: authProjectId,
+            },
+            {
+                delay: delayMs,
+                jobId: `timeout-${inserted.queueEntryId}`,
+            },
+        );
+
+        await this.triggerPoolMatching(inserted.matchPoolId, authProjectId);
 
         return {
             queueEntryId: inserted.queueEntryId,
@@ -292,18 +296,19 @@ export class QueuesService {
         return rows[0];
     }
 
-    private async dispatchMatchMakingAsync(
-        matchPoolId: string,
-        projectId: string,
-        gameModeId: string,
-        environment: string,
-        regionKey: string,
-    ) {
-        const matchId = await this.tryCreateMatch(matchPoolId);
-
-        if (matchId) {
-            await this.scheduleMatchCreatedWebhook(projectId, matchId, gameModeId, environment, regionKey);
-        }
+    async triggerPoolMatching(matchPoolId: string, projectId: string): Promise<void> {
+        await this.matchmakingPoolQueue.add(
+            "matchmaking",
+            {
+                matchPoolId,
+                projectId,
+            },
+            {
+                delay: 50,
+                jobId: `pool-${matchPoolId}`,
+                removeOnComplete: true,
+            },
+        );
     }
 
     async scheduleMatchCreatedWebhook(

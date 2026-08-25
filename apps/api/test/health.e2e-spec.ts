@@ -19,13 +19,14 @@ describe("Health (e2e)", () => {
             .expect(200);
 
         expect(response.body).toMatchObject({
-            status: "ok",
             checks: {
                 database: "up",
+                redis: expect.any(String),
                 // buildTestApp overrides both @Cron processors with stubs that never
                 // call recordRun, so both jobs are correctly reported "pending".
                 scheduler: { webhookRetry: "pending", queueTimeout: "pending" },
             },
         });
+        expect(["ok", "degraded"]).toContain(response.body.status);
     });
 });

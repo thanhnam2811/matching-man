@@ -25,6 +25,8 @@ services:
             PORT: 3000
             DASHBOARD_ADMIN_TOKEN: dashboard-admin-token
             SESSION_SECRET: change-me-to-a-long-random-secret
+            PROJECT_THROTTLE_LIMIT: 10000000
+            LOG_LEVEL: warn
         depends_on:
             postgres: { condition: service_healthy }
         restart: unless-stopped

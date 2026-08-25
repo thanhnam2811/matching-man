@@ -785,9 +785,9 @@ The most effective Skill development process involves the agent itself. Work wit
 
 3. **Ask Agent A to create a Skill**: "Create a Skill that captures this BigQuery analysis pattern we just used. Include the table schemas, naming conventions, and the rule about filtering test accounts."
 
-    <Tip>
-      Modern agents understand the Skill format and structure natively. You don't need special system prompts or a "writing skills" skill to get help creating Skills. Simply ask the agent to create a Skill and it will generate properly structured SKILL.md content with appropriate frontmatter and body content.
-    </Tip>
+ <Tip>
+   Modern agents understand the Skill format and structure natively. You don't need special system prompts or a "writing skills" skill to get help creating Skills. Simply ask the agent to create a Skill and it will generate properly structured SKILL.md content with appropriate frontmatter and body content.
+ </Tip>
 
 4. **Review for conciseness**: Check that Agent A hasn't added unnecessary explanations. Ask: "Remove the explanation about what win rate means - the agent already knows that."
 
@@ -1095,7 +1095,7 @@ Without the server prefix, agents may fail to locate the tool, especially when m
 
 Don't assume packages are available:
 
-````markdown theme={null}
+`````markdown theme={null}
 **Bad example: Assumes installation**:
 "Use the pdf library to process the file."
 
@@ -1109,7 +1109,9 @@ from pypdf import PdfReader
 reader = PdfReader("file.pdf")
 ```"
 ````
-````
+`````
+
+```
 
 ## Technical notes
 
@@ -1171,3 +1173,4 @@ Before sharing a Skill, verify:
     Upload and use Skills programmatically
   </Card>
 </CardGroup>
+```

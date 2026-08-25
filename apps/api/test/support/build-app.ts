@@ -8,8 +8,6 @@ import { getBodyLimitKb } from "../../src/common/utils/body-limit.util";
 import { GlobalExceptionFilter } from "../../src/common/filters/global-exception.filter";
 import { API_GLOBAL_PREFIX, API_GLOBAL_PREFIX_EXCLUDE } from "../../src/swagger";
 import { WebhookRetryProcessor } from "../../src/deliveries/webhook-retry.processor";
-import { QueueTimeoutProcessor } from "../../src/queues/queue-timeout.processor";
-import { MatchMakerSweepProcessor } from "../../src/queues/match-maker-sweep.processor";
 import { DemoResetProcessor } from "../../src/demo/demo-reset.processor";
 
 /**
@@ -34,10 +32,6 @@ export async function buildTestApp(): Promise<INestApplication> {
     })
         .overrideProvider(WebhookRetryProcessor)
         .useValue({ processPendingDeliveries: async () => {} })
-        .overrideProvider(QueueTimeoutProcessor)
-        .useValue({ processTimedOutEntries: async () => {} })
-        .overrideProvider(MatchMakerSweepProcessor)
-        .useValue({ sweepStalledPools: async () => {} })
         .overrideProvider(DemoResetProcessor)
         .useValue({ processDemoReset: async () => {} })
         .compile();

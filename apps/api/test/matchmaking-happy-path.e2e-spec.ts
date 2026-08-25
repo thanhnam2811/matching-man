@@ -1,7 +1,6 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { INestApplication } from "@nestjs/common";
 import request from "supertest";
-import { WebhookDeliveryService } from "../src/deliveries/deliveries.service";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { WebhookDeliveryStatus } from "../src/generated/prisma/client";
 import { buildTestApp } from "./support/build-app";
@@ -118,30 +117,57 @@ describe("Matchmaking happy path (e2e)", () => {
         expect(reportRes.body.status).toBe("completed");
         expect(reportRes.body.ratingUpdateStatus).toBe("completed");
 
-        const deliveryService = app.get(WebhookDeliveryService);
-        await deliveryService.sendPendingDeliveries();
+        await waitForWebhookScheduled(prisma, fixture.projectId, "match.completed");
+        await waitForWebhookScheduled(prisma, fixture.projectId, "rating.updated");
 
-        // match.created (from the 2nd enqueue), match.completed, and rating.updated.
-        expect(fetchSpy).toHaveBeenCalledTimes(3);
+        // Wait for async BullMQ deliveries to complete for this fixture
+        const fetchDeadline = Date.now() + 10_000;
+        let projectCalls: any[] = [];
+        while (Date.now() < fetchDeadline) {
+            projectCalls = fetchSpy.mock.calls.filter(([, init]) => {
+                try {
+                    const headers = (init as RequestInit).headers as Record<string, string>;
+                    const body = init?.body as string;
+                    const expectedSignature = createHmac(
+                        "sha256",
+                        Buffer.from(webhookSecret.replace("whsec_", ""), "hex"),
+                    )
+                        .update(`${headers["X-Webhook-Timestamp"]}.${body}`)
+                        .digest("hex");
+                    return headers["X-Webhook-Signature"] === `sha256=${expectedSignature}`;
+                } catch {
+                    return false;
+                }
+            });
 
-        const eventsSent = fetchSpy.mock.calls.map(
+            if (projectCalls.length >= 3) {
+                break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+
+        expect(projectCalls).toHaveLength(3);
+
+        const eventsSent = projectCalls.map(
             ([, init]) => (init as RequestInit & { headers: Record<string, string> }).headers["X-Webhook-Event"],
         );
         expect(eventsSent.toSorted()).toEqual(["match.completed", "match.created", "rating.updated"]);
 
-        for (const [, init] of fetchSpy.mock.calls) {
-            const headers = (init as RequestInit).headers as Record<string, string>;
-            const body = init!.body as string;
-            const expectedSignature = createHmac("sha256", Buffer.from(webhookSecret.replace("whsec_", ""), "hex"))
-                .update(`${headers["X-Webhook-Timestamp"]}.${body}`)
-                .digest("hex");
-            expect(headers["X-Webhook-Signature"]).toBe(`sha256=${expectedSignature}`);
-        }
-
-        const deliveries = await prisma.client.webhookDelivery.findMany({
+        const dbDeadline = Date.now() + 5000;
+        let deliveries = await prisma.client.webhookDelivery.findMany({
             where: { webhookEndpoint: { projectId: fixture.projectId } },
         });
+        while (Date.now() < dbDeadline) {
+            deliveries = await prisma.client.webhookDelivery.findMany({
+                where: { webhookEndpoint: { projectId: fixture.projectId } },
+            });
+            if (deliveries.length === 3 && deliveries.every((d) => d.status === WebhookDeliveryStatus.DELIVERED)) {
+                break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+
         expect(deliveries).toHaveLength(3);
         expect(deliveries.every((delivery) => delivery.status === WebhookDeliveryStatus.DELIVERED)).toBe(true);
-    });
+    }, 30_000);
 });

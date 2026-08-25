@@ -13,7 +13,7 @@ describe("Webhook delivery retry/backoff (e2e)", () => {
     let fetchSpy: jest.SpyInstance;
 
     beforeAll(async () => {
-        app = await buildTestApp();
+        app = await buildTestApp({ disableWebhookDeliveryWorker: true });
         prisma = app.get(PrismaService);
         deliveryService = app.get(WebhookDeliveryService);
     });

@@ -8,6 +8,7 @@ import { getBodyLimitKb } from "../../src/common/utils/body-limit.util";
 import { GlobalExceptionFilter } from "../../src/common/filters/global-exception.filter";
 import { API_GLOBAL_PREFIX, API_GLOBAL_PREFIX_EXCLUDE } from "../../src/swagger";
 import { WebhookRetryProcessor } from "../../src/deliveries/webhook-retry.processor";
+import { WebhookDeliveryProcessor } from "../../src/deliveries/webhook-delivery.processor";
 import { DemoResetProcessor } from "../../src/demo/demo-reset.processor";
 
 /**
@@ -20,21 +21,37 @@ import { DemoResetProcessor } from "../../src/demo/demo-reset.processor";
  * wall-clock schedule during a test and race with a test's own explicit calls
  * to `WebhookDeliveryService.sendPendingDeliveries()` (double-processing the
  * same rows), making assertions on delivery counts/state flaky.
+ *
+ * `disableWebhookDeliveryWorker` optionally disables the live `WebhookDeliveryProcessor`
+ * BullMQ worker too. Most suites need it running (e.g. matchmaking-happy-path polls for
+ * the worker to actually call `fetch()`), but a suite that drives delivery attempts
+ * directly via `WebhookDeliveryService.sendPendingDeliveries()` (webhook-retry) needs it
+ * off — otherwise the live worker picks up the same queued "deliver" job on its own and
+ * races the test's explicit calls (double-processing the same row), and can still be
+ * mid-delivery after `afterAll` closes the Prisma pool. Overriding with `useValue` (rather
+ * than a mock class) makes `@nestjs/bullmq`'s explorer skip registering a worker for it
+ * entirely, since it can no longer find `@Processor` metadata on `instance.constructor`
+ * (`Object`, not the real class).
  */
-export async function buildTestApp(): Promise<INestApplication> {
+export async function buildTestApp(opts: { disableWebhookDeliveryWorker?: boolean } = {}): Promise<INestApplication> {
     process.env.NODE_ENV ??= "test";
     process.env.DATABASE_URL ??= "postgresql://admin:password@127.0.0.1:5432/matching_hub?schema=public";
     process.env.DASHBOARD_ADMIN_TOKEN ??= "test-dashboard-token";
     process.env.SESSION_SECRET ??= "test-secret-test-secret-test-secret";
 
-    const moduleFixture = await Test.createTestingModule({
+    const testModuleBuilder = Test.createTestingModule({
         imports: [AppModule],
     })
         .overrideProvider(WebhookRetryProcessor)
         .useValue({ processPendingDeliveries: async () => {} })
         .overrideProvider(DemoResetProcessor)
-        .useValue({ processDemoReset: async () => {} })
-        .compile();
+        .useValue({ processDemoReset: async () => {} });
+
+    if (opts.disableWebhookDeliveryWorker) {
+        testModuleBuilder.overrideProvider(WebhookDeliveryProcessor).useValue({});
+    }
+
+    const moduleFixture = await testModuleBuilder.compile();
 
     const app = moduleFixture.createNestApplication<NestExpressApplication>({ bufferLogs: true });
     app.useLogger(app.get(PinoLogger));

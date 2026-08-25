@@ -16,7 +16,10 @@ export class RedisService implements OnModuleDestroy {
             host,
             port,
             password,
-            maxRetriesPerRequest: null,
+            enableOfflineQueue: false,
+            connectTimeout: 2000,
+            commandTimeout: 2000,
+            maxRetriesPerRequest: 1,
             enableReadyCheck: false,
             lazyConnect: true,
         });
@@ -28,7 +31,11 @@ export class RedisService implements OnModuleDestroy {
 
     async onModuleDestroy() {
         try {
-            await this.client.quit();
+            if (this.client.status === "ready") {
+                await this.client.quit();
+            } else {
+                this.client.disconnect();
+            }
         } catch {
             this.client.disconnect();
         }
@@ -36,7 +43,14 @@ export class RedisService implements OnModuleDestroy {
 
     async isHealthy(): Promise<boolean> {
         try {
-            const result = await this.client.ping();
+            if (this.client.status === "wait" || this.client.status === "close") {
+                await this.client.connect().catch(() => {});
+            }
+            const pingPromise = this.client.ping();
+            const timeoutPromise = new Promise<string>((_, reject) =>
+                setTimeout(() => reject(new Error("Redis ping timeout")), 1000),
+            );
+            const result = await Promise.race([pingPromise, timeoutPromise]);
             return result === "PONG";
         } catch {
             return false;

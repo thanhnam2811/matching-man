@@ -5,6 +5,7 @@ const mockPing = jest.fn();
 const mockQuit = jest.fn();
 const mockDisconnect = jest.fn();
 const mockOn = jest.fn();
+let mockStatus = "ready";
 
 jest.mock("ioredis", () => {
     return {
@@ -13,12 +14,18 @@ jest.mock("ioredis", () => {
             quit: mockQuit,
             disconnect: mockDisconnect,
             on: mockOn,
+            get status() {
+                return mockStatus;
+            },
         })),
         default: jest.fn().mockImplementation(() => ({
             ping: mockPing,
             quit: mockQuit,
             disconnect: mockDisconnect,
             on: mockOn,
+            get status() {
+                return mockStatus;
+            },
         })),
     };
 });
@@ -28,6 +35,7 @@ describe("RedisService", () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        mockStatus = "ready";
         configService = {
             get: jest.fn((key: string, defaultVal?: unknown) => {
                 const config: Record<string, unknown> = {
@@ -68,7 +76,8 @@ describe("RedisService", () => {
         expect(healthy).toBe(false);
     });
 
-    it("gracefully quits redis client on module destroy", async () => {
+    it("gracefully quits redis client when status is ready on module destroy", async () => {
+        mockStatus = "ready";
         mockQuit.mockResolvedValue("OK");
         const service = new RedisService(configService);
 
@@ -77,7 +86,18 @@ describe("RedisService", () => {
         expect(mockQuit).toHaveBeenCalled();
     });
 
+    it("disconnects directly when client status is not ready on module destroy", async () => {
+        mockStatus = "wait";
+        const service = new RedisService(configService);
+
+        await service.onModuleDestroy();
+
+        expect(mockQuit).not.toHaveBeenCalled();
+        expect(mockDisconnect).toHaveBeenCalled();
+    });
+
     it("falls back to disconnect if quit fails on module destroy", async () => {
+        mockStatus = "ready";
         mockQuit.mockRejectedValue(new Error("Quit error"));
         const service = new RedisService(configService);
 

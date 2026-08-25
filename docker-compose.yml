@@ -15,12 +15,25 @@ services:
             retries: 10
             start_period: 5s
 
+    redis:
+        image: redis:7-alpine
+        container_name: matching-man-redis
+        ports: ["6379:6379"]
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 5s
+            timeout: 3s
+            retries: 10
+            start_period: 5s
+
     app:
         build: { context: ., dockerfile: Dockerfile }
         container_name: matching-man-app
         ports: ["3000:3000"]
         environment:
             DATABASE_URL: postgresql://admin:password@postgres:5432/matching_hub?schema=public
+            REDIS_HOST: redis
+            REDIS_PORT: 6379
             NODE_ENV: production
             PORT: 3000
             DASHBOARD_ADMIN_TOKEN: dashboard-admin-token
@@ -29,6 +42,7 @@ services:
             LOG_LEVEL: warn
         depends_on:
             postgres: { condition: service_healthy }
+            redis: { condition: service_healthy }
         restart: unless-stopped
         healthcheck:
             test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/health || exit 1"]

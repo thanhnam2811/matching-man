@@ -19,6 +19,19 @@ class EnvironmentVariables {
     DATABASE_DIRECT_URL?: string;
 
     @IsString()
+    REDIS_HOST = "localhost";
+
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    @Max(65535)
+    REDIS_PORT = 6379;
+
+    @IsOptional()
+    @IsString()
+    REDIS_PASSWORD?: string;
+
+    @IsString()
     @IsNotEmpty()
     DASHBOARD_ADMIN_TOKEN!: string;
 

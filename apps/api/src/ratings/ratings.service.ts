@@ -80,6 +80,93 @@ export class RatingsService {
         return updates;
     }
 
+    async reconcileEloForDispute(
+        projectId: string,
+        gameModeId: string,
+        matchId: string,
+        winnerPlayerIds: string[] = [],
+        loserPlayerIds: string[] = [],
+    ): Promise<PlayerRatingUpdate[]> {
+        return this.prismaService.client.$transaction(async (tx) => {
+            const existingHistory = await tx.ratingHistory.findMany({
+                where: { matchId },
+                include: { ratingProfile: true },
+            });
+
+            for (const history of existingHistory) {
+                await tx.ratingProfile.update({
+                    where: { id: history.ratingProfileId },
+                    data: {
+                        rating: { decrement: history.delta },
+                        gamesPlayed: { decrement: 1 },
+                    },
+                });
+            }
+
+            if (existingHistory.length > 0) {
+                await tx.ratingHistory.deleteMany({
+                    where: { matchId },
+                });
+            }
+
+            if (winnerPlayerIds.length === 0 || loserPlayerIds.length === 0) {
+                return [];
+            }
+
+            const allPlayerIds = [...winnerPlayerIds, ...loserPlayerIds];
+            const profiles = await Promise.all(
+                allPlayerIds.map((playerId) =>
+                    tx.ratingProfile.upsert({
+                        where: { projectId_gameModeId_playerId: { projectId, gameModeId, playerId } },
+                        update: {},
+                        create: { projectId, gameModeId, playerId, rating: INITIAL_RATING, gamesPlayed: 0 },
+                    }),
+                ),
+            );
+
+            const ratingMap = new Map(profiles.map((p) => [p.playerId, p]));
+            const winnerRatings = winnerPlayerIds.map((id) => ratingMap.get(id)!.rating);
+            const loserRatings = loserPlayerIds.map((id) => ratingMap.get(id)!.rating);
+            const winnerAvg = winnerRatings.reduce((s, r) => s + r, 0) / winnerRatings.length;
+            const loserAvg = loserRatings.reduce((s, r) => s + r, 0) / loserRatings.length;
+
+            const updates: PlayerRatingUpdate[] = [];
+
+            for (const playerId of winnerPlayerIds) {
+                const profile = ratingMap.get(playerId)!;
+                const expected = this.expectedScore(profile.rating, loserAvg);
+                const delta = Math.round(K_FACTOR * (1 - expected));
+                updates.push({ playerId, ratingBefore: profile.rating, ratingAfter: profile.rating + delta, delta });
+            }
+
+            for (const playerId of loserPlayerIds) {
+                const profile = ratingMap.get(playerId)!;
+                const expected = this.expectedScore(profile.rating, winnerAvg);
+                const delta = Math.round(K_FACTOR * (0 - expected));
+                updates.push({ playerId, ratingBefore: profile.rating, ratingAfter: profile.rating + delta, delta });
+            }
+
+            for (const update of updates) {
+                const profile = ratingMap.get(update.playerId)!;
+                await tx.ratingProfile.update({
+                    where: { id: profile.id },
+                    data: { rating: update.ratingAfter, gamesPlayed: { increment: 1 } },
+                });
+                await tx.ratingHistory.create({
+                    data: {
+                        ratingProfileId: profile.id,
+                        matchId,
+                        ratingBefore: update.ratingBefore,
+                        ratingAfter: update.ratingAfter,
+                        delta: update.delta,
+                    },
+                });
+            }
+
+            return updates;
+        });
+    }
+
     async listHistory(projectId: string, query: ListRatingHistoryQueryDto) {
         const limit = query.limit ?? 50;
         const offset = query.offset ?? 0;

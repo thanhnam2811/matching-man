@@ -15,7 +15,7 @@ describe("RatingsService", () => {
     let prismaService: {
         client: {
             ratingProfile: { upsert: jest.Mock; update: jest.Mock };
-            ratingHistory: { create: jest.Mock; findMany: jest.Mock; count: jest.Mock };
+            ratingHistory: { create: jest.Mock; findMany: jest.Mock; count: jest.Mock; deleteMany: jest.Mock };
             $transaction: jest.Mock;
         };
     };
@@ -31,6 +31,7 @@ describe("RatingsService", () => {
                     create: jest.fn(),
                     findMany: jest.fn(),
                     count: jest.fn(),
+                    deleteMany: jest.fn(),
                 },
                 $transaction: jest.fn(),
             },
@@ -187,6 +188,134 @@ describe("RatingsService", () => {
                     delta: 16,
                 },
             });
+        });
+    });
+
+    describe("reconcileEloForDispute", () => {
+        it("rolls back previous rating history deltas and decrements gamesPlayed when dispute voids match (no winner)", async () => {
+            const previousHistory = [
+                {
+                    id: "history_1",
+                    ratingProfileId: "profile_player_1",
+                    matchId: "match_1",
+                    delta: 16,
+                    ratingBefore: 1200,
+                    ratingAfter: 1216,
+                },
+                {
+                    id: "history_2",
+                    ratingProfileId: "profile_player_2",
+                    matchId: "match_1",
+                    delta: -16,
+                    ratingBefore: 1200,
+                    ratingAfter: 1184,
+                },
+            ];
+
+            prismaService.client.ratingHistory.findMany.mockResolvedValue(previousHistory);
+
+            const updates = await service.reconcileEloForDispute("project_1", "mode_1", "match_1", [], []);
+
+            expect(prismaService.client.ratingHistory.findMany).toHaveBeenCalledWith({
+                where: { matchId: "match_1" },
+                include: { ratingProfile: true },
+            });
+            expect(prismaService.client.ratingProfile.update).toHaveBeenCalledWith({
+                where: { id: "profile_player_1" },
+                data: {
+                    rating: { decrement: 16 },
+                    gamesPlayed: { decrement: 1 },
+                },
+            });
+            expect(prismaService.client.ratingProfile.update).toHaveBeenCalledWith({
+                where: { id: "profile_player_2" },
+                data: {
+                    rating: { decrement: -16 },
+                    gamesPlayed: { decrement: 1 },
+                },
+            });
+            expect(prismaService.client.ratingHistory.deleteMany).toHaveBeenCalledWith({
+                where: { matchId: "match_1" },
+            });
+            expect(updates).toEqual([]);
+        });
+
+        it("rolls back previous ratings and calculates new ratings when winner group index is overturned", async () => {
+            const previousHistory = [
+                {
+                    id: "history_1",
+                    ratingProfileId: "profile_player_1",
+                    matchId: "match_1",
+                    delta: 16,
+                    ratingBefore: 1200,
+                    ratingAfter: 1216,
+                },
+                {
+                    id: "history_2",
+                    ratingProfileId: "profile_player_2",
+                    matchId: "match_1",
+                    delta: -16,
+                    ratingBefore: 1200,
+                    ratingAfter: 1184,
+                },
+            ];
+
+            prismaService.client.ratingHistory.findMany.mockResolvedValue(previousHistory);
+
+            prismaService.client.ratingProfile.upsert
+                .mockResolvedValueOnce(profileFor("player_2", 1200))
+                .mockResolvedValueOnce(profileFor("player_1", 1200));
+
+            const updates = await service.reconcileEloForDispute(
+                "project_1",
+                "mode_1",
+                "match_1",
+                ["player_2"],
+                ["player_1"],
+            );
+
+            expect(prismaService.client.ratingHistory.deleteMany).toHaveBeenCalledWith({
+                where: { matchId: "match_1" },
+            });
+
+            const winner = updates.find((u) => u.playerId === "player_2")!;
+            const loser = updates.find((u) => u.playerId === "player_1")!;
+
+            expect(winner.delta).toBe(16);
+            expect(loser.delta).toBe(-16);
+            expect(winner.ratingAfter).toBe(1216);
+            expect(loser.ratingAfter).toBe(1184);
+
+            expect(prismaService.client.ratingHistory.create).toHaveBeenCalledWith({
+                data: {
+                    ratingProfileId: "profile_player_2",
+                    matchId: "match_1",
+                    ratingBefore: 1200,
+                    ratingAfter: 1216,
+                    delta: 16,
+                },
+            });
+        });
+
+        it("handles match with no prior rating history and applies new ratings when winner specified", async () => {
+            prismaService.client.ratingHistory.findMany.mockResolvedValue([]);
+
+            prismaService.client.ratingProfile.upsert
+                .mockResolvedValueOnce(profileFor("player_1", 1200))
+                .mockResolvedValueOnce(profileFor("player_2", 1200));
+
+            const updates = await service.reconcileEloForDispute(
+                "project_1",
+                "mode_1",
+                "match_1",
+                ["player_1"],
+                ["player_2"],
+            );
+
+            expect(prismaService.client.ratingHistory.deleteMany).not.toHaveBeenCalled();
+            expect(updates.length).toBe(2);
+            expect(updates.find((u) => u.playerId === "player_1")!.delta).toBe(16);
+            expect(updates.find((u) => u.playerId === "player_2")!.delta).toBe(-16);
         });
     });
 });

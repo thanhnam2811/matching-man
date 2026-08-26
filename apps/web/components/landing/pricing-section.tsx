@@ -109,19 +109,19 @@ export function PricingSection() {
                                     <li className="flex items-start gap-2">
                                         <Check className="size-4 shrink-0 text-foreground" />
                                         <span>
-                                            <strong className="font-mono text-foreground">1,000</strong> matches / mo
+                                            <strong className="font-mono text-foreground">5,000</strong> matches / mo
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-2">
                                         <Check className="size-4 shrink-0 text-foreground" />
                                         <span>
-                                            <strong className="font-mono text-foreground">10,000</strong> enqueues / mo
+                                            <strong className="font-mono text-foreground">25,000</strong> enqueues / mo
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-2">
                                         <Check className="size-4 shrink-0 text-foreground" />
                                         <span>
-                                            Up to <strong className="font-mono text-foreground">3</strong> active match
+                                            Up to <strong className="font-mono text-foreground">5</strong> active match
                                             pools
                                         </span>
                                     </li>
@@ -194,7 +194,7 @@ export function PricingSection() {
                                     <li className="flex items-start gap-2">
                                         <Check className="size-4 shrink-0 text-foreground" />
                                         <span>
-                                            <strong className="font-mono text-foreground">50,000</strong> matches / mo
+                                            <strong className="font-mono text-foreground">100,000</strong> matches / mo
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-2">
@@ -206,7 +206,7 @@ export function PricingSection() {
                                     <li className="flex items-start gap-2">
                                         <Check className="size-4 shrink-0 text-foreground" />
                                         <span>
-                                            Up to <strong className="font-mono text-foreground">25</strong> active match
+                                            Up to <strong className="font-mono text-foreground">30</strong> active match
                                             pools
                                         </span>
                                     </li>
@@ -363,15 +363,15 @@ export function PricingSection() {
                             </tr>
                             <tr>
                                 <td className="p-4 font-medium text-foreground">Monthly Matches Formed</td>
-                                <td className="p-4 text-center font-mono text-muted-foreground">1,000</td>
+                                <td className="p-4 text-center font-mono text-muted-foreground">5,000</td>
                                 <td className="bg-muted/20 p-4 text-center font-mono font-medium text-foreground">
-                                    50,000
+                                    100,000
                                 </td>
                                 <td className="p-4 text-center font-mono text-muted-foreground">Custom (Millions+)</td>
                             </tr>
                             <tr>
                                 <td className="p-4 font-medium text-foreground">Monthly Enqueue Operations</td>
-                                <td className="p-4 text-center font-mono text-muted-foreground">10,000</td>
+                                <td className="p-4 text-center font-mono text-muted-foreground">25,000</td>
                                 <td className="bg-muted/20 p-4 text-center font-mono font-medium text-foreground">
                                     500,000
                                 </td>
@@ -379,9 +379,9 @@ export function PricingSection() {
                             </tr>
                             <tr>
                                 <td className="p-4 font-medium text-foreground">Active Matchmaking Pools</td>
-                                <td className="p-4 text-center font-mono text-muted-foreground">3</td>
+                                <td className="p-4 text-center font-mono text-muted-foreground">5</td>
                                 <td className="bg-muted/20 p-4 text-center font-mono font-medium text-foreground">
-                                    25
+                                    30
                                 </td>
                                 <td className="p-4 text-center font-mono text-muted-foreground">Unlimited</td>
                             </tr>

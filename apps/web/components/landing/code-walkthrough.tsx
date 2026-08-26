@@ -71,9 +71,7 @@ const SNIPPETS: Record<StepId, Record<Language, { code: string; filename: string
     enqueue: {
         typescript: {
             filename: "enqueue-player.ts",
-            code: `import { createHmac } from "node:crypto";
-
-const API_KEY = process.env.MATCHING_HUB_API_KEY!;
+            code: `const API_KEY = process.env.MATCHING_HUB_API_KEY!;
 const BASE_URL = "https://api.matchinghub.dev/v1";
 
 interface EnqueuePayload {
@@ -407,8 +405,9 @@ export async function handleWebhook(req: IncomingMessage, res: ServerResponse, r
 
   const payload = JSON.parse(rawBody);
   if (event === "match.confirmed" || event === "match.created") {
-    const { matchId, slots, gameModeId, regionKey } = payload.data;
-    console.log(\`[SPAWN] Match ready: \${matchId} in \${regionKey} (\${slots.length} teams)\`);
+    const data = payload.data ?? payload;
+    const { matchId, slots, regionKey } = data;
+    console.log(\`[SPAWN] Match ready: \${matchId} in \${regionKey} (\${slots?.length ?? 0} teams)\`);
     // Allocate server instance...
   }
 
@@ -448,7 +447,7 @@ async def match_webhook(
         
     payload = await request.json()
     if x_webhook_event in ("match.confirmed", "match.created"):
-        match_data = payload.get("data", {})
+        match_data = payload.get("data", payload)
         print(f"Launching server for match {match_data.get('match_id')} in {match_data.get('region')}")
         
     return {"received": True}`,
@@ -608,6 +607,8 @@ export function CodeWalkthrough() {
     const [tabView, setTabView] = React.useState<TabView>("request");
     const [copied, setCopied] = React.useState(false);
     const copyTimer = React.useRef<number | undefined>(undefined);
+
+    React.useEffect(() => () => window.clearTimeout(copyTimer.current), []);
 
     const currentStep = STEPS.find((s) => s.id === selectedStep) ?? STEPS[0];
     const currentSnippet = SNIPPETS[selectedStep][selectedLang];

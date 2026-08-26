@@ -34,6 +34,12 @@ describe("QueuesService", () => {
     let matchmakingPoolQueue: {
         add: jest.Mock;
     };
+    let penaltiesService: {
+        checkActivePenalties: jest.Mock;
+    };
+    let readyCheckTimeoutQueue: {
+        add: jest.Mock;
+    };
     let projectEnvironmentsService: ProjectEnvironmentsService;
 
     beforeEach(() => {
@@ -42,6 +48,7 @@ describe("QueuesService", () => {
                 queueEntry: {
                     findFirst: jest.fn(),
                     update: jest.fn(),
+                    updateMany: jest.fn(),
                 },
                 $transaction: jest.fn(),
                 $queryRaw: jest.fn(),
@@ -59,11 +66,19 @@ describe("QueuesService", () => {
             scheduleDelivery: jest.fn(),
         };
 
+        penaltiesService = {
+            checkActivePenalties: jest.fn().mockResolvedValue(null),
+        };
+
         queueTimeoutQueue = {
             add: jest.fn().mockResolvedValue(undefined),
         };
 
         matchmakingPoolQueue = {
+            add: jest.fn().mockResolvedValue(undefined),
+        };
+
+        readyCheckTimeoutQueue = {
             add: jest.fn().mockResolvedValue(undefined),
         };
 
@@ -73,12 +88,31 @@ describe("QueuesService", () => {
             gameModesService as unknown as GameModesService,
             projectEnvironmentsService,
             webhookDeliveryService as unknown as WebhookDeliveryService,
+            penaltiesService as unknown as any,
             queueTimeoutQueue as unknown as Queue,
             matchmakingPoolQueue as unknown as Queue,
+            readyCheckTimeoutQueue as unknown as Queue,
         );
     });
 
     describe("enqueue", () => {
+        it("rejects enqueue when a player in the team has an active cooldown", async () => {
+            penaltiesService.checkActivePenalties.mockResolvedValue({
+                playerId: "player_banned",
+                expiresAt: new Date(Date.now() + 60000),
+                reason: "DODGE",
+                violationCount: 2,
+            });
+
+            await expect(
+                service.enqueue("project_1", {
+                    projectId: "project_1",
+                    gameModeId: "mode_1",
+                    environment: "production",
+                    team: { members: [{ playerId: "player_banned" }] },
+                }),
+            ).rejects.toThrow("locked out from queueing");
+        });
         it("rejects enqueue when environment is not configured for the project", async () => {
             prismaService.client.projectEnvironment.findUnique.mockResolvedValue(null);
             gameModesService.findOne.mockResolvedValue({
@@ -629,6 +663,29 @@ describe("QueuesService", () => {
             );
 
             expect(selected.map((entry) => entry.id)).toEqual(["entry_1", "entry_2"]);
+        });
+    });
+
+    describe("requeueInnocentEntries", () => {
+        it("updates status back to QUEUED and triggers matchmaking pool sweep", async () => {
+            await service.requeueInnocentEntries("proj_1", ["entry_1", "entry_2"], "pool_1");
+
+            expect(prismaService.client.queueEntry.updateMany).toHaveBeenCalledWith({
+                where: {
+                    id: { in: ["entry_1", "entry_2"] },
+                    projectId: "proj_1",
+                },
+                data: {
+                    status: QueueEntryStatus.QUEUED,
+                    matchedAt: null,
+                },
+            });
+
+            expect(matchmakingPoolQueue.add).toHaveBeenCalledWith(
+                "matchmaking",
+                { matchPoolId: "pool_1", projectId: "proj_1" },
+                expect.objectContaining({ delay: 50 }),
+            );
         });
     });
 });

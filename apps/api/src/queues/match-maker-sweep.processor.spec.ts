@@ -107,7 +107,7 @@ describe("MatchMakerSweepProcessor", () => {
             } as unknown as PrismaService;
             const queuesService = {
                 tryCreateMatch: jest.fn().mockResolvedValue("match_1"),
-                scheduleMatchCreatedWebhook: jest.fn().mockResolvedValue(undefined),
+                handleMatchPostCreation: jest.fn().mockResolvedValue(undefined),
             } as unknown as QueuesService;
             const processor = new MatchMakerSweepProcessor(prismaService, queuesService, schedulerHealthService);
 
@@ -121,22 +121,7 @@ describe("MatchMakerSweepProcessor", () => {
             await processor.process(job);
 
             expect(queuesService.tryCreateMatch).toHaveBeenCalledWith("pool_1");
-            expect(prismaService.client.matchPool.findUnique).toHaveBeenCalledWith({
-                where: { id: "pool_1" },
-                select: {
-                    projectId: true,
-                    gameModeId: true,
-                    environment: true,
-                    regionKey: true,
-                },
-            });
-            expect(queuesService.scheduleMatchCreatedWebhook).toHaveBeenCalledWith(
-                "project_1",
-                "match_1",
-                "mode_1",
-                "production",
-                "global",
-            );
+            expect(queuesService.handleMatchPostCreation).toHaveBeenCalledWith("match_1");
         });
 
         it("does not schedule a webhook when tryCreateMatch returns null", async () => {

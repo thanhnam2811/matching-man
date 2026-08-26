@@ -10,6 +10,8 @@ import { AuthModule } from "./auth/auth.module";
 import { QueuesModule } from "./queues/queues.module";
 import { DeliveriesModule } from "./deliveries/deliveries.module";
 import { DisputesModule } from "./disputes/disputes.module";
+import { MatchesModule } from "./matches/matches.module";
+import { PenaltiesModule } from "./penalties/penalties.module";
 import { DemoModule } from "./demo/demo.module";
 
 @Module({
@@ -31,8 +33,10 @@ import { DemoModule } from "./demo/demo.module";
         PrismaModule,
         AuthModule,
         QueuesModule,
+        MatchesModule,
         DeliveriesModule,
         DisputesModule,
+        PenaltiesModule,
         DemoModule,
     ],
 })

@@ -1,10 +1,23 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { MatchStatus, Prisma, RatingMode } from "../generated/prisma/client";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
+import {
+    MatchStatus,
+    PenaltyReason,
+    Prisma,
+    QueueEntryStatus,
+    RatingMode,
+    SlotAcceptStatus,
+} from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { WebhookDeliveryService } from "../deliveries/deliveries.service";
 import { RatingsService } from "../ratings/ratings.service";
+import { PenaltiesService } from "../penalties/penalties.service";
+import { QueuesService } from "../queues/queues.service";
 import type { ListMatchesQueryDto } from "./dto/list-matches-query.dto";
 import type { ReportResultDto } from "./dto/report-result.dto";
+import type { AcceptMatchDto } from "./dto/accept-match.dto";
+import type { DeclineMatchDto } from "./dto/decline-match.dto";
 
 @Injectable()
 export class MatchesService {
@@ -12,6 +25,9 @@ export class MatchesService {
         private readonly prismaService: PrismaService,
         private readonly webhookDeliveryService: WebhookDeliveryService,
         private readonly ratingsService: RatingsService,
+        private readonly penaltiesService: PenaltiesService,
+        private readonly queuesService: QueuesService,
+        @InjectQueue("ready-check-timeout") private readonly readyCheckTimeoutQueue: Queue,
     ) {}
 
     async findOne(projectId: string, matchId: string) {
@@ -203,6 +219,212 @@ export class MatchesService {
         }
 
         return this.toResultResponse(result, ratingUpdateStatus);
+    }
+
+    async acceptMatch(projectId: string, matchId: string, dto: AcceptMatchDto) {
+        const match = await this.prismaService.client.match.findFirst({
+            where: { id: matchId, projectId },
+            include: {
+                slots: { orderBy: { slotIndex: "asc" } },
+                gameMode: true,
+            },
+        });
+
+        if (!match) {
+            throw new NotFoundException("Match not found");
+        }
+
+        if (match.status !== MatchStatus.PENDING_ACCEPTANCE) {
+            throw new BadRequestException("Match is not in pending acceptance state");
+        }
+
+        const slot = match.slots.find((s) => s.teamId === dto.teamId);
+        if (!slot) {
+            throw new NotFoundException("Team not found in this match");
+        }
+
+        const teamMembers = this.toTeamMembersSnapshot(slot.teamSnapshot);
+        if (!teamMembers.some((m) => m.playerId === dto.playerId)) {
+            throw new BadRequestException("Player is not a member of this team");
+        }
+
+        const acceptedPlayerIds = Array.isArray(slot.acceptedPlayerIds) ? (slot.acceptedPlayerIds as string[]) : [];
+
+        if (!acceptedPlayerIds.includes(dto.playerId)) {
+            acceptedPlayerIds.push(dto.playerId);
+        }
+
+        const allSlotMembersAccepted = teamMembers.every((m) => acceptedPlayerIds.includes(m.playerId));
+
+        await this.prismaService.client.matchSlot.update({
+            where: { id: slot.id },
+            data: {
+                acceptedPlayerIds,
+                ...(allSlotMembersAccepted ? { acceptStatus: SlotAcceptStatus.ACCEPTED, respondedAt: new Date() } : {}),
+            },
+        });
+
+        // Re-check all slots
+        const updatedSlots = await this.prismaService.client.matchSlot.findMany({
+            where: { matchId },
+        });
+
+        const acceptedSlotCount = updatedSlots.filter((s) => s.acceptStatus === SlotAcceptStatus.ACCEPTED).length;
+        const totalSlots = match.slots.length;
+        const isComplete = acceptedSlotCount === totalSlots;
+
+        if (isComplete) {
+            await this.prismaService.client.match.update({
+                where: { id: matchId },
+                data: { status: MatchStatus.CONFIRMED },
+            });
+
+            await this.readyCheckTimeoutQueue.remove(`ready-check-${matchId}`).catch(() => {});
+
+            await this.webhookDeliveryService.scheduleDelivery(projectId, "match.confirmed", {
+                event: "match.confirmed",
+                matchId: match.id,
+                gameModeId: match.gameModeId,
+                environment: match.environment,
+                regionKey: match.regionKey,
+            });
+
+            return {
+                matchId: match.id,
+                status: "confirmed",
+                acceptedCount: totalSlots,
+                requiredCount: totalSlots,
+                isComplete: true,
+            };
+        }
+
+        await this.webhookDeliveryService.scheduleDelivery(projectId, "match.accepted", {
+            event: "match.accepted",
+            matchId: match.id,
+            playerId: dto.playerId,
+            acceptedCount: acceptedSlotCount,
+            requiredCount: totalSlots,
+        });
+
+        return {
+            matchId: match.id,
+            status: "pending_acceptance",
+            acceptedCount: acceptedSlotCount,
+            requiredCount: totalSlots,
+            isComplete: false,
+        };
+    }
+
+    async declineMatch(projectId: string, matchId: string, dto: DeclineMatchDto) {
+        const match = await this.prismaService.client.match.findFirst({
+            where: { id: matchId, projectId },
+            include: {
+                slots: { include: { queueEntry: true } },
+                gameMode: true,
+            },
+        });
+
+        if (!match) {
+            throw new NotFoundException("Match not found");
+        }
+
+        if (match.status !== MatchStatus.PENDING_ACCEPTANCE) {
+            throw new BadRequestException("Match is not in pending acceptance state");
+        }
+
+        const slot = match.slots.find((s) => s.teamId === dto.teamId);
+        if (!slot) {
+            throw new NotFoundException("Team not found in this match");
+        }
+
+        // Set match to DECLINED
+        await this.prismaService.client.match.update({
+            where: { id: matchId },
+            data: { status: MatchStatus.DECLINED },
+        });
+
+        // Set declining slot to DECLINED
+        await this.prismaService.client.matchSlot.update({
+            where: { id: slot.id },
+            data: { acceptStatus: SlotAcceptStatus.DECLINED, respondedAt: new Date() },
+        });
+
+        // Set declining team queue entry to CANCELLED
+        await this.prismaService.client.queueEntry.update({
+            where: { id: slot.queueEntryId },
+            data: {
+                status: QueueEntryStatus.CANCELLED,
+                cancelledAt: new Date(),
+                cancelReason: dto.reason ?? "Declined ready check",
+            },
+        });
+
+        // Cancel timeout job
+        await this.readyCheckTimeoutQueue.remove(`ready-check-${matchId}`).catch(() => {});
+
+        // Apply penalty to decliner
+        await this.penaltiesService.recordPenalty({
+            projectId,
+            playerId: dto.playerId,
+            reason: PenaltyReason.DODGE,
+            notes: dto.reason,
+        });
+
+        // Re-queue innocent opposing teams
+        const innocentQueueEntryIds = match.slots.filter((s) => s.teamId !== dto.teamId).map((s) => s.queueEntryId);
+
+        if (innocentQueueEntryIds.length > 0) {
+            await this.queuesService.requeueInnocentEntries(projectId, innocentQueueEntryIds, match.matchPoolId);
+        }
+
+        // Emit webhook
+        await this.webhookDeliveryService.scheduleDelivery(projectId, "match.declined", {
+            event: "match.declined",
+            matchId: match.id,
+            declinedByPlayerId: dto.playerId,
+            reason: dto.reason,
+        });
+
+        return {
+            matchId: match.id,
+            status: "declined",
+            declinedByPlayerId: dto.playerId,
+            penaltyApplied: true,
+        };
+    }
+
+    async getReadyCheckStatus(projectId: string, matchId: string) {
+        const match = await this.prismaService.client.match.findFirst({
+            where: { id: matchId, projectId },
+            include: {
+                slots: { orderBy: { slotIndex: "asc" } },
+                gameMode: true,
+            },
+        });
+
+        if (!match) {
+            throw new NotFoundException("Match not found");
+        }
+
+        const timeoutSeconds = match.gameMode.readyCheckTimeoutSeconds ?? 20;
+        const expiresAt = new Date(match.createdAt.getTime() + timeoutSeconds * 1000);
+        const remainingSeconds = Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 1000));
+
+        return {
+            matchId: match.id,
+            status: match.status.toLowerCase(),
+            timeoutSeconds,
+            expiresAt,
+            remainingSeconds: match.status === MatchStatus.PENDING_ACCEPTANCE ? remainingSeconds : 0,
+            slots: match.slots.map((s) => ({
+                slotIndex: s.slotIndex,
+                groupIndex: s.groupIndex,
+                teamId: s.teamId,
+                acceptStatus: s.acceptStatus.toLowerCase(),
+                respondedAt: s.respondedAt,
+                acceptedPlayerIds: s.acceptedPlayerIds,
+            })),
+        };
     }
 
     private toResultResponse(

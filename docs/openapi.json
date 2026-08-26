@@ -454,6 +454,41 @@
                 ],
                 "summary": "Get a single project.",
                 "tags": ["Projects"]
+            },
+            "patch": {
+                "operationId": "ProjectsController_update",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProjectDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Update project settings including penalty configuration.",
+                "tags": ["Projects"]
             }
         },
         "/v1/projects/{projectId}/environments": {
@@ -1193,6 +1228,143 @@
                 "tags": ["Webhook Deliveries"]
             }
         },
+        "/v1/projects/{projectId}/penalties": {
+            "get": {
+                "operationId": "PenaltiesController_list",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter by status",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["ACTIVE", "EXPIRED", "REVOKED"]
+                        }
+                    },
+                    {
+                        "name": "playerId",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter by player ID prefix/match",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 50,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "default": 0,
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "List player penalties for a project.",
+                "tags": ["Penalties"]
+            },
+            "post": {
+                "operationId": "PenaltiesController_createManual",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateManualPenaltyDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Manually issue a penalty/lockout for a player.",
+                "tags": ["Penalties"]
+            }
+        },
+        "/v1/projects/{projectId}/penalties/{penaltyId}": {
+            "delete": {
+                "operationId": "PenaltiesController_pardon",
+                "parameters": [
+                    {
+                        "name": "projectId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "penaltyId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Pardon / Revoke an active player penalty.",
+                "tags": ["Penalties"]
+            }
+        },
         "/v1/matches/{matchId}": {
             "get": {
                 "operationId": "MatchesController_findOne",
@@ -1217,6 +1389,107 @@
                     }
                 ],
                 "summary": "Return the current match state.",
+                "tags": ["Matches"]
+            }
+        },
+        "/v1/matches/{matchId}/accept": {
+            "post": {
+                "operationId": "MatchesController_accept",
+                "parameters": [
+                    {
+                        "name": "matchId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AcceptMatchDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "projectApiKey": []
+                    }
+                ],
+                "summary": "Accept a match during ready check handshake.",
+                "tags": ["Matches"]
+            }
+        },
+        "/v1/matches/{matchId}/decline": {
+            "post": {
+                "operationId": "MatchesController_decline",
+                "parameters": [
+                    {
+                        "name": "matchId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeclineMatchDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "projectApiKey": []
+                    }
+                ],
+                "summary": "Decline a match during ready check handshake.",
+                "tags": ["Matches"]
+            }
+        },
+        "/v1/matches/{matchId}/ready-check": {
+            "get": {
+                "operationId": "MatchesController_getReadyCheck",
+                "parameters": [
+                    {
+                        "name": "matchId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "projectApiKey": []
+                    }
+                ],
+                "summary": "Get current ready check countdown and participant acceptance status.",
                 "tags": ["Matches"]
             }
         },
@@ -1591,7 +1864,18 @@
                         "in": "query",
                         "schema": {
                             "type": "string",
-                            "enum": ["CREATED", "IN_PROGRESS", "COMPLETED", "FAILED", "EXPIRED", "DISPUTED"]
+                            "enum": [
+                                "CREATED",
+                                "PENDING_ACCEPTANCE",
+                                "CONFIRMED",
+                                "DECLINED",
+                                "CANCELLED",
+                                "IN_PROGRESS",
+                                "COMPLETED",
+                                "FAILED",
+                                "EXPIRED",
+                                "DISPUTED"
+                            ]
                         }
                     },
                     {
@@ -1926,6 +2210,41 @@
                 },
                 "required": ["name", "slug", "organizationId"]
             },
+            "UpdateProjectDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "Arena Game",
+                        "maxLength": 120
+                    },
+                    "defaultRegion": {
+                        "type": "string",
+                        "example": "us-east",
+                        "maxLength": 64
+                    },
+                    "enableDodgePenalty": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Whether queue dodgers and AFK players receive temporary lockouts."
+                    },
+                    "penaltyTiers": {
+                        "example": [180, 900, 3600, 86400],
+                        "description": "Array of penalty durations in seconds by violation tier.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "penaltyDecayHours": {
+                        "type": "number",
+                        "default": 24,
+                        "minimum": 1,
+                        "maximum": 168,
+                        "description": "Hours until violation count decays."
+                    }
+                }
+            },
             "CreateProjectEnvironmentDto": {
                 "type": "object",
                 "properties": {
@@ -2093,6 +2412,18 @@
                     "windowExpandStep": {
                         "type": "number",
                         "minimum": 1
+                    },
+                    "enableReadyCheck": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Whether matches require an accept/decline ready check handshake."
+                    },
+                    "readyCheckTimeoutSeconds": {
+                        "type": "number",
+                        "default": 20,
+                        "minimum": 5,
+                        "maximum": 300,
+                        "description": "Seconds players have to accept a match."
                     }
                 },
                 "required": [
@@ -2198,6 +2529,71 @@
                     }
                 },
                 "required": ["queueEntryId"]
+            },
+            "CreateManualPenaltyDto": {
+                "type": "object",
+                "properties": {
+                    "playerId": {
+                        "type": "string",
+                        "example": "player-123",
+                        "maxLength": 120
+                    },
+                    "durationSeconds": {
+                        "type": "number",
+                        "example": 1800,
+                        "minimum": 10,
+                        "maximum": 2592000,
+                        "description": "Duration in seconds."
+                    },
+                    "reason": {
+                        "type": "string",
+                        "enum": ["DODGE", "AFK_TIMEOUT", "MANUAL_LOCKOUT"],
+                        "default": "MANUAL_LOCKOUT"
+                    },
+                    "notes": {
+                        "type": "string",
+                        "example": "Toxic behavior in pre-game chat",
+                        "maxLength": 500
+                    }
+                },
+                "required": ["playerId", "durationSeconds"]
+            },
+            "AcceptMatchDto": {
+                "type": "object",
+                "properties": {
+                    "playerId": {
+                        "type": "string",
+                        "example": "player-123",
+                        "maxLength": 120
+                    },
+                    "teamId": {
+                        "type": "string",
+                        "example": "team-456",
+                        "maxLength": 120
+                    }
+                },
+                "required": ["playerId", "teamId"]
+            },
+            "DeclineMatchDto": {
+                "type": "object",
+                "properties": {
+                    "playerId": {
+                        "type": "string",
+                        "example": "player-123",
+                        "maxLength": 120
+                    },
+                    "teamId": {
+                        "type": "string",
+                        "example": "team-456",
+                        "maxLength": 120
+                    },
+                    "reason": {
+                        "type": "string",
+                        "example": "User pressed cancel",
+                        "maxLength": 500
+                    }
+                },
+                "required": ["playerId", "teamId"]
             },
             "ReportResultDto": {
                 "type": "object",

@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { DashboardAuthGuard } from "../common/guards/dashboard-auth/dashboard-auth.guard";
 import { type DashboardAuthRequest, toDashboardContext } from "../common/interfaces/dashboard-auth-request";
 import { SESSION_TOKEN_SECURITY } from "../swagger";
 import { CreateProjectDto } from "./dto/create-project.dto";
+import { UpdateProjectDto } from "./dto/update-project.dto";
 import { ProjectsService } from "./projects.service";
 
 @ApiTags("Projects")
@@ -29,5 +30,15 @@ export class ProjectsController {
     @Get(":projectId")
     findOne(@Req() request: DashboardAuthRequest, @Param("projectId") projectId: string) {
         return this.projectsService.findOne(toDashboardContext(request), projectId);
+    }
+
+    @ApiOperation({ summary: "Update project settings including penalty configuration." })
+    @Patch(":projectId")
+    update(
+        @Req() request: DashboardAuthRequest,
+        @Param("projectId") projectId: string,
+        @Body() updateProjectDto: UpdateProjectDto,
+    ) {
+        return this.projectsService.update(toDashboardContext(request), projectId, updateProjectDto);
     }
 }

@@ -20,6 +20,7 @@ import { ApiKeysManager } from "@/components/api-keys-manager";
 import { EmptyState } from "@/components/ui/empty-state";
 import { EnvironmentsManager } from "@/components/environments-manager";
 import { MembersManager } from "@/components/members-manager";
+import { PenaltySettingsCard } from "@/components/penalties/penalty-settings-card";
 import { StatCard } from "@/components/stat-card";
 import { WebhooksManager } from "@/components/webhooks-manager";
 
@@ -186,6 +187,16 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
                         <WebhooksManager projectId={projectId} webhooks={webhooks} />
                     </CardContent>
                 </Card>
+
+                <div className="lg:col-span-2">
+                    <PenaltySettingsCard
+                        projectId={projectId}
+                        enableDodgePenalty={project.enableDodgePenalty}
+                        penaltyTiers={project.penaltyTiers}
+                        penaltyDecayHours={project.penaltyDecayHours}
+                        canManage={canManageMembers}
+                    />
+                </div>
             </div>
 
             <Card className="min-w-0">

@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type LucideIcon, Layers, LayoutDashboard, Scale, Swords, TrendingUp, Webhook } from "lucide-react";
+import {
+    type LucideIcon,
+    Layers,
+    LayoutDashboard,
+    Scale,
+    ShieldAlert,
+    Swords,
+    TrendingUp,
+    Webhook,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function projectNavItems(projectId: string): { href: string; label: string; icon: LucideIcon }[] {
@@ -12,6 +21,7 @@ export function projectNavItems(projectId: string): { href: string; label: strin
         { href: `${base}/pools`, label: "Pools", icon: Layers },
         { href: `${base}/matches`, label: "Matches", icon: Swords },
         { href: `${base}/disputes`, label: "Disputes", icon: Scale },
+        { href: `${base}/penalties`, label: "Penalties", icon: ShieldAlert },
         { href: `${base}/deliveries`, label: "Deliveries", icon: Webhook },
         { href: `${base}/ratings`, label: "Ratings", icon: TrendingUp },
     ];

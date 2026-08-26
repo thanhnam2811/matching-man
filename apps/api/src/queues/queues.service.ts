@@ -1,12 +1,27 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+    BadRequestException,
+    ConflictException,
+    ForbiddenException,
+    Injectable,
+    Logger,
+    NotFoundException,
+} from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { createId } from "@paralleldrive/cuid2";
-import { MatchStatus, MatchStructure, Prisma, QueueEntryStatus, RatingMode } from "../generated/prisma/client";
+import {
+    MatchStatus,
+    MatchStructure,
+    Prisma,
+    QueueEntryStatus,
+    RatingMode,
+    SlotAcceptStatus,
+} from "../generated/prisma/client";
 import { GameModesService } from "../game-modes/game-modes.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProjectEnvironmentsService } from "../projects/project-environments.service";
 import { WebhookDeliveryService } from "../deliveries/deliveries.service";
+import { PenaltiesService } from "../penalties/penalties.service";
 import { DequeueDto } from "./dto/dequeue.dto";
 import { EnqueueDto } from "./dto/enqueue.dto";
 
@@ -23,6 +38,8 @@ type MatchPoolContext = {
     initialRatingWindow: number | null;
     windowExpandIntervalSeconds: number | null;
     windowExpandStep: number | null;
+    enableReadyCheck: boolean;
+    readyCheckTimeoutSeconds: number;
     environmentConfigured: boolean;
 };
 
@@ -35,13 +52,29 @@ export class QueuesService {
         private readonly gameModesService: GameModesService,
         private readonly projectEnvironmentsService: ProjectEnvironmentsService,
         private readonly webhookDeliveryService: WebhookDeliveryService,
+        private readonly penaltiesService: PenaltiesService,
         @InjectQueue("queue-timeout") private readonly queueTimeoutQueue: Queue,
         @InjectQueue("matchmaking-pool") private readonly matchmakingPoolQueue: Queue,
+        @InjectQueue("ready-check-timeout") private readonly readyCheckTimeoutQueue: Queue,
     ) {}
 
     async enqueue(authProjectId: string, enqueueDto: EnqueueDto) {
         if (authProjectId !== enqueueDto.projectId) {
             throw new ConflictException("Authenticated project does not match projectId");
+        }
+
+        const playerIds = enqueueDto.team.members.map((member) => member.playerId);
+        const activePenalty = await this.penaltiesService.checkActivePenalties(authProjectId, playerIds);
+        if (activePenalty) {
+            throw new ForbiddenException({
+                statusCode: 403,
+                error: "PLAYER_IN_COOLDOWN",
+                message: `Player '${activePenalty.playerId}' is locked out from queueing until ${activePenalty.expiresAt.toISOString()}.`,
+                playerId: activePenalty.playerId,
+                expiresAt: activePenalty.expiresAt.toISOString(),
+                reason: activePenalty.reason,
+                violationCount: activePenalty.violationCount,
+            });
         }
 
         const gameMode = await this.gameModesService.findOne(authProjectId, enqueueDto.gameModeId);
@@ -327,6 +360,47 @@ export class QueuesService {
         });
     }
 
+    async handleMatchPostCreation(matchId: string): Promise<void> {
+        const match = await this.prismaService.client.match.findUnique({
+            where: { id: matchId },
+            include: { gameMode: true },
+        });
+
+        if (!match) {
+            return;
+        }
+
+        if (match.status === MatchStatus.PENDING_ACCEPTANCE) {
+            const timeoutSeconds = match.gameMode.readyCheckTimeoutSeconds ?? 20;
+            await this.readyCheckTimeoutQueue.add(
+                "timeout",
+                { matchId: match.id, projectId: match.projectId },
+                {
+                    delay: timeoutSeconds * 1000,
+                    jobId: `ready-check-${match.id}`,
+                    removeOnComplete: true,
+                },
+            );
+
+            await this.webhookDeliveryService.scheduleDelivery(match.projectId, "match.ready_check_started", {
+                event: "match.ready_check_started",
+                matchId: match.id,
+                gameModeId: match.gameModeId,
+                environment: match.environment,
+                regionKey: match.regionKey,
+                timeoutSeconds,
+            });
+        } else {
+            await this.scheduleMatchCreatedWebhook(
+                match.projectId,
+                match.id,
+                match.gameModeId,
+                match.environment,
+                match.regionKey,
+            );
+        }
+    }
+
     /**
      * Called both from the fire-and-forget path right after enqueue and from
      * MatchMakerSweepProcessor's periodic safety-net scan - must be independently
@@ -343,6 +417,8 @@ export class QueuesService {
                     gm.initial_rating_window AS "initialRatingWindow",
                     gm.window_expand_interval_seconds AS "windowExpandIntervalSeconds",
                     gm.window_expand_step AS "windowExpandStep",
+                    gm.enable_ready_check AS "enableReadyCheck",
+                    gm.ready_check_timeout_seconds AS "readyCheckTimeoutSeconds",
                     (pe.id IS NOT NULL) AS "environmentConfigured"
                 FROM match_pools mp
                 JOIN game_modes gm ON gm.id = mp.game_mode_id
@@ -411,6 +487,9 @@ export class QueuesService {
             }
 
             const matchId = createId();
+            const isReadyCheck = pool.enableReadyCheck === true;
+            const initialMatchStatus = isReadyCheck ? MatchStatus.PENDING_ACCEPTANCE : MatchStatus.CREATED;
+            const initialSlotStatus = isReadyCheck ? SlotAcceptStatus.PENDING : SlotAcceptStatus.ACCEPTED;
 
             const slotValues = Prisma.join(
                 queueEntries.map((queueEntry, index) => {
@@ -428,7 +507,7 @@ export class QueuesService {
                         })),
                     );
 
-                    return Prisma.sql`(${createId()}, ${queueEntry.id}, ${queueEntry.teamId}, ${slotIndex}::int, ${groupIndex}::int, ${teamSnapshot}::jsonb)`;
+                    return Prisma.sql`(${createId()}, ${queueEntry.id}, ${queueEntry.teamId}, ${slotIndex}::int, ${groupIndex}::int, ${teamSnapshot}::jsonb, ${initialSlotStatus}::"SlotAcceptStatus", '[]'::jsonb)`;
                 }),
             );
 
@@ -437,15 +516,15 @@ export class QueuesService {
                     INSERT INTO matches (id, project_id, game_mode_id, match_pool_id, environment, region_key, status,
                                           rating_mode, required_slots, group_count, created_at, updated_at)
                     VALUES (${matchId}, ${pool.projectId}, ${pool.gameModeId}, ${pool.poolId}, ${pool.environment},
-                            ${pool.regionKey}, ${MatchStatus.CREATED}, ${pool.ratingMode}, ${pool.requiredSlots},
+                            ${pool.regionKey}, ${initialMatchStatus}, ${pool.ratingMode}, ${pool.requiredSlots},
                             ${pool.groupCount}, now(), now())
                     RETURNING id
                 ),
                 inserted_slots AS (
-                    INSERT INTO match_slots (id, match_id, queue_entry_id, team_id, slot_index, group_index, team_snapshot, created_at)
-                    SELECT v.id, im.id, v.queue_entry_id, v.team_id, v.slot_index, v.group_index, v.team_snapshot, now()
+                    INSERT INTO match_slots (id, match_id, queue_entry_id, team_id, slot_index, group_index, team_snapshot, accept_status, accepted_player_ids, created_at)
+                    SELECT v.id, im.id, v.queue_entry_id, v.team_id, v.slot_index, v.group_index, v.team_snapshot, v.accept_status, v.accepted_player_ids, now()
                     FROM inserted_match im,
-                         (VALUES ${slotValues}) AS v(id, queue_entry_id, team_id, slot_index, group_index, team_snapshot)
+                         (VALUES ${slotValues}) AS v(id, queue_entry_id, team_id, slot_index, group_index, team_snapshot, accept_status, accepted_player_ids)
                     RETURNING queue_entry_id
                 )
                 UPDATE queue_entries
@@ -456,6 +535,25 @@ export class QueuesService {
 
             return matchId;
         });
+    }
+
+    async requeueInnocentEntries(projectId: string, queueEntryIds: string[], matchPoolId: string): Promise<void> {
+        if (!queueEntryIds.length) {
+            return;
+        }
+
+        await this.prismaService.client.queueEntry.updateMany({
+            where: {
+                id: { in: queueEntryIds },
+                projectId,
+            },
+            data: {
+                status: QueueEntryStatus.QUEUED,
+                matchedAt: null,
+            },
+        });
+
+        await this.triggerPoolMatching(matchPoolId, projectId);
     }
 
     private computeGroupIndex(

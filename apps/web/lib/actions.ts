@@ -2,7 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ApiError, NetworkError, TimeoutError, apiFetch, rejectDispute, resolveDispute } from "./api";
+import {
+    ApiError,
+    NetworkError,
+    TimeoutError,
+    apiFetch,
+    createManualPenalty,
+    pardonPenalty,
+    rejectDispute,
+    resolveDispute,
+    updateProject,
+    type PenaltyReason,
+} from "./api";
 
 export type FormState = { error?: string };
 
@@ -277,5 +288,76 @@ export async function rejectDisputeAction(_prev: FormState, formData: FormData):
 
     revalidatePath(`/dashboard/projects/${projectId}/disputes`);
     revalidatePath(`/dashboard/projects/${projectId}/disputes/${disputeId}`);
+    return {};
+}
+
+export async function pardonPenaltyAction(_prev: FormState, formData: FormData): Promise<FormState> {
+    const projectId = String(formData.get("projectId") ?? "");
+    const penaltyId = String(formData.get("penaltyId") ?? "");
+    const notes = String(formData.get("notes") ?? "").trim();
+
+    try {
+        await pardonPenalty(projectId, penaltyId, notes || undefined);
+    } catch (error) {
+        return { error: humanize(error) };
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}/penalties`);
+    return {};
+}
+
+export async function createManualPenaltyAction(_prev: FormState, formData: FormData): Promise<FormState> {
+    const projectId = String(formData.get("projectId") ?? "");
+    const playerId = String(formData.get("playerId") ?? "").trim();
+    const durationMinutes = Number(formData.get("durationMinutes") ?? 30);
+    const reason = String(formData.get("reason") ?? "MANUAL_LOCKOUT") as PenaltyReason;
+    const notes = String(formData.get("notes") ?? "").trim();
+
+    if (!playerId) {
+        return { error: "Player ID is required" };
+    }
+
+    if (Number.isNaN(durationMinutes) || durationMinutes < 1) {
+        return { error: "Duration must be at least 1 minute" };
+    }
+
+    try {
+        await createManualPenalty(projectId, {
+            playerId,
+            durationSeconds: durationMinutes * 60,
+            reason,
+            notes: notes || undefined,
+        });
+    } catch (error) {
+        return { error: humanize(error) };
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}/penalties`);
+    return {};
+}
+
+export async function updateProjectPenaltyConfigAction(_prev: FormState, formData: FormData): Promise<FormState> {
+    const projectId = String(formData.get("projectId") ?? "");
+    const enableDodgePenalty =
+        formData.get("enableDodgePenalty") === "true" || formData.get("enableDodgePenalty") === "on";
+    const tiersRaw = String(formData.get("penaltyTiers") ?? "180, 900, 3600, 86400");
+    const penaltyDecayHours = Number(formData.get("penaltyDecayHours") ?? 24);
+
+    const penaltyTiers = tiersRaw
+        .split(",")
+        .map((s) => Number(s.trim()))
+        .filter((n) => !Number.isNaN(n) && n > 0);
+
+    try {
+        await updateProject(projectId, {
+            enableDodgePenalty,
+            penaltyTiers: penaltyTiers.length > 0 ? penaltyTiers : [180, 900, 3600, 86400],
+            penaltyDecayHours: !Number.isNaN(penaltyDecayHours) && penaltyDecayHours > 0 ? penaltyDecayHours : 24,
+        });
+    } catch (error) {
+        return { error: humanize(error) };
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
     return {};
 }

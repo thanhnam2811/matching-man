@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight, Play, Terminal } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, Terminal } from "lucide-react";
 import { HeroMatchmaking } from "@/components/landing/hero-matchmaking";
+import { HeroCtas } from "@/components/landing/hero-ctas";
 import { SiteHeader } from "@/components/landing/site-header";
 import { StatsStrip } from "@/components/landing/stats-strip";
 import { ArchitecturePipeline } from "@/components/landing/architecture-pipeline";
@@ -50,20 +49,8 @@ export default function LandingPage() {
                             delivery — without building or maintaining matchmaking servers.
                         </p>
 
-                        <div className="mt-8 flex flex-wrap items-center gap-3">
-                            <Link href="/register">
-                                <Button size="lg" className="shadow-xs">
-                                    Start free
-                                    <ArrowRight className="size-4" />
-                                </Button>
-                            </Link>
-                            <Link href="/demo">
-                                <Button size="lg" variant="outline">
-                                    <Play className="size-3.5 text-success" />
-                                    Try the live demo
-                                </Button>
-                            </Link>
-                        </div>
+                        {/* Action CTAs */}
+                        <HeroCtas />
 
                         {/* Quick CLI Pill */}
                         <div className="mt-6 flex items-center gap-2 rounded-lg border bg-card px-3.5 py-2 font-mono text-xs text-muted-foreground shadow-xs">

@@ -1,11 +1,17 @@
+"use client";
+
 import * as React from "react";
 import Link from "next/link";
 import { ArrowRight, Play, Sparkles, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useSession } from "@/lib/use-session";
 import { Reveal } from "./reveal";
 
 export function BottomCta() {
+    const session = useSession();
+    const isAuthenticated = session.status === "authenticated";
+
     return (
         <section className="mx-auto w-full max-w-6xl px-6 py-20">
             <Reveal>
@@ -25,9 +31,9 @@ export function BottomCta() {
                         </p>
 
                         <div className="flex flex-wrap items-center justify-center gap-3">
-                            <Link href="/register">
+                            <Link href={isAuthenticated ? "/dashboard" : "/register"}>
                                 <Button size="lg" className="shadow-xs">
-                                    Start free
+                                    {isAuthenticated ? "Go to Dashboard" : "Start free"}
                                     <ArrowRight className="size-4" />
                                 </Button>
                             </Link>

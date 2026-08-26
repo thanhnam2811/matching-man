@@ -4,29 +4,15 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSession } from "@/lib/use-session";
 
 // Sticky bottom call-to-action shown only to logged-out visitors on small
 // screens, where the header CTAs scroll out of view. Hidden on sm+ and once the
 // visitor is authenticated.
 export function MobileCtaBar() {
-    const [anonymous, setAnonymous] = React.useState<boolean | null>(null);
+    const session = useSession();
 
-    React.useEffect(() => {
-        let cancelled = false;
-        fetch("/api/session/me", { cache: "no-store" })
-            .then((response) => response.json())
-            .then((data: { authenticated?: boolean }) => {
-                if (!cancelled) setAnonymous(!data.authenticated);
-            })
-            .catch(() => {
-                if (!cancelled) setAnonymous(true);
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
-    if (!anonymous) return null;
+    if (session.status !== "anonymous") return null;
 
     return (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur sm:hidden">

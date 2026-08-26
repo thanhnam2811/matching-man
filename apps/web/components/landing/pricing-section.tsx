@@ -6,6 +6,7 @@ import { ArrowRight, Check, ChevronDown, ExternalLink, Minus, Sparkles, Zap } fr
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useSession } from "@/lib/use-session";
 import { Reveal } from "./reveal";
 
 const BILLING_FAQS = [
@@ -29,6 +30,8 @@ const BILLING_FAQS = [
 
 export function PricingSection() {
     const [billingCycle, setBillingCycle] = React.useState<"monthly" | "annual">("annual");
+    const session = useSession();
+    const isAuthenticated = session.status === "authenticated";
 
     return (
         <section className="mx-auto w-full max-w-6xl px-6 py-20" id="pricing">
@@ -144,9 +147,9 @@ export function PricingSection() {
                             </div>
 
                             <div className="mt-8">
-                                <Link href="/register" className="w-full">
+                                <Link href={isAuthenticated ? "/dashboard" : "/register"} className="w-full">
                                     <Button variant="outline" className="w-full">
-                                        Start Free
+                                        {isAuthenticated ? "Go to Dashboard" : "Start Free"}
                                         <ArrowRight className="size-4" />
                                     </Button>
                                 </Link>
@@ -243,9 +246,9 @@ export function PricingSection() {
                             </div>
 
                             <div className="mt-8">
-                                <Link href="/register?plan=pro" className="w-full">
+                                <Link href={isAuthenticated ? "/dashboard" : "/register?plan=pro"} className="w-full">
                                     <Button className="w-full shadow-xs">
-                                        Upgrade to Pro
+                                        {isAuthenticated ? "Upgrade in Dashboard" : "Upgrade to Pro"}
                                         <ArrowRight className="size-4" />
                                     </Button>
                                 </Link>

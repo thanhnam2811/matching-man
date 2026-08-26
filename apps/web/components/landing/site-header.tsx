@@ -7,12 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
+import { useSession } from "@/lib/use-session";
 import { Menu, X } from "lucide-react";
-
-type SessionState =
-    | { status: "loading" }
-    | { status: "authenticated"; email: string; name: string | null }
-    | { status: "anonymous" };
 
 const NAV_LINKS = [
     { label: "Features", href: "#features" },
@@ -24,28 +20,8 @@ const NAV_LINKS = [
 ];
 
 export function SiteHeader() {
-    const [session, setSession] = React.useState<SessionState>({ status: "loading" });
+    const session = useSession();
     const [mobileOpen, setMobileOpen] = React.useState(false);
-
-    React.useEffect(() => {
-        let cancelled = false;
-        fetch("/api/session/me", { cache: "no-store" })
-            .then((response) => response.json())
-            .then((data: { authenticated: boolean; email?: string; name?: string | null }) => {
-                if (cancelled) return;
-                setSession(
-                    data.authenticated && data.email
-                        ? { status: "authenticated", email: data.email, name: data.name ?? null }
-                        : { status: "anonymous" },
-                );
-            })
-            .catch(() => {
-                if (!cancelled) setSession({ status: "anonymous" });
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, []);
 
     return (
         <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">

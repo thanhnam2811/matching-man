@@ -95,6 +95,7 @@ export function DemoBoard({
     const pollCancelledRef = React.useRef(false);
     const handledMatchIdsRef = React.useRef(new Set<string>());
     React.useEffect(() => {
+        pollCancelledRef.current = false;
         return () => {
             pollCancelledRef.current = true;
         };
@@ -325,22 +326,34 @@ export function DemoBoard({
             {/* Controls */}
             <Card>
                 <CardContent className="flex flex-col gap-4 pt-6">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                            variant={mode === "skill" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => switchMode("skill")}
-                        >
-                            <Swords className="size-4" />
-                            Skill 1v1
-                        </Button>
-                        <Button
-                            variant={mode === "casual" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => switchMode("casual")}
-                        >
-                            Casual 1v1
-                        </Button>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="inline-flex rounded-lg border border-border/60 bg-muted/50 p-1">
+                            <button
+                                type="button"
+                                onClick={() => switchMode("skill")}
+                                className={cn(
+                                    "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                                    mode === "skill"
+                                        ? "border border-border/60 bg-background text-foreground shadow-sm"
+                                        : "text-muted-foreground hover:text-foreground",
+                                )}
+                            >
+                                <Swords className="size-3.5" />
+                                Skill 1v1
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => switchMode("casual")}
+                                className={cn(
+                                    "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                                    mode === "casual"
+                                        ? "border border-border/60 bg-background text-foreground shadow-sm"
+                                        : "text-muted-foreground hover:text-foreground",
+                                )}
+                            >
+                                Casual 1v1
+                            </button>
+                        </div>
                         <span className="text-xs text-muted-foreground">
                             {mode === "skill"
                                 ? `Matches within a rating window that starts at ${skillWindow.initial} and grows +${skillWindow.step} every ${skillWindow.intervalSeconds}s.`
@@ -394,45 +407,47 @@ export function DemoBoard({
                         {queued.length === 0 ? (
                             <p className="text-sm text-muted-foreground">Add players to fill the pool.</p>
                         ) : (
-                            <ul className="space-y-2">
-                                {queued.map((player) => {
-                                    const waited = Math.max(0, Math.floor((now - player.addedAt) / 1000));
-                                    const matched = matchedQueueEntryIds.has(player.queueEntryId);
-                                    const leaving = leavingQueueEntryIds.has(player.queueEntryId);
-                                    return (
-                                        <li
-                                            key={player.queueEntryId}
-                                            className={cn(
-                                                "flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-all duration-300",
-                                                player.syncing && "opacity-60",
-                                                matched && "border-success/50 bg-success/10",
-                                                leaving && "scale-95 opacity-0",
-                                            )}
-                                        >
-                                            <span className="flex items-center gap-2">
-                                                <span className="font-mono text-xs text-muted-foreground">
-                                                    {player.playerId}
-                                                </span>
-                                                <span className="font-mono">{player.rating}</span>
-                                            </span>
-                                            <span className="flex items-center gap-3 text-xs text-muted-foreground">
-                                                {matched ? (
-                                                    <Badge variant="success">Matched!</Badge>
-                                                ) : player.syncing ? (
-                                                    <Spinner size="sm" />
-                                                ) : (
-                                                    <>
-                                                        {mode === "skill" ? (
-                                                            <span>±{effectiveWindow(player.addedAt)} window</span>
-                                                        ) : null}
-                                                        <span>{waited}s</span>
-                                                    </>
+                            <div className="max-h-[380px] overflow-y-auto pr-1">
+                                <ul className="space-y-2">
+                                    {queued.map((player) => {
+                                        const waited = Math.max(0, Math.floor((now - player.addedAt) / 1000));
+                                        const matched = matchedQueueEntryIds.has(player.queueEntryId);
+                                        const leaving = leavingQueueEntryIds.has(player.queueEntryId);
+                                        return (
+                                            <li
+                                                key={player.queueEntryId}
+                                                className={cn(
+                                                    "flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-all duration-300",
+                                                    player.syncing && "opacity-60",
+                                                    matched && "border-success/50 bg-success/10",
+                                                    leaving && "scale-95 opacity-0",
                                                 )}
-                                            </span>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    <span className="font-mono text-xs text-muted-foreground">
+                                                        {player.playerId}
+                                                    </span>
+                                                    <span className="font-mono">{player.rating}</span>
+                                                </span>
+                                                <span className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                    {matched ? (
+                                                        <Badge variant="success">Matched!</Badge>
+                                                    ) : player.syncing ? (
+                                                        <Spinner size="sm" />
+                                                    ) : (
+                                                        <>
+                                                            {mode === "skill" ? (
+                                                                <span>±{effectiveWindow(player.addedAt)} window</span>
+                                                            ) : null}
+                                                            <span>{waited}s</span>
+                                                        </>
+                                                    )}
+                                                </span>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
                         )}
                     </CardContent>
                 </Card>
@@ -446,33 +461,37 @@ export function DemoBoard({
                         {matches.length === 0 ? (
                             <p className="text-sm text-muted-foreground">No matches yet.</p>
                         ) : (
-                            <ul className="space-y-3">
-                                {matches.map((match) => (
-                                    <li key={match.id} className="animate-fade-in rounded-md border p-3">
-                                        <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                                            <Trophy className="size-3 text-success" />
-                                            <span className="font-mono">{match.id.slice(0, 12)}…</span>
-                                            <span>{ratingDelta(match)}</span>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {match.slots.map((slot) => (
-                                                <span
-                                                    key={slot.slotIndex}
-                                                    className={cn(
-                                                        "rounded-md border px-2 py-1 text-xs",
-                                                        slot.groupIndex === 1 ? "bg-muted/40" : "bg-card",
-                                                    )}
-                                                >
-                                                    <span className="text-muted-foreground">G{slot.groupIndex} </span>
-                                                    {slot.members
-                                                        .map((m) => `${m.playerId} · ${m.rating ?? "—"}`)
-                                                        .join(", ")}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
+                            <div className="max-h-[380px] overflow-y-auto pr-1">
+                                <ul className="space-y-3">
+                                    {matches.map((match) => (
+                                        <li key={match.id} className="animate-fade-in rounded-md border p-3">
+                                            <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                                                <Trophy className="size-3 text-success" />
+                                                <span className="font-mono">{match.id.slice(0, 12)}…</span>
+                                                <span>{ratingDelta(match)}</span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {match.slots.map((slot) => (
+                                                    <span
+                                                        key={slot.slotIndex}
+                                                        className={cn(
+                                                            "rounded-md border px-2 py-1 text-xs",
+                                                            slot.groupIndex === 1 ? "bg-muted/40" : "bg-card",
+                                                        )}
+                                                    >
+                                                        <span className="text-muted-foreground">
+                                                            G{slot.groupIndex}{" "}
+                                                        </span>
+                                                        {slot.members
+                                                            .map((m) => `${m.playerId} · ${m.rating ?? "—"}`)
+                                                            .join(", ")}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
                         )}
                     </CardContent>
                 </Card>
@@ -487,13 +506,15 @@ export function DemoBoard({
                     {log.length === 0 ? (
                         <p className="text-sm text-muted-foreground">Activity will show up here.</p>
                     ) : (
-                        <ul className="space-y-1 font-mono text-xs">
-                            {log.map((line) => (
-                                <li key={`${line.at}-${line.text}`} className="text-muted-foreground">
-                                    <span className="text-foreground">{line.text}</span>
-                                </li>
-                            ))}
-                        </ul>
+                        <div className="max-h-[220px] overflow-y-auto pr-1">
+                            <ul className="space-y-1 font-mono text-xs">
+                                {log.map((line) => (
+                                    <li key={`${line.at}-${line.text}`} className="text-muted-foreground">
+                                        <span className="text-foreground">{line.text}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     )}
                 </CardContent>
             </Card>

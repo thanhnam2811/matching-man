@@ -21,15 +21,16 @@ this file in the same change.
 
 Two distinct surfaces share this app:
 
-| Route                                                                | Access | Purpose                                                   |
-| -------------------------------------------------------------------- | ------ | --------------------------------------------------------- |
-| `/`                                                                  | public | Marketing landing page (`components/landing/`)            |
-| `/demo`                                                              | public | Interactive live matchmaking demo (`demo-board.tsx`)      |
-| `/login`, `/register`                                                | public | Auth screens (redirect to `/dashboard` if signed in)      |
-| `/dashboard`                                                         | gated  | User's organizations + create-org form                    |
-| `/dashboard/organizations/[orgId]`                                   | gated  | Org's projects (+ create) and members                     |
-| `/dashboard/projects/[projectId]`                                    | gated  | Project overview: environments, API keys, webhooks        |
-| `/dashboard/projects/[projectId]/{pools,matches,deliveries,ratings}` | gated  | Operational views via project sub-nav (`project-nav.tsx`) |
+| Route                                                                                   | Access | Purpose                                                            |
+| --------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------ |
+| `/`                                                                                     | public | Marketing landing page (`components/landing/`)                     |
+| `/demo`                                                                                 | public | Interactive live matchmaking demo (`demo-board.tsx`)               |
+| `/login`, `/register`                                                                   | public | Auth screens (redirect to `/dashboard` if signed in)               |
+| `/dashboard`                                                                            | gated  | User's organizations + create-org form                             |
+| `/dashboard/organizations/[orgId]`                                                      | gated  | Org's projects (+ create) and members                              |
+| `/dashboard/projects/[projectId]`                                                       | gated  | Project overview: environments, API keys, webhooks, penalty ladder |
+| `/dashboard/projects/[projectId]/{pools,matches,disputes,penalties,deliveries,ratings}` | gated  | Operational views via project sub-nav (`project-nav.tsx`)          |
+| `/dashboard/projects/[projectId]/disputes/[disputeId]`                                  | gated  | Match dispute audit and operator outcome resolution                |
 
 `middleware.ts` enforces this: no session cookie + `/dashboard/**` → redirect to `/login`;
 session cookie + auth page → redirect to `/dashboard`. Everything else is public.

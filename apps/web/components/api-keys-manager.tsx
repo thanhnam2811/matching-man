@@ -3,11 +3,11 @@
 import { useActionState } from "react";
 import { KeyRound } from "lucide-react";
 import { type ApiKeyState, createApiKey, revokeApiKey } from "@/lib/actions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Input } from "@/components/ui/input";
+import { StatusBadge } from "@/components/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type ApiKey = {
@@ -71,9 +71,7 @@ export function ApiKeysManager({ projectId, apiKeys }: { projectId: string; apiK
                                     {apiKey.keyPrefix}…{apiKey.lastFour}
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant={apiKey.isRevoked ? "destructive" : "success"}>
-                                        {apiKey.isRevoked ? "revoked" : "active"}
-                                    </Badge>
+                                    <StatusBadge status={apiKey.isRevoked ? "revoked" : "active"} />
                                 </TableCell>
                                 <TableCell className="text-right">
                                     {apiKey.isRevoked ? null : (

@@ -2,12 +2,12 @@
 
 import { useActionState } from "react";
 import { createWebhook, deleteWebhook, type FormState, setWebhookActive } from "@/lib/actions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StatusBadge } from "@/components/status-badge";
 
 type Webhook = {
     id: string;
@@ -16,7 +16,20 @@ type Webhook = {
     isActive: boolean;
 };
 
-const WEBHOOK_EVENTS = ["match.created", "match.completed", "match.failed", "queue.timeout", "rating.updated"];
+const WEBHOOK_EVENTS = [
+    "match.created",
+    "match.pending_acceptance",
+    "match.ready_check_timeout",
+    "match.declined",
+    "match.completed",
+    "match.failed",
+    "match.disputed",
+    "match.resolved",
+    "queue.timeout",
+    "rating.updated",
+    "player.penalty_issued",
+    "player.penalty_revoked",
+];
 
 const initialState: FormState = {};
 
@@ -62,9 +75,7 @@ export function WebhooksManager({ projectId, webhooks }: { projectId: string; we
                                 <p className="truncate text-xs text-muted-foreground">{webhook.events.join(", ")}</p>
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
-                                <Badge variant={webhook.isActive ? "success" : "secondary"}>
-                                    {webhook.isActive ? "active" : "inactive"}
-                                </Badge>
+                                <StatusBadge status={webhook.isActive ? "active" : "inactive"} />
                                 <form action={setWebhookActive}>
                                     <input type="hidden" name="projectId" value={projectId} />
                                     <input type="hidden" name="webhookId" value={webhook.id} />

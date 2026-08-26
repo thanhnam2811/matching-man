@@ -4,7 +4,6 @@ import { ArrowLeft, Code, FileText, Swords, Users } from "lucide-react";
 import { ApiError, getDispute } from "@/lib/api";
 import { DisputeActions } from "@/components/disputes/dispute-actions";
 import { DisputeStatusBadge } from "@/components/disputes/dispute-status-badge";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyButton } from "@/components/ui/copy-button";
@@ -40,13 +39,6 @@ export default async function DisputeDetailPage({
         throw error;
     }
 
-    const breadcrumbs = [
-        { label: "Projects", href: "/dashboard" },
-        { label: "Project", href: `/dashboard/projects/${projectId}` },
-        { label: "Disputes", href: `/dashboard/projects/${projectId}/disputes` },
-        { label: dispute.id },
-    ];
-
     const slots = dispute.match.slots ?? [];
     // Group slots by groupIndex
     const groupsMap = new Map<number, typeof slots>();
@@ -60,8 +52,6 @@ export default async function DisputeDetailPage({
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-3">
-                <Breadcrumbs items={breadcrumbs} />
-
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <Link

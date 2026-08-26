@@ -1,6 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Boxes, Building2, Gauge, Sparkles, Trophy, Users, Webhook } from "lucide-react";
+import {
+    ArrowRight,
+    Boxes,
+    Building2,
+    Gauge,
+    Scale,
+    ShieldAlert,
+    Sparkles,
+    Trophy,
+    Users,
+    Webhook,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Reveal } from "@/components/landing/reveal";
@@ -42,6 +53,18 @@ const FEATURES = [
         span: "lg:col-span-2",
     },
     {
+        icon: ShieldAlert,
+        title: "Ready check & dodge cooldowns",
+        body: "Two-way handshake acceptance, automated AFK timeouts, escalating lockout ladders, and queue restoration.",
+        span: "lg:col-span-2",
+    },
+    {
+        icon: Scale,
+        title: "Dispute & outcome resolution",
+        body: "Audit game outcomes, override winners, revert rating changes, and resolve match disputes with one click.",
+        span: "lg:col-span-2",
+    },
+    {
         icon: Building2,
         title: "Multi-tenant dashboard",
         body: "Organizations, projects, API keys, environments, and role-based access out of the box.",
@@ -50,8 +73,8 @@ const FEATURES = [
     {
         icon: Webhook,
         title: "Signed, retried webhooks",
-        body: "HMAC-signed delivery with exponential backoff and a full delivery log you can inspect — so a match result never silently disappears.",
-        span: "lg:col-span-6",
+        body: "HMAC-signed delivery with exponential backoff and a full delivery log you can inspect in real time.",
+        span: "lg:col-span-2",
     },
 ];
 

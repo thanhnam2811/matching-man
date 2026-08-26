@@ -62,4 +62,6 @@ deferred.** The two changes with evidence behind them, in order:
   [`phase-14-scale-and-dispute-resolution.md`](phase-14-scale-and-dispute-resolution.md).
 - Accept or decline handshake (Ready Check), priority re-queuing, and player dodge penalties graduated to
   [`phase-15-ready-check-and-penalties.md`](phase-15-ready-check-and-penalties.md).
+- Org-level Stripe billing, usage metering & quotas, control-plane audit logs, and email verification/password reset flows graduated to
+  [`phase-16-saas-billing-and-enterprise-governance.md`](phase-16-saas-billing-and-enterprise-governance.md).
 - No source evidence yet for remaining items in this file.

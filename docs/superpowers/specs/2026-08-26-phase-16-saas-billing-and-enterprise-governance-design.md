@@ -139,6 +139,24 @@ model Project {
   auditLogs              AuditLog[]
 }
 
+enum WebhookProcessingStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model StripeWebhookEvent {
+  id          String                  @id // Stripe event.id (e.g. evt_3Nx...)
+  type        String                  @map("type")
+  status      WebhookProcessingStatus @default(PROCESSING) @map("status")
+  error       String?                 @map("error")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  processedAt DateTime?               @map("processed_at")
+
+  @@index([status, createdAt])
+  @@map("stripe_webhook_events")
+}
+
 model Subscription {
   id                   String               @id @default(cuid())
   organizationId       String               @unique @map("organization_id")
@@ -150,11 +168,14 @@ model Subscription {
   currentPeriodStart   DateTime?            @map("current_period_start")
   currentPeriodEnd     DateTime?            @map("current_period_end")
   cancelAtPeriodEnd    Boolean              @default(false) @map("cancel_at_period_end")
+  lastEventCreatedAt   DateTime?            @map("last_event_created_at")
   createdAt            DateTime             @default(now()) @map("created_at")
   updatedAt            DateTime             @updatedAt @map("updated_at")
 
   organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@index([stripeCustomerId])
+  @@index([status, planTier])
   @@map("subscriptions")
 }
 
@@ -172,7 +193,6 @@ model UsageMetricDaily {
   project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, date])
-  @@index([projectId, date])
   @@map("usage_metrics_daily")
 }
 
@@ -197,6 +217,7 @@ model AuditLog {
 
   @@index([organizationId, createdAt])
   @@index([projectId, createdAt])
+  @@index([projectId, action, createdAt])
   @@index([actorUserId])
   @@map("audit_logs")
 }
@@ -211,7 +232,8 @@ model PasswordResetToken {
 
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([tokenHash, expiresAt])
+  @@index([userId, usedAt])
+  @@index([expiresAt])
   @@map("password_reset_tokens")
 }
 
@@ -225,7 +247,8 @@ model EmailVerificationToken {
 
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([tokenHash, expiresAt])
+  @@index([userId, usedAt])
+  @@index([expiresAt])
   @@map("email_verification_tokens")
 }
 ```

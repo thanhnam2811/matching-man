@@ -51,52 +51,47 @@ Implement a robust email communication adapter and self-service account recovery
 
 ### Stage 2 — Control-Plane Audit Logging Engine
 
-Track, record, and inspect all critical administrative mutations across projects and organizations.
+Track, record, and inspect all critical administrative mutations across projects and organizations with asynchronous persistence and sensitive data redaction.
 
 - [ ] **Prisma Schema Updates (`apps/api/prisma/schema.prisma`):**
-    - Add `AuditAction` enum (API keys, webhooks, game modes, pools, disputes, penalties, members, billing).
-    - Add `AuditResourceType` enum.
-    - Add `AuditLog` model (`id`, `organizationId`, `projectId`, `actorUserId`, `actorIp`, `actorUserAgent`, `action`, `targetResourceType`, `targetResourceId`, `metadataBefore`, `metadataAfter`, `description`, `createdAt`).
+    - Add `AuditAction` and `AuditResourceType` enums.
+    - Add `AuditLog` model with indexes on `[organizationId, createdAt]`, `[projectId, createdAt]`, `[projectId, action, createdAt]`, and `[actorUserId]`.
 - [ ] **Audit Interceptor & Decorator (`apps/api/src/audit-logs`):**
     - Create `@AuditAction()` metadata decorator.
-    - Create `AuditLogInterceptor` to capture pre/post mutation states and persist asynchronously to DB.
-    - Annotate critical controllers:
-        - API Keys: Create, Revoke.
-        - Webhooks: Create, Update, Delete.
-        - Game Modes: Create, Update, Delete.
-        - Match Pools: Update rules.
-        - Project Members: Invite, Update Role, Remove.
-        - Disputes: Resolve, Reject.
-        - Penalties: Manual Lockout, Pardon/Revoke.
+    - Create `AuditLogInterceptor` with automatic recursive key sanitizer (`[REDACTED]` for `hashedKey`, `secret`, `passwordHash`, credit card tokens).
+    - Asynchronous persistence decoupled from request execution via BullMQ/event bus with 32KB payload size cap.
+    - Annotate critical controllers: API Keys, Webhooks, Game Modes, Match Pools, Project Members, Disputes, Penalties.
 - [ ] **Audit Log Query API:**
     - `GET /v1/projects/:id/audit-logs` (Filterable by action, actor, date range, with pagination).
     - `GET /v1/organizations/:id/audit-logs`.
 - [ ] **Operator Audit Log Explorer (`apps/web`):**
     - Project navigation: **Audit Logs** (`/dashboard/projects/[projectId]/audit-logs`).
-    - Filterable table with color-coded action badges.
-    - Interactive 2-column JSON Diff modal comparing `metadataBefore` vs `metadataAfter`.
+    - Filterable table with monochrome zinc action badges (`default`/`secondary` for creations, `warning` for modifications, `destructive` for deletions/lockouts, `success` for resolutions/pardons).
+    - Interactive 2-column JSON Diff slide-over sheet (`<DetailDrawer size="wide">` per `apps/web/DESIGN.md`) comparing `metadataBefore` vs `metadataAfter`.
 
-**Exit criteria:** Every administrative action is immutably logged with actor attribution and verifiable diff history.
+**Exit criteria:** Every administrative action is immutably logged with actor attribution, safe redaction, and verifiable diff history.
 
 ---
 
 ### Stage 3 — Usage Metering & Quota Guard Engine
 
-Track resource consumption in real-time with Redis aggregation and enforce plan limits without bottlenecking matchmaking.
+Track resource consumption in real-time with atomic Redis Hash counters and enforce plan limits without bottlenecking matchmaking.
 
 - [ ] **Prisma Schema Updates (`apps/api/prisma/schema.prisma`):**
-    - Add `UsageMetricDaily` model (`id`, `projectId`, `date`, `enqueueRequests`, `matchesCreated`, `webhookDeliveries`, `peakActivePools`).
+    - Add `UsageMetricDaily` model with composite unique index on `[projectId, date]`.
 - [ ] **Asynchronous Metering Collector (`apps/api/src/metering`):**
-    - In-memory / Redis fast counters (`usage:{projectId}:{YYYY-MM-DD}:*`).
-    - Increment hooks in Enqueue service, Match Assembler, and Webhook Delivery worker.
-    - BullMQ scheduled daily rollup worker (`flush-daily-usage`) syncing Redis counters to `UsageMetricDaily`.
-- [ ] **Quota Definitions & Enforcement Guard (`QuotaGuard`):**
+    - Date-partitioned Redis Hashes (`usage:{projectId}:{YYYY-MM-DD}`) with 7-day TTL applied atomically on creation.
+    - Active project registration set (`usage:active-projects:{YYYY-MM-DD}`) eliminating global Redis scans.
+    - Non-blocking, fire-and-forget increments in Enqueue service, Match Assembler, and Webhook Delivery worker.
+    - BullMQ daily rollup worker (`flush-daily-usage`): Batched (50–100 items) idempotent upsert using `GREATEST(...)` into `UsageMetricDaily`.
+- [ ] **Quota Definitions & Multi-Tier Caching Guard (`QuotaGuard`):**
     - Define tier limits (`FREE`: 5k matches, 25k enqueues, 5 pools; `PRO`: 100k matches, 500k enqueues, 30 pools; `ENTERPRISE`: unmetered).
-    - Fast quota check in Enqueue pipeline: Return `402 Payment Required` with upgrade instructions if monthly limit is exceeded.
+    - 2-tier cache (L1 In-Memory LRU + L2 Redis Snapshot) with strict **Fail-Open Policy** during Redis outages to protect core matchmaking SLA.
+    - Return `402 Payment Required` with usage metrics and upgrade links when monthly quota is exhausted.
 - [ ] **Usage Statistics API:**
     - `GET /v1/organizations/:id/billing/usage`: Returns current month totals vs plan quotas.
 
-**Exit criteria:** Usage metrics are aggregated without degrading API latency, and quota limits prevent resource exhaustion.
+**Exit criteria:** Usage metrics are aggregated with sub-millisecond overhead, and quota limits prevent resource exhaustion.
 
 ---
 
@@ -105,17 +100,20 @@ Track resource consumption in real-time with Redis aggregation and enforce plan 
 Automate monetization with Stripe Checkout, subscription lifecycle webhooks, and self-service billing management.
 
 - [ ] **Prisma Schema Updates (`apps/api/prisma/schema.prisma`):**
-    - Add `SubscriptionPlanTier` (`FREE`, `PRO`, `ENTERPRISE`) and `SubscriptionStatus` (`ACTIVE`, `PAST_DUE`, `CANCELED`, `TRIALING`, `UNPAID`).
-    - Add `Subscription` model (`id`, `organizationId`, `stripeCustomerId`, `stripeSubscriptionId`, `stripePriceId`, `planTier`, `status`, `currentPeriodStart`, `currentPeriodEnd`, `cancelAtPeriodEnd`).
+    - Add `SubscriptionPlanTier` (`FREE`, `PRO`, `ENTERPRISE`), `SubscriptionStatus` (`ACTIVE`, `PAST_DUE`, `CANCELED`, `TRIALING`, `UNPAID`), and `WebhookProcessingStatus` (`PROCESSING`, `COMPLETED`, `FAILED`).
+    - Add `Subscription` model (`lastEventCreatedAt`, `cancelAtPeriodEnd`, `currentPeriodEnd`).
+    - Add `StripeWebhookEvent` model for distributed webhook deduplication.
 - [ ] **Stripe Billing Module (`apps/api/src/billing`):**
+    - Preserve raw request buffer in `main.ts` for HMAC signature validation.
     - Stripe Node SDK integration with environment variables (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID`).
-    - `POST /v1/organizations/:id/billing/checkout`: Initiates Stripe Checkout for Pro/Enterprise tier.
-    - `POST /v1/organizations/:id/billing/portal`: Generates Stripe Customer Portal session.
+    - `POST /v1/organizations/:id/billing/checkout`: Initiates Stripe Checkout with server-side sanitized return URLs.
+    - `POST /v1/organizations/:id/billing/portal`: Generates Stripe Customer Portal session for `OWNER`/`ADMIN` roles.
     - `GET /v1/organizations/:id/billing/subscription`: Fetches active subscription details.
 - [ ] **Stripe Webhook Consumer (`POST /v1/billing/webhook`):**
-    - Validates `stripe-signature` raw body.
-    - Handles events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`.
-    - Updates `Subscription` and adjusts organization plan tier accordingly.
+    - Verifies `stripe-signature` with 300s clock skew tolerance.
+    - Idempotent execution claiming events via `StripeWebhookEvent`.
+    - Stale / out-of-order event guard comparing `event.created * 1000 < lastEventCreatedAt`.
+    - Handles events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed` (with 7-day soft dunning grace window before quota restriction).
 
 **Exit criteria:** Organizations can upgrade to Pro via Stripe, manage billing in Stripe Portal, and webhooks synchronize subscription state.
 

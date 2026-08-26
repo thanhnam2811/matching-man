@@ -60,4 +60,6 @@ deferred.** The two changes with evidence behind them, in order:
   [`phase-13-project-members-enforcement.md`](phase-13-project-members-enforcement.md).
 - Redis & BullMQ adoption, worker process separation, partitioned pool processing, and dispute states graduated to
   [`phase-14-scale-and-dispute-resolution.md`](phase-14-scale-and-dispute-resolution.md).
+- Accept or decline handshake (Ready Check), priority re-queuing, and player dodge penalties graduated to
+  [`phase-15-ready-check-and-penalties.md`](phase-15-ready-check-and-penalties.md).
 - No source evidence yet for remaining items in this file.

@@ -204,4 +204,45 @@ describe("ProjectsService", () => {
 
         await expect(service.findOne(userContext, "missing")).rejects.toBeInstanceOf(NotFoundException);
     });
+
+    it("updates project penalty settings when caller has project admin access", async () => {
+        prismaService.client.project.findUnique.mockResolvedValue({
+            id: "project_1",
+            organizationId: "org_1",
+            members: [{ userId: "user_1", role: ProjectMemberRole.ADMIN }],
+        });
+        prismaService.client.organizationMember.findUnique.mockResolvedValue({ role: ProjectMemberRole.MEMBER });
+        (prismaService.client.project as any).update = jest.fn().mockResolvedValue({
+            id: "project_1",
+            name: "Arena Updated",
+            slug: "arena",
+            defaultRegion: "us-east",
+            enableDodgePenalty: true,
+            penaltyTiers: [300, 1200, 7200],
+            penaltyDecayHours: 12,
+            updatedAt: new Date(),
+        });
+
+        const updated = await service.update(userContext, "project_1", {
+            name: "Arena Updated",
+            defaultRegion: "us-east",
+            enableDodgePenalty: true,
+            penaltyTiers: [300, 1200, 7200],
+            penaltyDecayHours: 12,
+        });
+
+        expect(updated.enableDodgePenalty).toBe(true);
+        expect(updated.penaltyTiers).toEqual([300, 1200, 7200]);
+        expect(updated.penaltyDecayHours).toBe(12);
+        expect((prismaService.client.project as any).update).toHaveBeenCalledWith({
+            where: { id: "project_1" },
+            data: {
+                name: "Arena Updated",
+                defaultRegion: "us-east",
+                enableDodgePenalty: true,
+                penaltyTiers: [300, 1200, 7200],
+                penaltyDecayHours: 12,
+            },
+        });
+    });
 });

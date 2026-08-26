@@ -24,6 +24,7 @@ import { RatingsModule } from "./ratings/ratings.module";
 import { DisputesModule } from "./disputes/disputes.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { DemoModule } from "./demo/demo.module";
+import { PenaltiesModule } from "./penalties/penalties.module";
 import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project-throttler.guard";
 
 @Module({
@@ -65,6 +66,7 @@ import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project
         DeliveriesModule,
         RatingsModule,
         DisputesModule,
+        PenaltiesModule,
         DashboardModule,
         DemoModule,
     ],

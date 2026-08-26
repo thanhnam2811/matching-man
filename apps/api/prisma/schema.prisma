@@ -37,11 +37,28 @@ enum QueueEntryStatus {
 
 enum MatchStatus {
   CREATED
+  PENDING_ACCEPTANCE
+  CONFIRMED
+  DECLINED
+  CANCELLED
   IN_PROGRESS
   COMPLETED
   FAILED
   EXPIRED
   DISPUTED
+}
+
+enum SlotAcceptStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  TIMED_OUT
+}
+
+enum PenaltyReason {
+  DODGE
+  AFK_TIMEOUT
+  MANUAL_LOCKOUT
 }
 
 enum WebhookDeliveryStatus {
@@ -78,6 +95,7 @@ model User {
   projectMembers     ProjectMember[]
   organizationMemberships OrganizationMember[]
   resolvedDisputes   MatchDispute[]     @relation("ResolvedDisputes")
+  revokedPenalties   PlayerPenalty[]    @relation("RevokedPenalties")
 
   @@map("users")
 }
@@ -116,6 +134,10 @@ model Project {
   matches          Match[]
   ratingProfiles   RatingProfile[]
   disputes         MatchDispute[]
+  enableDodgePenalty Boolean          @default(true) @map("enable_dodge_penalty")
+  penaltyTiers     Json               @default("[180, 900, 3600, 86400]") @map("penalty_tiers")
+  penaltyDecayHours Int               @default(24) @map("penalty_decay_hours")
+  penalties        PlayerPenalty[]
 
   @@index([organizationId])
   @@map("projects")
@@ -233,6 +255,8 @@ model GameMode {
   windowExpandIntervalSeconds Int?       @map("window_expand_interval_seconds")
   windowExpandStep            Int?       @map("window_expand_step")
   maxQueueSeconds             Int        @default(300) @map("max_queue_seconds")
+  enableReadyCheck            Boolean    @default(false) @map("enable_ready_check")
+  readyCheckTimeoutSeconds    Int        @default(20) @map("ready_check_timeout_seconds")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
   project        Project        @relation(fields: [projectId], references: [id])
@@ -361,9 +385,12 @@ model MatchSlot {
   queueEntryId String     @map("queue_entry_id")
   teamId       String     @map("team_id")
   slotIndex    Int        @map("slot_index")
-  groupIndex   Int        @map("group_index")
-  teamSnapshot Json       @map("team_snapshot")
-  createdAt    DateTime   @default(now()) @map("created_at")
+  groupIndex   Int              @map("group_index")
+  teamSnapshot Json             @map("team_snapshot")
+  acceptStatus SlotAcceptStatus @default(PENDING) @map("accept_status")
+  respondedAt  DateTime?        @map("responded_at")
+  acceptedPlayerIds Json        @default("[]") @map("accepted_player_ids")
+  createdAt    DateTime         @default(now()) @map("created_at")
   match        Match      @relation(fields: [matchId], references: [id])
   queueEntry   QueueEntry @relation(fields: [queueEntryId], references: [id])
   team         Team       @relation(fields: [teamId], references: [id])
@@ -445,4 +472,28 @@ model MatchDispute {
   @@index([matchId])
   @@map("match_disputes")
 }
+
+model PlayerPenalty {
+  id              String        @id @default(cuid())
+  projectId       String        @map("project_id")
+  playerId        String        @map("player_id")
+  reason          PenaltyReason @default(DODGE)
+  durationSeconds Int           @map("duration_seconds")
+  expiresAt       DateTime      @map("expires_at")
+  violationCount  Int           @default(1) @map("violation_count")
+  revokedAt       DateTime?     @map("revoked_at")
+  revokedByUserId String?       @map("revoked_by_user_id")
+  revocationNotes String?       @map("revocation_notes")
+  metadata        Json?
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  revokedByUser   User?         @relation("RevokedPenalties", fields: [revokedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, playerId, expiresAt])
+  @@index([projectId, createdAt])
+  @@map("player_penalties")
+}
+
 

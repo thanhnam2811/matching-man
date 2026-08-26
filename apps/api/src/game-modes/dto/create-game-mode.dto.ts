@@ -1,6 +1,6 @@
 import { ApiPropertyOptional, ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsEnum, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from "class-validator";
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from "class-validator";
 import { MatchStructure, RatingMode } from "../../generated/prisma/client";
 
 const KEY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -74,4 +74,25 @@ export class CreateGameModeDto {
     @IsInt()
     @Min(1)
     windowExpandStep?: number;
+
+    @ApiPropertyOptional({
+        default: false,
+        description: "Whether matches require an accept/decline ready check handshake.",
+    })
+    @IsOptional()
+    @IsBoolean()
+    enableReadyCheck?: boolean;
+
+    @ApiPropertyOptional({
+        default: 20,
+        minimum: 5,
+        maximum: 300,
+        description: "Seconds players have to accept a match.",
+    })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(5)
+    @Max(300)
+    readyCheckTimeoutSeconds?: number;
 }

@@ -7,6 +7,7 @@ import type { Pool } from "@/lib/api";
 import { LIVE_REFRESH_MS } from "@/lib/swr";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { CopyButton } from "@/components/ui/copy-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -78,7 +79,12 @@ export function PoolsTable({ projectId, fallback }: { projectId: string; fallbac
                             <TableBody>
                                 {filtered.map((pool) => (
                                     <TableRow key={pool.id}>
-                                        <TableCell className="font-mono text-xs">{pool.gameModeId}</TableCell>
+                                        <TableCell className="font-mono text-xs">
+                                            <span className="inline-flex items-center gap-1">
+                                                {pool.gameModeId}
+                                                <CopyButton value={pool.gameModeId} label="Copy game mode ID" />
+                                            </span>
+                                        </TableCell>
                                         <TableCell>{pool.environment}</TableCell>
                                         <TableCell>{pool.regionKey}</TableCell>
                                         <TableCell className="text-right">

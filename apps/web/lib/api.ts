@@ -124,6 +124,9 @@ export type Project = {
     name: string;
     slug: string;
     defaultRegion: string | null;
+    enableDodgePenalty?: boolean;
+    penaltyTiers?: number[];
+    penaltyDecayHours?: number;
     createdAt: string;
 };
 
@@ -139,6 +142,9 @@ export type ProjectDetail = {
     name: string;
     slug: string;
     defaultRegion: string | null;
+    enableDodgePenalty?: boolean;
+    penaltyTiers?: number[];
+    penaltyDecayHours?: number;
     createdAt: string;
     updatedAt: string;
     organization: { id: string; name: string; slug: string };
@@ -355,6 +361,73 @@ export function resolveDispute(projectId: string, disputeId: string, input: Reso
 export function rejectDispute(projectId: string, disputeId: string, input: RejectDisputeInput) {
     return apiFetch<MatchDisputeDetail>(`/projects/${projectId}/disputes/${disputeId}/reject`, {
         method: "POST",
+        body: JSON.stringify(input),
+    });
+}
+
+export type PenaltyReason = "DODGE" | "AFK_TIMEOUT" | "MANUAL_LOCKOUT";
+
+export type PlayerPenaltySummary = {
+    id: string;
+    projectId: string;
+    playerId: string;
+    reason: PenaltyReason;
+    durationSeconds: number;
+    expiresAt: string;
+    violationCount: number;
+    isActive: boolean;
+    revokedAt: string | null;
+    revokedByUser: { id: string; name: string | null; email: string } | null;
+    revocationNotes: string | null;
+    createdAt: string;
+};
+
+export type ListPenaltiesQuery = {
+    status?: "ACTIVE" | "EXPIRED" | "REVOKED";
+    playerId?: string;
+    limit?: number;
+    offset?: number;
+};
+
+export function listPenalties(projectId: string, query?: ListPenaltiesQuery) {
+    const params = new URLSearchParams();
+    if (query?.status) params.set("status", query.status);
+    if (query?.playerId) params.set("playerId", query.playerId);
+    if (query?.limit != null) params.set("limit", String(query.limit));
+    if (query?.offset != null) params.set("offset", String(query.offset));
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    return apiFetch<Paginated<PlayerPenaltySummary>>(`/projects/${projectId}/penalties${qs}`);
+}
+
+export function createManualPenalty(
+    projectId: string,
+    input: { playerId: string; durationSeconds: number; reason?: PenaltyReason; notes?: string },
+) {
+    return apiFetch<PlayerPenaltySummary>(`/projects/${projectId}/penalties`, {
+        method: "POST",
+        body: JSON.stringify(input),
+    });
+}
+
+export function pardonPenalty(projectId: string, penaltyId: string, notes?: string) {
+    return apiFetch<PlayerPenaltySummary>(`/projects/${projectId}/penalties/${penaltyId}`, {
+        method: "DELETE",
+        body: JSON.stringify({ notes }),
+    });
+}
+
+export function updateProject(
+    projectId: string,
+    input: {
+        name?: string;
+        defaultRegion?: string;
+        enableDodgePenalty?: boolean;
+        penaltyTiers?: number[];
+        penaltyDecayHours?: number;
+    },
+) {
+    return apiFetch<ProjectDetail>(`/projects/${projectId}`, {
+        method: "PATCH",
         body: JSON.stringify(input),
     });
 }

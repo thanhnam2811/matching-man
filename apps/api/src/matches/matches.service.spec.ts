@@ -34,17 +34,58 @@ const makeMatch = (overrides: object = {}) => ({
     ...overrides,
 });
 
+const makePendingMatch = () => ({
+    id: "match_rc_1",
+    projectId: "project_1",
+    gameModeId: "mode_1",
+    status: MatchStatus.PENDING_ACCEPTANCE,
+    ratingMode: RatingMode.DISABLED,
+    environment: "production",
+    regionKey: "global",
+    requiredSlots: 2,
+    groupCount: 2,
+    createdAt: new Date("2026-06-12T00:00:00.000Z"),
+    gameMode: { readyCheckTimeoutSeconds: 30 },
+    slots: [
+        {
+            id: "slot_1",
+            slotIndex: 1,
+            groupIndex: 1,
+            teamId: "team_1",
+            queueEntryId: "entry_1",
+            acceptStatus: "PENDING",
+            acceptedPlayerIds: [],
+            teamSnapshot: [{ playerId: "player_1", rating: 1000 }],
+        },
+        {
+            id: "slot_2",
+            slotIndex: 2,
+            groupIndex: 2,
+            teamId: "team_2",
+            queueEntryId: "entry_2",
+            acceptStatus: "PENDING",
+            acceptedPlayerIds: [],
+            teamSnapshot: [{ playerId: "player_2", rating: 1000 }],
+        },
+    ],
+});
+
 describe("MatchesService", () => {
     let service: MatchesService;
     let prismaService: {
         client: {
             match: { findFirst: jest.Mock; update: jest.Mock; findMany: jest.Mock; count: jest.Mock };
+            matchSlot: { update: jest.Mock; findMany: jest.Mock };
+            queueEntry: { update: jest.Mock };
             matchResult: { create: jest.Mock };
             $transaction: jest.Mock;
         };
     };
     let webhookDeliveryService: { scheduleDelivery: jest.Mock };
     let ratingsService: { applyEloForVersusMatch: jest.Mock };
+    let penaltiesService: { recordPenalty: jest.Mock };
+    let queuesService: { requeueInnocentEntries: jest.Mock };
+    let readyCheckTimeoutQueue: { remove: jest.Mock };
 
     beforeEach(() => {
         prismaService = {
@@ -55,6 +96,13 @@ describe("MatchesService", () => {
                     findMany: jest.fn(),
                     count: jest.fn(),
                 },
+                matchSlot: {
+                    update: jest.fn(),
+                    findMany: jest.fn(),
+                },
+                queueEntry: {
+                    update: jest.fn(),
+                },
                 matchResult: {
                     create: jest.fn(),
                 },
@@ -64,11 +112,17 @@ describe("MatchesService", () => {
 
         webhookDeliveryService = { scheduleDelivery: jest.fn() };
         ratingsService = { applyEloForVersusMatch: jest.fn() };
+        penaltiesService = { recordPenalty: jest.fn() };
+        queuesService = { requeueInnocentEntries: jest.fn() };
+        readyCheckTimeoutQueue = { remove: jest.fn().mockResolvedValue(undefined) };
 
         service = new MatchesService(
             prismaService as unknown as PrismaService,
             webhookDeliveryService as unknown as WebhookDeliveryService,
             ratingsService as unknown as RatingsService,
+            penaltiesService as unknown as any,
+            queuesService as unknown as any,
+            readyCheckTimeoutQueue as unknown as any,
         );
     });
 
@@ -315,6 +369,67 @@ describe("MatchesService", () => {
                 "rating.updated",
                 expect.objectContaining({ matchId: "match_1" }),
             );
+        });
+    });
+
+    describe("ready check", () => {
+        it("acceptMatch records player acceptance and confirms match when all slots accept", async () => {
+            prismaService.client.match.findFirst.mockResolvedValue(makePendingMatch());
+            prismaService.client.matchSlot.findMany.mockResolvedValue([
+                { id: "slot_1", acceptStatus: "ACCEPTED" },
+                { id: "slot_2", acceptStatus: "ACCEPTED" },
+            ]);
+
+            const res = await service.acceptMatch("project_1", "match_rc_1", {
+                playerId: "player_1",
+                teamId: "team_1",
+            });
+
+            expect(res.status).toBe("confirmed");
+            expect(res.isComplete).toBe(true);
+            expect(prismaService.client.match.update).toHaveBeenCalledWith({
+                where: { id: "match_rc_1" },
+                data: { status: MatchStatus.CONFIRMED },
+            });
+            expect(webhookDeliveryService.scheduleDelivery).toHaveBeenCalledWith(
+                "project_1",
+                "match.confirmed",
+                expect.objectContaining({ matchId: "match_rc_1" }),
+            );
+        });
+
+        it("declineMatch cancels match, penalizes decliner, and requeues innocent opponent", async () => {
+            prismaService.client.match.findFirst.mockResolvedValue(makePendingMatch());
+
+            const res = await service.declineMatch("project_1", "match_rc_1", {
+                playerId: "player_1",
+                teamId: "team_1",
+                reason: "Cancelled by user",
+            });
+
+            expect(res.status).toBe("declined");
+            expect(res.declinedByPlayerId).toBe("player_1");
+            expect(prismaService.client.match.update).toHaveBeenCalledWith({
+                where: { id: "match_rc_1" },
+                data: { status: MatchStatus.DECLINED },
+            });
+            expect(penaltiesService.recordPenalty).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    projectId: "project_1",
+                    playerId: "player_1",
+                }),
+            );
+            expect(queuesService.requeueInnocentEntries).toHaveBeenCalledWith("project_1", ["entry_2"], undefined);
+        });
+
+        it("getReadyCheckStatus returns remaining countdown and per-slot status", async () => {
+            prismaService.client.match.findFirst.mockResolvedValue(makePendingMatch());
+
+            const res = await service.getReadyCheckStatus("project_1", "match_rc_1");
+
+            expect(res.status).toBe("pending_acceptance");
+            expect(res.timeoutSeconds).toBe(30);
+            expect(res.slots).toHaveLength(2);
         });
     });
 });

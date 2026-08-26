@@ -2,7 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ApiError, NetworkError, TimeoutError, apiFetch, rejectDispute, resolveDispute } from "./api";
+import {
+    ApiError,
+    NetworkError,
+    TimeoutError,
+    apiFetch,
+    createManualPenalty,
+    pardonPenalty,
+    rejectDispute,
+    resolveDispute,
+    updateProject,
+    type PenaltyReason,
+} from "./api";
 
 export type FormState = { error?: string };
 
@@ -90,7 +101,7 @@ export async function createApiKey(_prev: ApiKeyState, formData: FormData): Prom
             method: "POST",
             body: JSON.stringify({ name }),
         });
-        revalidatePath(`/dashboard/projects/${projectId}`);
+        revalidatePath(`/dashboard/projects/${projectId}/api-keys`);
         return { key: created.key };
     } catch (error) {
         return { error: humanize(error) };
@@ -101,7 +112,7 @@ export async function revokeApiKey(formData: FormData): Promise<void> {
     const projectId = String(formData.get("projectId") ?? "");
     const apiKeyId = String(formData.get("apiKeyId") ?? "");
     await apiFetch(`/projects/${projectId}/api-keys/${apiKeyId}/revoke`, { method: "POST" }).catch(() => undefined);
-    revalidatePath(`/dashboard/projects/${projectId}`);
+    revalidatePath(`/dashboard/projects/${projectId}/api-keys`);
 }
 
 export async function createWebhook(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -122,8 +133,8 @@ export async function createWebhook(_prev: FormState, formData: FormData): Promi
         return { error: humanize(error) };
     }
 
-    revalidatePath(`/dashboard/projects/${projectId}`);
-    return {};
+    revalidatePath(`/dashboard/projects/${projectId}/webhooks`);
+    redirect(`/dashboard/projects/${projectId}/webhooks`);
 }
 
 export async function setWebhookActive(formData: FormData): Promise<void> {
@@ -134,14 +145,14 @@ export async function setWebhookActive(formData: FormData): Promise<void> {
         method: "PATCH",
         body: JSON.stringify({ isActive }),
     }).catch(() => undefined);
-    revalidatePath(`/dashboard/projects/${projectId}`);
+    revalidatePath(`/dashboard/projects/${projectId}/webhooks`);
 }
 
 export async function deleteWebhook(formData: FormData): Promise<void> {
     const projectId = String(formData.get("projectId") ?? "");
     const webhookId = String(formData.get("webhookId") ?? "");
     await apiFetch(`/projects/${projectId}/webhooks/${webhookId}`, { method: "DELETE" }).catch(() => undefined);
-    revalidatePath(`/dashboard/projects/${projectId}`);
+    revalidatePath(`/dashboard/projects/${projectId}/webhooks`);
 }
 
 export async function createEnvironment(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -277,5 +288,76 @@ export async function rejectDisputeAction(_prev: FormState, formData: FormData):
 
     revalidatePath(`/dashboard/projects/${projectId}/disputes`);
     revalidatePath(`/dashboard/projects/${projectId}/disputes/${disputeId}`);
+    return {};
+}
+
+export async function pardonPenaltyAction(_prev: FormState, formData: FormData): Promise<FormState> {
+    const projectId = String(formData.get("projectId") ?? "");
+    const penaltyId = String(formData.get("penaltyId") ?? "");
+    const notes = String(formData.get("notes") ?? "").trim();
+
+    try {
+        await pardonPenalty(projectId, penaltyId, notes || undefined);
+    } catch (error) {
+        return { error: humanize(error) };
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}/penalties`);
+    return {};
+}
+
+export async function createManualPenaltyAction(_prev: FormState, formData: FormData): Promise<FormState> {
+    const projectId = String(formData.get("projectId") ?? "");
+    const playerId = String(formData.get("playerId") ?? "").trim();
+    const durationMinutes = Number(formData.get("durationMinutes") ?? 30);
+    const reason = String(formData.get("reason") ?? "MANUAL_LOCKOUT") as PenaltyReason;
+    const notes = String(formData.get("notes") ?? "").trim();
+
+    if (!playerId) {
+        return { error: "Player ID is required" };
+    }
+
+    if (Number.isNaN(durationMinutes) || durationMinutes < 1) {
+        return { error: "Duration must be at least 1 minute" };
+    }
+
+    try {
+        await createManualPenalty(projectId, {
+            playerId,
+            durationSeconds: durationMinutes * 60,
+            reason,
+            notes: notes || undefined,
+        });
+    } catch (error) {
+        return { error: humanize(error) };
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}/penalties`);
+    return {};
+}
+
+export async function updateProjectPenaltyConfigAction(_prev: FormState, formData: FormData): Promise<FormState> {
+    const projectId = String(formData.get("projectId") ?? "");
+    const enableDodgePenalty =
+        formData.get("enableDodgePenalty") === "true" || formData.get("enableDodgePenalty") === "on";
+    const tiersRaw = String(formData.get("penaltyTiers") ?? "180, 900, 3600, 86400");
+    const penaltyDecayHours = Number(formData.get("penaltyDecayHours") ?? 24);
+
+    const penaltyTiers = tiersRaw
+        .split(",")
+        .map((s) => Number(s.trim()))
+        .filter((n) => !Number.isNaN(n) && n > 0);
+
+    try {
+        await updateProject(projectId, {
+            enableDodgePenalty,
+            penaltyTiers: penaltyTiers.length > 0 ? penaltyTiers : [180, 900, 3600, 86400],
+            penaltyDecayHours: !Number.isNaN(penaltyDecayHours) && penaltyDecayHours > 0 ? penaltyDecayHours : 24,
+        });
+    } catch (error) {
+        return { error: humanize(error) };
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
     return {};
 }

@@ -35,10 +35,7 @@ export function StatCard({
                     <p className="text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
                     {hint ? <p className="truncate text-xs text-muted-foreground">{hint}</p> : null}
                 </div>
-                {sparkline ? (
-                    // Validated on both surfaces: indigo-600 on light, indigo-500 on dark.
-                    <Sparkline values={sparkline} className="mt-1 text-indigo-600 dark:text-indigo-500" />
-                ) : null}
+                {sparkline ? <Sparkline values={sparkline} className="mt-1 text-foreground" /> : null}
             </CardContent>
         </Card>
     );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { createProject, type FormState } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 
 const initialState: FormState = {};
 
-export function CreateProjectForm({ organizationId }: { organizationId: string }) {
+export function CreateProjectForm({ organizationId, cancelHref }: { organizationId: string; cancelHref?: string }) {
     const [state, action, pending] = useActionState(createProject, initialState);
 
     return (
@@ -32,10 +33,15 @@ export function CreateProjectForm({ organizationId }: { organizationId: string }
 
             {state.error ? <p className="text-sm text-destructive sm:col-span-2">{state.error}</p> : null}
 
-            <div className="sm:col-span-2">
+            <div className="flex items-center gap-2 sm:col-span-2">
                 <Button type="submit" disabled={pending}>
                     {pending ? "Creating…" : "Create project"}
                 </Button>
+                {cancelHref ? (
+                    <Button variant="ghost" asChild type="button">
+                        <Link href={cancelHref}>Cancel</Link>
+                    </Button>
+                ) : null}
             </div>
         </form>
     );

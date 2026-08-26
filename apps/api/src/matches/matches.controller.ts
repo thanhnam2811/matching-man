@@ -5,6 +5,8 @@ import type { AuthenticatedProjectRequest } from "../common/interfaces/authentic
 import { PROJECT_API_KEY_SECURITY } from "../swagger";
 import { CreateMatchDisputeDto } from "../disputes/dto/create-match-dispute.dto";
 import { DisputesService } from "../disputes/disputes.service";
+import { AcceptMatchDto } from "./dto/accept-match.dto";
+import { DeclineMatchDto } from "./dto/decline-match.dto";
 import { ReportResultDto } from "./dto/report-result.dto";
 import { MatchesService } from "./matches.service";
 
@@ -22,6 +24,32 @@ export class MatchesController {
     @Get(":matchId")
     findOne(@Req() request: AuthenticatedProjectRequest, @Param("matchId") matchId: string) {
         return this.matchesService.findOne(request.authProjectId, matchId);
+    }
+
+    @ApiOperation({ summary: "Accept a match during ready check handshake." })
+    @Post(":matchId/accept")
+    accept(
+        @Req() request: AuthenticatedProjectRequest,
+        @Param("matchId") matchId: string,
+        @Body() dto: AcceptMatchDto,
+    ) {
+        return this.matchesService.acceptMatch(request.authProjectId, matchId, dto);
+    }
+
+    @ApiOperation({ summary: "Decline a match during ready check handshake." })
+    @Post(":matchId/decline")
+    decline(
+        @Req() request: AuthenticatedProjectRequest,
+        @Param("matchId") matchId: string,
+        @Body() dto: DeclineMatchDto,
+    ) {
+        return this.matchesService.declineMatch(request.authProjectId, matchId, dto);
+    }
+
+    @ApiOperation({ summary: "Get current ready check countdown and participant acceptance status." })
+    @Get(":matchId/ready-check")
+    getReadyCheck(@Req() request: AuthenticatedProjectRequest, @Param("matchId") matchId: string) {
+        return this.matchesService.getReadyCheckStatus(request.authProjectId, matchId);
     }
 
     @ApiOperation({ summary: "Report the final outcome of a match." })

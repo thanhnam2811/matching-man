@@ -5,6 +5,7 @@ import { normalizeSlug } from "../common/utils/slug.util";
 import type { DashboardAuthContext } from "../common/interfaces/dashboard-auth-request";
 import { OrganizationsService, ROLE_RANK } from "../organizations/organizations.service";
 import { CreateProjectDto } from "./dto/create-project.dto";
+import { UpdateProjectDto } from "./dto/update-project.dto";
 
 @Injectable()
 export class ProjectsService {
@@ -126,6 +127,9 @@ export class ProjectsService {
             updatedAt: project.updatedAt,
             organization: project.organization,
             environments: project.environments,
+            enableDodgePenalty: project.enableDodgePenalty,
+            penaltyTiers: project.penaltyTiers,
+            penaltyDecayHours: project.penaltyDecayHours,
             members: project.members.map((member) => ({
                 id: member.id,
                 role: member.role,
@@ -142,6 +146,78 @@ export class ProjectsService {
                 hasSecret: true,
             })),
         };
+    }
+
+    async update(context: DashboardAuthContext, projectId: string, updateProjectDto: UpdateProjectDto) {
+        const project = await this.prismaService.client.project.findUnique({
+            where: { id: projectId },
+            include: {
+                members: { select: { userId: true, role: true } },
+            },
+        });
+
+        if (!project) {
+            throw new NotFoundException("Project not found");
+        }
+
+        await this.assertProjectAdminAccess(context, project.organizationId, project.members);
+
+        const updated = await this.prismaService.client.project.update({
+            where: { id: projectId },
+            data: {
+                ...(updateProjectDto.name ? { name: updateProjectDto.name } : {}),
+                ...(updateProjectDto.defaultRegion !== undefined
+                    ? { defaultRegion: updateProjectDto.defaultRegion }
+                    : {}),
+                ...(updateProjectDto.enableDodgePenalty !== undefined
+                    ? { enableDodgePenalty: updateProjectDto.enableDodgePenalty }
+                    : {}),
+                ...(updateProjectDto.penaltyTiers !== undefined ? { penaltyTiers: updateProjectDto.penaltyTiers } : {}),
+                ...(updateProjectDto.penaltyDecayHours !== undefined
+                    ? { penaltyDecayHours: updateProjectDto.penaltyDecayHours }
+                    : {}),
+            },
+        });
+
+        return {
+            id: updated.id,
+            name: updated.name,
+            slug: updated.slug,
+            defaultRegion: updated.defaultRegion,
+            enableDodgePenalty: updated.enableDodgePenalty,
+            penaltyTiers: updated.penaltyTiers,
+            penaltyDecayHours: updated.penaltyDecayHours,
+            updatedAt: updated.updatedAt,
+        };
+    }
+
+    private async assertProjectAdminAccess(
+        context: DashboardAuthContext,
+        organizationId: string,
+        projectMembers: { userId: string; role: ProjectMemberRole }[],
+    ) {
+        if (context.isSuperAdmin) {
+            return;
+        }
+
+        const userId = context.authUserId;
+        if (!userId) {
+            throw new ForbiddenException("You do not have administrative access to this project");
+        }
+
+        const orgMembership = await this.prismaService.client.organizationMember.findUnique({
+            where: { organizationId_userId: { organizationId, userId } },
+            select: { role: true },
+        });
+
+        if (orgMembership && ROLE_RANK[orgMembership.role] >= ROLE_RANK[ProjectMemberRole.ADMIN]) {
+            return;
+        }
+
+        const member = projectMembers.find((m) => m.userId === userId);
+        if (!member || ROLE_RANK[member.role] < ROLE_RANK[ProjectMemberRole.ADMIN]) {
+            throw new ForbiddenException("You do not have administrative access to this project");
+        }
     }
 
     private async assertProjectAccess(

@@ -1,25 +1,27 @@
 import Link from "next/link";
-import { Building2, ChevronRight } from "lucide-react";
+import { Building2, ChevronRight, Plus } from "lucide-react";
 import { apiFetch, type OrganizationSummary } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CreateOrganizationForm } from "@/components/create-organization-form";
 
 export default async function DashboardHome() {
     const organizations = await apiFetch<OrganizationSummary[]>("/organizations");
 
     return (
         <div className="mx-auto max-w-5xl space-y-6">
-            <div>
-                <h1 className="text-2xl font-semibold tracking-tight">Organizations</h1>
-                <p className="text-sm text-muted-foreground">Your tenants. Open one to manage its projects.</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-semibold tracking-tight">Organizations</h1>
+                    <p className="text-sm text-muted-foreground">Your tenants. Open one to manage its projects.</p>
+                </div>
+                <Button asChild>
+                    <Link href="/dashboard/organizations/new">
+                        <Plus className="size-4 mr-1.5" />
+                        New organization
+                    </Link>
+                </Button>
             </div>
-
-            <Card>
-                <CardContent className="pt-6">
-                    <CreateOrganizationForm />
-                </CardContent>
-            </Card>
 
             {organizations.length === 0 ? (
                 <Card>
@@ -27,7 +29,8 @@ export default async function DashboardHome() {
                         <EmptyState
                             icon={Building2}
                             title="No organizations yet"
-                            description="Create your first organization above to start adding projects."
+                            description="Create your first organization to start adding projects."
+                            action={{ label: "Create organization", href: "/dashboard/organizations/new" }}
                         />
                     </CardContent>
                 </Card>

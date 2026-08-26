@@ -28,6 +28,8 @@ export class GameModesService {
                     initialRatingWindow: createGameModeDto.initialRatingWindow ?? null,
                     windowExpandIntervalSeconds: createGameModeDto.windowExpandIntervalSeconds ?? null,
                     windowExpandStep: createGameModeDto.windowExpandStep ?? null,
+                    enableReadyCheck: createGameModeDto.enableReadyCheck ?? false,
+                    readyCheckTimeoutSeconds: createGameModeDto.readyCheckTimeoutSeconds ?? 20,
                 },
             });
         } catch {

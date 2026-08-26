@@ -8,6 +8,7 @@ import { ProjectApiKeyGuard } from "../common/guards/project-api-key/project-api
 import { GameModesModule } from "../game-modes/game-modes.module";
 import { ProjectsModule } from "../projects/projects.module";
 import { DeliveriesModule } from "../deliveries/deliveries.module";
+import { PenaltiesModule } from "../penalties/penalties.module";
 import { QueueTimeoutProcessor } from "./queue-timeout.processor";
 import { MatchMakerSweepProcessor } from "./match-maker-sweep.processor";
 
@@ -17,6 +18,7 @@ import { MatchMakerSweepProcessor } from "./match-maker-sweep.processor";
         GameModesModule,
         ProjectsModule,
         DeliveriesModule,
+        PenaltiesModule,
         SchedulerHealthModule,
         BullModule.registerQueue({
             name: "queue-timeout",
@@ -24,9 +26,12 @@ import { MatchMakerSweepProcessor } from "./match-maker-sweep.processor";
         BullModule.registerQueue({
             name: "matchmaking-pool",
         }),
+        BullModule.registerQueue({
+            name: "ready-check-timeout",
+        }),
     ],
     providers: [QueuesService, QueueTimeoutProcessor, MatchMakerSweepProcessor, ProjectApiKeyGuard],
     controllers: [QueuesController],
-    exports: [QueuesService],
+    exports: [QueuesService, BullModule],
 })
 export class QueuesModule {}

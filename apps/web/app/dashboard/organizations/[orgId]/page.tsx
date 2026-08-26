@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Boxes, ChevronRight } from "lucide-react";
+import { Boxes, ChevronRight, Plus } from "lucide-react";
 import { ApiError, apiFetch, getCurrentUser, type OrganizationDetail, type OrganizationMember } from "@/lib/api";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CreateProjectForm } from "@/components/create-project-form";
 import { MembersManager } from "@/components/members-manager";
 import { formatDateTime } from "@/lib/utils";
 
@@ -33,21 +33,21 @@ export default async function OrganizationPage({ params }: { params: Promise<{ o
 
     return (
         <div className="mx-auto max-w-5xl space-y-6">
-            <div className="space-y-1.5">
-                <Breadcrumbs items={[{ label: "Organizations", href: "/dashboard" }, { label: organization.name }]} />
-                <h1 className="text-2xl font-semibold tracking-tight">{organization.name}</h1>
-                <p className="font-mono text-xs text-muted-foreground">{organization.slug}</p>
+            <div className="flex items-center justify-between">
+                <div className="space-y-1.5">
+                    <Breadcrumbs
+                        items={[{ label: "Organizations", href: "/dashboard" }, { label: organization.name }]}
+                    />
+                    <h1 className="text-2xl font-semibold tracking-tight">{organization.name}</h1>
+                    <p className="font-mono text-xs text-muted-foreground">{organization.slug}</p>
+                </div>
+                <Button asChild>
+                    <Link href={`/dashboard/organizations/${orgId}/projects/new`}>
+                        <Plus className="size-4 mr-1.5" />
+                        New project
+                    </Link>
+                </Button>
             </div>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-base">New project</CardTitle>
-                    <CardDescription>Projects belong to this organization.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <CreateProjectForm organizationId={organization.id} />
-                </CardContent>
-            </Card>
 
             <div className="space-y-3">
                 <h2 className="text-sm font-medium text-muted-foreground">Projects</h2>
@@ -57,7 +57,11 @@ export default async function OrganizationPage({ params }: { params: Promise<{ o
                             <EmptyState
                                 icon={Boxes}
                                 title="No projects yet"
-                                description="Create a project above to configure environments, keys, and webhooks."
+                                description="Create a project to configure environments, keys, and webhooks."
+                                action={{
+                                    label: "Create project",
+                                    href: `/dashboard/organizations/${orgId}/projects/new`,
+                                }}
                             />
                         </CardContent>
                     </Card>

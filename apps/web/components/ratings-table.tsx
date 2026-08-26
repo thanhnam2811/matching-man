@@ -5,6 +5,7 @@ import { TrendingUp } from "lucide-react";
 import type { Paginated, RatingHistoryEntry } from "@/lib/api";
 import { LIVE_REFRESH_MS } from "@/lib/swr";
 import { Card, CardContent } from "@/components/ui/card";
+import { CopyButton } from "@/components/ui/copy-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -53,7 +54,13 @@ export function RatingsTable({
                                 {result.data.map((entry) => (
                                     <TableRow key={entry.id}>
                                         <TableCell className="font-mono text-xs">
-                                            {entry.ratingProfile.playerId}
+                                            <span className="inline-flex items-center gap-1">
+                                                {entry.ratingProfile.playerId}
+                                                <CopyButton
+                                                    value={entry.ratingProfile.playerId}
+                                                    label="Copy player ID"
+                                                />
+                                            </span>
                                         </TableCell>
                                         <TableCell className="font-mono text-xs">
                                             {entry.ratingProfile.gameModeId}

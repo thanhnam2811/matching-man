@@ -1,27 +1,21 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Layers, Lock, Swords, TrendingUp, Webhook } from "lucide-react";
+import { ArrowRight, KeyRound, Layers, Lock, RadioTower, Settings, Swords, TrendingUp, Webhook } from "lucide-react";
 import {
     ApiError,
     apiFetch,
-    getCurrentUser,
-    type ApiKey,
     type Delivery,
-    type Environment,
     type MatchSummary,
-    type OrganizationMember,
     type Paginated,
     type Pool,
-    type ProjectDetail,
     type RatingHistoryEntry,
-    type Webhook as WebhookEndpoint,
 } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ApiKeysManager } from "@/components/api-keys-manager";
+import { CopyButton } from "@/components/ui/copy-button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { EnvironmentsManager } from "@/components/environments-manager";
-import { MembersManager } from "@/components/members-manager";
 import { StatCard } from "@/components/stat-card";
-import { WebhooksManager } from "@/components/webhooks-manager";
+import { StatusBadge } from "@/components/status-badge";
+import { formatDateTime } from "@/lib/utils";
 
 const DAY_MS = 86_400_000;
 const SPARKLINE_DAYS = 14;
@@ -44,12 +38,6 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
     const since7d = new Date(Date.now() - 7 * DAY_MS).toISOString();
     const since14d = new Date(Date.now() - (SPARKLINE_DAYS - 1) * DAY_MS).toISOString();
 
-    let project: ProjectDetail;
-    let orgMembers: OrganizationMember[];
-    let me: Awaited<ReturnType<typeof getCurrentUser>>;
-    let environments: Environment[];
-    let apiKeys: ApiKey[];
-    let webhooks: WebhookEndpoint[];
     let pools: Pool[];
     let matches7d: Paginated<MatchSummary>;
     let completed7d: Paginated<MatchSummary>;
@@ -57,37 +45,21 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
     let deliveriesAll: Paginated<Delivery>;
     let deliveriesDelivered: Paginated<Delivery>;
     let ratings: Paginated<RatingHistoryEntry>;
+
     try {
-        [
-            project,
-            me,
-            environments,
-            apiKeys,
-            webhooks,
-            pools,
-            matches7d,
-            completed7d,
-            recentMatches,
-            deliveriesAll,
-            deliveriesDelivered,
-            ratings,
-        ] = await Promise.all([
-            apiFetch<ProjectDetail>(`/projects/${projectId}`),
-            getCurrentUser(),
-            apiFetch<Environment[]>(`/projects/${projectId}/environments`),
-            apiFetch<ApiKey[]>(`/projects/${projectId}/api-keys`),
-            apiFetch<WebhookEndpoint[]>(`/projects/${projectId}/webhooks`),
-            apiFetch<Pool[]>(`/projects/${projectId}/pools`),
-            apiFetch<Paginated<MatchSummary>>(`/projects/${projectId}/matches?from=${since7d}&limit=1`),
-            apiFetch<Paginated<MatchSummary>>(
-                `/projects/${projectId}/matches?from=${since7d}&status=COMPLETED&limit=1`,
-            ),
-            apiFetch<Paginated<MatchSummary>>(`/projects/${projectId}/matches?from=${since14d}&limit=100`),
-            apiFetch<Paginated<Delivery>>(`/projects/${projectId}/webhook-deliveries?limit=1`),
-            apiFetch<Paginated<Delivery>>(`/projects/${projectId}/webhook-deliveries?status=DELIVERED&limit=1`),
-            apiFetch<Paginated<RatingHistoryEntry>>(`/projects/${projectId}/rating-history?limit=1`),
-        ]);
-        orgMembers = await apiFetch<OrganizationMember[]>(`/organizations/${project.organization.id}/members`);
+        [pools, matches7d, completed7d, recentMatches, deliveriesAll, deliveriesDelivered, ratings] = await Promise.all(
+            [
+                apiFetch<Pool[]>(`/projects/${projectId}/pools`),
+                apiFetch<Paginated<MatchSummary>>(`/projects/${projectId}/matches?from=${since7d}&limit=1`),
+                apiFetch<Paginated<MatchSummary>>(
+                    `/projects/${projectId}/matches?from=${since7d}&status=COMPLETED&limit=1`,
+                ),
+                apiFetch<Paginated<MatchSummary>>(`/projects/${projectId}/matches?from=${since14d}&limit=100`),
+                apiFetch<Paginated<Delivery>>(`/projects/${projectId}/webhook-deliveries?limit=1`),
+                apiFetch<Paginated<Delivery>>(`/projects/${projectId}/webhook-deliveries?status=DELIVERED&limit=1`),
+                apiFetch<Paginated<RatingHistoryEntry>>(`/projects/${projectId}/rating-history?limit=1`),
+            ],
+        );
     } catch (error) {
         if (error instanceof ApiError && error.status === 404) {
             notFound();
@@ -108,11 +80,6 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
         }
         throw error;
     }
-
-    const orgRole = me.organizations.find((organization) => organization.id === project.organization.id)?.role;
-    const myProjectRole = project.members.find((member) => member.user.id === me.id)?.role;
-    const canManageMembers =
-        orgRole === "OWNER" || orgRole === "ADMIN" || myProjectRole === "OWNER" || myProjectRole === "ADMIN";
 
     const queuedTotal = pools.reduce((sum, pool) => sum + pool.queuedCount, 0);
     const deliveryRate =
@@ -158,51 +125,139 @@ export default async function ProjectOverview({ params }: { params: Promise<{ pr
 
             <div className="grid gap-6 lg:grid-cols-2">
                 <Card className="min-w-0">
-                    <CardHeader>
-                        <CardTitle>Environments</CardTitle>
-                        <CardDescription>{environments.length} configured</CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                        <div>
+                            <CardTitle>Match Pools</CardTitle>
+                            <CardDescription>Active matchmaking pools</CardDescription>
+                        </div>
+                        <Link
+                            href={`${base}/pools`}
+                            prefetch
+                            className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                            View all
+                            <ArrowRight className="size-3.5" />
+                        </Link>
                     </CardHeader>
                     <CardContent>
-                        <EnvironmentsManager projectId={projectId} environments={environments} />
+                        {pools.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No active pools currently running.</p>
+                        ) : (
+                            <div className="divide-y divide-border/60">
+                                {pools.slice(0, 5).map((pool) => (
+                                    <div
+                                        key={pool.id}
+                                        className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0 text-sm"
+                                    >
+                                        <div className="min-w-0 space-y-0.5">
+                                            <div className="flex items-center gap-1.5 font-medium text-foreground">
+                                                <span className="font-mono text-xs">{pool.gameModeId}</span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                                {pool.environment} · {pool.regionKey}
+                                            </p>
+                                        </div>
+                                        <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 font-mono text-xs font-medium">
+                                            {pool.queuedCount} waiting
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
                 <Card className="min-w-0">
-                    <CardHeader>
-                        <CardTitle>API keys</CardTitle>
-                        <CardDescription>{apiKeys.length} issued</CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                        <div>
+                            <CardTitle>Recent Matches</CardTitle>
+                            <CardDescription>Latest engine pairings</CardDescription>
+                        </div>
+                        <Link
+                            href={`${base}/matches`}
+                            prefetch
+                            className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                            View all
+                            <ArrowRight className="size-3.5" />
+                        </Link>
                     </CardHeader>
                     <CardContent>
-                        <ApiKeysManager projectId={projectId} apiKeys={apiKeys} />
-                    </CardContent>
-                </Card>
-
-                <Card className="min-w-0 lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle>Webhooks</CardTitle>
-                        <CardDescription>{webhooks.length} endpoints</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <WebhooksManager projectId={projectId} webhooks={webhooks} />
+                        {recentMatches.data.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No matches formed yet.</p>
+                        ) : (
+                            <div className="divide-y divide-border/60">
+                                {recentMatches.data.slice(0, 5).map((match) => (
+                                    <div
+                                        key={match.id}
+                                        className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0 text-sm"
+                                    >
+                                        <div className="min-w-0 space-y-0.5">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="font-mono text-xs font-medium text-foreground">
+                                                    {match.id.slice(0, 12)}…
+                                                </span>
+                                                <CopyButton value={match.id} label="Copy match ID" />
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                                {match.gameModeId} · {formatDateTime(match.createdAt)}
+                                            </p>
+                                        </div>
+                                        <StatusBadge status={match.status} />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
 
-            <Card className="min-w-0">
-                <CardHeader>
-                    <CardTitle>Members</CardTitle>
-                    <CardDescription>{project.members.length} in this project</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <MembersManager
-                        scope="projects"
-                        scopeId={project.id}
-                        members={project.members}
-                        canManage={canManageMembers}
-                        orgMembers={orgMembers}
-                    />
-                </CardContent>
-            </Card>
+            <div className="grid gap-4 sm:grid-cols-3">
+                <Link
+                    href={`${base}/api-keys`}
+                    prefetch
+                    className="group relative block rounded-lg border border-border/60 bg-card p-5 transition-colors hover:border-border hover:bg-muted/30"
+                >
+                    <div className="flex items-center justify-between pb-2">
+                        <KeyRound className="size-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-0.5" />
+                    </div>
+                    <h3 className="font-medium text-sm text-foreground">API Keys & Environments</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Manage project API keys, prefixes, and target environments
+                    </p>
+                </Link>
+
+                <Link
+                    href={`${base}/webhooks`}
+                    prefetch
+                    className="group relative block rounded-lg border border-border/60 bg-card p-5 transition-colors hover:border-border hover:bg-muted/30"
+                >
+                    <div className="flex items-center justify-between pb-2">
+                        <RadioTower className="size-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-0.5" />
+                    </div>
+                    <h3 className="font-medium text-sm text-foreground">Webhooks</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Configure event delivery endpoints, subscriptions, and signatures
+                    </p>
+                </Link>
+
+                <Link
+                    href={`${base}/settings`}
+                    prefetch
+                    className="group relative block rounded-lg border border-border/60 bg-card p-5 transition-colors hover:border-border hover:bg-muted/30"
+                >
+                    <div className="flex items-center justify-between pb-2">
+                        <Settings className="size-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-0.5" />
+                    </div>
+                    <h3 className="font-medium text-sm text-foreground">Settings & Members</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Manage project team members, ready check, and dodge penalty ladders
+                    </p>
+                </Link>
+            </div>
         </div>
     );
 }

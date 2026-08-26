@@ -38,25 +38,7 @@ export class MatchMakerSweepProcessor extends WorkerHost {
             const matchId = await this.queuesService.tryCreateMatch(matchPoolId);
 
             if (matchId) {
-                const pool = await this.prismaService.client.matchPool.findUnique({
-                    where: { id: matchPoolId },
-                    select: {
-                        projectId: true,
-                        gameModeId: true,
-                        environment: true,
-                        regionKey: true,
-                    },
-                });
-
-                if (pool) {
-                    await this.queuesService.scheduleMatchCreatedWebhook(
-                        pool.projectId,
-                        matchId,
-                        pool.gameModeId,
-                        pool.environment,
-                        pool.regionKey,
-                    );
-                }
+                await this.queuesService.handleMatchPostCreation(matchId);
             }
         } catch (err) {
             this.logger.error(`Failed to process matchmaking pool job for ${matchPoolId}`, err);

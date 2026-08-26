@@ -101,7 +101,7 @@ export async function createApiKey(_prev: ApiKeyState, formData: FormData): Prom
             method: "POST",
             body: JSON.stringify({ name }),
         });
-        revalidatePath(`/dashboard/projects/${projectId}`);
+        revalidatePath(`/dashboard/projects/${projectId}/api-keys`);
         return { key: created.key };
     } catch (error) {
         return { error: humanize(error) };
@@ -112,7 +112,7 @@ export async function revokeApiKey(formData: FormData): Promise<void> {
     const projectId = String(formData.get("projectId") ?? "");
     const apiKeyId = String(formData.get("apiKeyId") ?? "");
     await apiFetch(`/projects/${projectId}/api-keys/${apiKeyId}/revoke`, { method: "POST" }).catch(() => undefined);
-    revalidatePath(`/dashboard/projects/${projectId}`);
+    revalidatePath(`/dashboard/projects/${projectId}/api-keys`);
 }
 
 export async function createWebhook(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -133,8 +133,8 @@ export async function createWebhook(_prev: FormState, formData: FormData): Promi
         return { error: humanize(error) };
     }
 
-    revalidatePath(`/dashboard/projects/${projectId}`);
-    return {};
+    revalidatePath(`/dashboard/projects/${projectId}/webhooks`);
+    redirect(`/dashboard/projects/${projectId}/webhooks`);
 }
 
 export async function setWebhookActive(formData: FormData): Promise<void> {
@@ -145,14 +145,14 @@ export async function setWebhookActive(formData: FormData): Promise<void> {
         method: "PATCH",
         body: JSON.stringify({ isActive }),
     }).catch(() => undefined);
-    revalidatePath(`/dashboard/projects/${projectId}`);
+    revalidatePath(`/dashboard/projects/${projectId}/webhooks`);
 }
 
 export async function deleteWebhook(formData: FormData): Promise<void> {
     const projectId = String(formData.get("projectId") ?? "");
     const webhookId = String(formData.get("webhookId") ?? "");
     await apiFetch(`/projects/${projectId}/webhooks/${webhookId}`, { method: "DELETE" }).catch(() => undefined);
-    revalidatePath(`/dashboard/projects/${projectId}`);
+    revalidatePath(`/dashboard/projects/${projectId}/webhooks`);
 }
 
 export async function createEnvironment(_prev: FormState, formData: FormData): Promise<FormState> {

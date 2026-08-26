@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Lock } from "lucide-react";
+import { Lock, Plus } from "lucide-react";
 import { ApiError, apiFetch, type ApiKey, type Environment } from "@/lib/api";
 import { ApiKeysManager } from "@/components/api-keys-manager";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { EnvironmentsManager } from "@/components/environments-manager";
@@ -50,9 +52,17 @@ export default async function ProjectApiKeysPage({ params }: { params: Promise<{
             </Card>
 
             <Card className="min-w-0">
-                <CardHeader>
-                    <CardTitle>API keys</CardTitle>
-                    <CardDescription>{apiKeys.length} issued</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <div className="space-y-1.5">
+                        <CardTitle>API keys</CardTitle>
+                        <CardDescription>{apiKeys.length} issued</CardDescription>
+                    </div>
+                    <Button asChild size="sm">
+                        <Link href={`/dashboard/projects/${projectId}/api-keys/new`}>
+                            <Plus className="size-4 mr-1.5" />
+                            New API key
+                        </Link>
+                    </Button>
                 </CardHeader>
                 <CardContent>
                     <ApiKeysManager projectId={projectId} apiKeys={apiKeys} />

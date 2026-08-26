@@ -27,9 +27,13 @@ Two distinct surfaces share this app:
 | `/demo`                                                                                                            | public | Interactive live matchmaking demo (`demo-board.tsx`)               |
 | `/login`, `/register`                                                                                              | public | Auth screens (redirect to `/dashboard` if signed in)               |
 | `/dashboard`                                                                                                       | gated  | User's organizations + create-org form                             |
+| `/dashboard/organizations/new`                                                                                     | gated  | Dedicated organization creation page                               |
 | `/dashboard/organizations/[orgId]`                                                                                 | gated  | Org's projects (+ create) and members                              |
+| `/dashboard/organizations/[orgId]/projects/new`                                                                    | gated  | Dedicated project creation page                                    |
 | `/dashboard/projects/[projectId]`                                                                                  | gated  | Project overview: core metrics, pool/match snapshots, and subpages |
 | `/dashboard/projects/[projectId]/{pools,matches,disputes,penalties,deliveries,ratings,api-keys,webhooks,settings}` | gated  | Operational and configuration views via project sub-nav            |
+| `/dashboard/projects/[projectId]/webhooks/new`                                                                     | gated  | Dedicated webhook endpoint registration page                       |
+| `/dashboard/projects/[projectId]/api-keys/new`                                                                     | gated  | Dedicated API key generation page                                  |
 | `/dashboard/projects/[projectId]/disputes/[disputeId]`                                                             | gated  | Match dispute audit and operator outcome resolution                |
 
 `middleware.ts` enforces this: no session cookie + `/dashboard/**` → redirect to `/login`;
@@ -151,10 +155,23 @@ renders the list plus its create/edit forms wired to server actions.
 ### Role-gated UI
 
 Read the caller's role from `getCurrentUser()` (`/auth/me`) and hide management controls when
-the user lacks the role (e.g. `canManage = role === "OWNER" || role === "ADMIN"`). This is UX
-only — the API enforces authorization regardless.
 
-### Loading, error & not-found states
+### Modality standard: Dedicated Page vs. Side Sheet vs. Inline
+
+To keep information architecture clear, avoid viewport inflation, and prevent modal sprawl, the application adheres to strict modality rules:
+
+| Form / Action Type                       | Modality                                      | When to Use                                                                                                                                       | Examples                                                                                                                                              |
+| :--------------------------------------- | :-------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Major Core Entity Creation**           | **Dedicated Page** (`/path/new`)              | High-intent core resources where creation alters working context and immediately redirects to the new entity. Deep-linkable and bookmarkable.     | Creating an Organization (`/dashboard/organizations/new`), creating a Project (`/dashboard/organizations/[orgId]/projects/new`).                      |
+| **Complex / Multi-section Config**       | **Dedicated Page** (`/path/new`)              | Forms requiring multiple input groups, extensive checkboxes/matrices, or payload test previews that need full-page canvas.                        | Registering a Webhook endpoint with 12 event subscriptions (`/dashboard/projects/[projectId]/webhooks/new`).                                          |
+| **Contextual Quick Action (1–3 fields)** | **Side Sheet (Drawer)** (`<DetailDrawer>`)    | Short operations where users must maintain their current scroll position, filter state, and immediate data table context without navigating away. | Issuing an API key (`<DetailDrawer>` / `/api-keys`), adding a deployment environment (`environments-manager`), inviting a member (`members-manager`). |
+| **Data Deep Dive & Inspection**          | **Side Sheet (Drawer)** (`<DetailDrawer>`)    | Read-only inspection of structured data / raw JSON payloads without leaving the active table view.                                                | Match details drawer (`matches/page.tsx`), Webhook delivery attempt payload drawer (`deliveries/page.tsx`), Dispute resolution audit drawer.          |
+| **Destructive Confirmation**             | **Inline Confirm Button** (`<ConfirmButton>`) | Destructive actions (delete, revoke, cancel) use two-step arming directly on the button with `useFormStatus` spinner.                             | Revoking API keys, deleting webhooks, removing team members.                                                                                          |
+
+**Strict Anti-patterns:**
+
+- ❌ **No inline creation forms that inflate list cards:** Never embed full create forms inside overview cards or above tables. List pages must stay clean, focused lists with top-right action triggers.
+- ❌ **No center popup dialogs/modals:** Use side sheets (slide-over drawers) for non-disruptive contextual focus.
 
 Every route segment under `app/` handles the slow/broken/missing cases with Next.js
 conventions instead of letting the framework's generic crash screen show:

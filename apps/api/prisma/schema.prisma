@@ -74,6 +74,63 @@ enum DisputeStatus {
   REJECTED
 }
 
+enum SubscriptionPlanTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+  UNPAID
+}
+
+enum WebhookProcessingStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum AuditAction {
+  API_KEY_CREATED
+  API_KEY_REVOKED
+  WEBHOOK_CREATED
+  WEBHOOK_UPDATED
+  WEBHOOK_DELETED
+  GAME_MODE_CREATED
+  GAME_MODE_UPDATED
+  GAME_MODE_DELETED
+  MATCH_POOL_UPDATED
+  PROJECT_MEMBER_INVITED
+  PROJECT_MEMBER_ROLE_UPDATED
+  PROJECT_MEMBER_REMOVED
+  ORGANIZATION_MEMBER_ROLE_UPDATED
+  ORGANIZATION_MEMBER_REMOVED
+  DISPUTE_RESOLVED
+  DISPUTE_REJECTED
+  PENALTY_MANUAL_LOCKOUT
+  PENALTY_REVOKED
+  SUBSCRIPTION_TIER_CHANGED
+  PROJECT_SETTINGS_UPDATED
+}
+
+enum AuditResourceType {
+  API_KEY
+  WEBHOOK_ENDPOINT
+  GAME_MODE
+  MATCH_POOL
+  PROJECT_MEMBER
+  ORGANIZATION_MEMBER
+  DISPUTE
+  PENALTY
+  PROJECT
+  ORGANIZATION
+  SUBSCRIPTION
+}
+
 model SystemSetting {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -89,6 +146,8 @@ model User {
   email              String             @unique
   name               String?
   passwordHash       String?            @map("password_hash")
+  emailVerified      Boolean            @default(false) @map("email_verified")
+  tokenVersion       Int                @default(0) @map("token_version")
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
   ownedOrganizations Organization[]     @relation("OrganizationOwner")
@@ -96,6 +155,9 @@ model User {
   organizationMemberships OrganizationMember[]
   resolvedDisputes   MatchDispute[]     @relation("ResolvedDisputes")
   revokedPenalties   PlayerPenalty[]    @relation("RevokedPenalties")
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  auditLogs          AuditLog[]
 
   @@map("users")
 }
@@ -110,6 +172,8 @@ model Organization {
   createdBy   User?     @relation("OrganizationOwner", fields: [createdById], references: [id])
   projects    Project[]
   members     OrganizationMember[]
+  subscription Subscription?
+  auditLogs   AuditLog[]
 
   @@map("organizations")
 }
@@ -138,6 +202,8 @@ model Project {
   penaltyTiers     Json               @default("[180, 900, 3600, 86400]") @map("penalty_tiers")
   penaltyDecayHours Int               @default(24) @map("penalty_decay_hours")
   penalties        PlayerPenalty[]
+  usageMetricsDaily UsageMetricDaily[]
+  auditLogs        AuditLog[]
 
   @@index([organizationId])
   @@map("projects")
@@ -495,5 +561,113 @@ model PlayerPenalty {
   @@index([projectId, createdAt])
   @@map("player_penalties")
 }
+
+model StripeWebhookEvent {
+  id          String                  @id // Stripe event.id (e.g. evt_3Nx...)
+  type        String                  @map("type")
+  status      WebhookProcessingStatus @default(PROCESSING) @map("status")
+  error       String?                 @map("error")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  processedAt DateTime?               @map("processed_at")
+
+  @@index([status, createdAt])
+  @@map("stripe_webhook_events")
+}
+
+model Subscription {
+  id                   String               @id @default(cuid())
+  organizationId       String               @unique @map("organization_id")
+  stripeCustomerId     String               @unique @map("stripe_customer_id")
+  stripeSubscriptionId String?              @unique @map("stripe_subscription_id")
+  stripePriceId        String?              @map("stripe_price_id")
+  planTier             SubscriptionPlanTier @default(FREE) @map("plan_tier")
+  status               SubscriptionStatus   @default(ACTIVE) @map("status")
+  currentPeriodStart   DateTime?            @map("current_period_start")
+  currentPeriodEnd     DateTime?            @map("current_period_end")
+  cancelAtPeriodEnd    Boolean              @default(false) @map("cancel_at_period_end")
+  lastEventCreatedAt   DateTime?            @map("last_event_created_at")
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+
+  organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
+  @@index([status, planTier])
+  @@map("subscriptions")
+}
+
+model UsageMetricDaily {
+  id                 String   @id @default(cuid())
+  projectId          String   @map("project_id")
+  date               DateTime @db.Date @map("date")
+  enqueueRequests    Int      @default(0) @map("enqueue_requests")
+  matchesCreated     Int      @default(0) @map("matches_created")
+  webhookDeliveries  Int      @default(0) @map("webhook_deliveries")
+  peakActivePools    Int      @default(0) @map("peak_active_pools")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, date])
+  @@map("usage_metrics_daily")
+}
+
+model AuditLog {
+  id                 String            @id @default(cuid())
+  organizationId     String            @map("organization_id")
+  projectId          String?           @map("project_id")
+  actorUserId        String?           @map("actor_user_id")
+  actorIp            String?           @map("actor_ip")
+  actorUserAgent     String?           @map("actor_user_agent")
+  action             AuditAction       @map("action")
+  targetResourceType AuditResourceType @map("target_resource_type")
+  targetResourceId   String            @map("target_resource_id")
+  metadataBefore     Json?             @map("metadata_before")
+  metadataAfter      Json?             @map("metadata_after")
+  description        String?           @map("description")
+  createdAt          DateTime          @default(now()) @map("created_at")
+
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project            Project?          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actorUser          User?             @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([projectId, action, createdAt])
+  @@index([actorUserId])
+  @@map("audit_logs")
+}
+
+model PasswordResetToken {
+  id                 String    @id @default(cuid())
+  userId             String    @map("user_id")
+  tokenHash          String    @unique @map("token_hash")
+  expiresAt          DateTime  @map("expires_at")
+  usedAt             DateTime? @map("used_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id                 String    @id @default(cuid())
+  userId             String    @map("user_id")
+  tokenHash          String    @unique @map("token_hash")
+  expiresAt          DateTime  @map("expires_at")
+  usedAt             DateTime? @map("used_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
 
 

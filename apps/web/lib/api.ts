@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { ApiError, NetworkError, TimeoutError } from "./api-errors";
 
 export const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:3000/v1";
@@ -25,6 +25,9 @@ function extractErrorMessage(raw: string): string {
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+    const reqHeaders = await headers().catch(() => null);
+    const clientUserAgent = reqHeaders?.get("user-agent");
+    const clientForwardedFor = reqHeaders?.get("x-forwarded-for") || reqHeaders?.get("x-real-ip");
 
     let response: Response;
     try {
@@ -33,6 +36,10 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
             headers: {
                 "Content-Type": "application/json",
                 ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                ...(clientUserAgent
+                    ? { "User-Agent": clientUserAgent, "X-Forwarded-User-Agent": clientUserAgent }
+                    : {}),
+                ...(clientForwardedFor ? { "X-Forwarded-For": clientForwardedFor } : {}),
                 ...init?.headers,
             },
             cache: "no-store",
@@ -429,5 +436,114 @@ export function updateProject(
     return apiFetch<ProjectDetail>(`/projects/${projectId}`, {
         method: "PATCH",
         body: JSON.stringify(input),
+    });
+}
+
+// Phase 16: Audit Logs & SaaS Billing Types and API Helpers
+export type AuditLogItem = {
+    id: string;
+    organizationId: string;
+    projectId: string | null;
+    actorUserId: string | null;
+    actorIp: string | null;
+    actorUserAgent: string | null;
+    action: string;
+    targetResourceType: string;
+    targetResourceId: string;
+    metadataBefore: Record<string, unknown> | null;
+    metadataAfter: Record<string, unknown> | null;
+    description: string | null;
+    createdAt: string;
+    actorUser?: { id: string; email: string; name: string | null } | null;
+    project?: { id: string; name: string; slug: string } | null;
+};
+
+export type AuditLogPagination = {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+};
+
+export type AuditLogResponse = {
+    items: AuditLogItem[];
+    pagination: AuditLogPagination;
+};
+
+export function getProjectAuditLogs(
+    projectId: string,
+    query?: { page?: number; limit?: number; action?: string; resourceType?: string; actorUserId?: string },
+) {
+    const params = new URLSearchParams();
+    if (query?.page) params.set("page", String(query.page));
+    if (query?.limit) params.set("limit", String(query.limit));
+    if (query?.action) params.set("action", query.action);
+    if (query?.resourceType) params.set("resourceType", query.resourceType);
+    if (query?.actorUserId) params.set("actorUserId", query.actorUserId);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    return apiFetch<AuditLogResponse>(`/projects/${projectId}/audit-logs${qs}`);
+}
+
+export function getOrganizationAuditLogs(
+    organizationId: string,
+    query?: { page?: number; limit?: number; action?: string; resourceType?: string; actorUserId?: string },
+) {
+    const params = new URLSearchParams();
+    if (query?.page) params.set("page", String(query.page));
+    if (query?.limit) params.set("limit", String(query.limit));
+    if (query?.action) params.set("action", query.action);
+    if (query?.resourceType) params.set("resourceType", query.resourceType);
+    if (query?.actorUserId) params.set("actorUserId", query.actorUserId);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    return apiFetch<AuditLogResponse>(`/organizations/${organizationId}/audit-logs${qs}`);
+}
+
+export type SubscriptionPlanTier = "FREE" | "PRO" | "ENTERPRISE";
+export type SubscriptionStatus = "ACTIVE" | "PAST_DUE" | "CANCELED" | "TRIALING" | "UNPAID";
+
+export type OrganizationSubscriptionSummary = {
+    planTier: SubscriptionPlanTier;
+    limits: {
+        maxMonthlyMatches: number;
+        maxMonthlyEnqueues: number;
+        maxActivePools: number;
+        maxWebhooks: number;
+        maxMembers: number;
+        auditLogRetentionDays: number;
+    };
+    usage: {
+        matchesCreated: number;
+        enqueueRequests: number;
+        webhookDeliveries: number;
+        peakActivePools: number;
+    };
+    subscription: {
+        status: SubscriptionStatus;
+        planTier: SubscriptionPlanTier;
+        currentPeriodStart: string | null;
+        currentPeriodEnd: string | null;
+        cancelAtPeriodEnd: boolean;
+    } | null;
+};
+
+export function getOrganizationSubscription(organizationId: string) {
+    return apiFetch<OrganizationSubscriptionSummary>(`/organizations/${organizationId}/billing/subscription`);
+}
+
+export function createCheckoutSession(
+    organizationId: string,
+    planTier: SubscriptionPlanTier = "PRO",
+    returnUrl?: string,
+) {
+    return apiFetch<{ url: string }>(`/organizations/${organizationId}/billing/checkout`, {
+        method: "POST",
+        body: JSON.stringify({ planTier, returnUrl }),
+    });
+}
+
+export function createBillingPortalSession(organizationId: string, returnUrl?: string) {
+    return apiFetch<{ url: string }>(`/organizations/${organizationId}/billing/portal`, {
+        method: "POST",
+        body: JSON.stringify({ returnUrl }),
     });
 }

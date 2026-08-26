@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { DashboardAuthGuard } from "../common/guards/dashboard-auth/dashboard-auth.guard";
 import { type DashboardAuthRequest, toDashboardContext } from "../common/interfaces/dashboard-auth-request";
 import { SESSION_TOKEN_SECURITY } from "../swagger";
+import { TrackAudit } from "../audit-logs/decorators/audit-action.decorator";
+import { AuditAction, AuditResourceType } from "../generated/prisma/client";
 import { CreateManualPenaltyDto } from "./dto/create-manual-penalty.dto";
 import { QueryPenaltiesDto } from "./dto/query-penalties.dto";
 import { PenaltiesService } from "./penalties.service";
@@ -25,6 +27,7 @@ export class PenaltiesController {
     }
 
     @ApiOperation({ summary: "Manually issue a penalty/lockout for a player." })
+    @TrackAudit({ action: AuditAction.PENALTY_MANUAL_LOCKOUT, resourceType: AuditResourceType.PENALTY })
     @Post()
     createManual(
         @Req() request: DashboardAuthRequest,
@@ -35,6 +38,7 @@ export class PenaltiesController {
     }
 
     @ApiOperation({ summary: "Pardon / Revoke an active player penalty." })
+    @TrackAudit({ action: AuditAction.PENALTY_REVOKED, resourceType: AuditResourceType.PENALTY })
     @Delete(":penaltyId")
     pardon(
         @Req() request: DashboardAuthRequest,

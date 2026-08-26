@@ -11,6 +11,7 @@ import { API_GLOBAL_PREFIX, API_GLOBAL_PREFIX_EXCLUDE, setupSwagger } from "./sw
 async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, {
         bufferLogs: true,
+        rawBody: true,
     });
 
     app.useLogger(app.get(PinoLogger));
@@ -21,7 +22,12 @@ async function bootstrap() {
     app.use(helmet());
 
     const bodyLimit = getBodyLimitKb();
-    app.useBodyParser("json", { limit: bodyLimit });
+    app.useBodyParser("json", {
+        limit: bodyLimit,
+        verify: (req: any, _res: any, buf: Buffer) => {
+            req.rawBody = buf;
+        },
+    });
     app.useBodyParser("urlencoded", { limit: bodyLimit, extended: true });
     app.useGlobalPipes(
         new ValidationPipe({

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
     type LucideIcon,
+    History,
     KeyRound,
     Layers,
     LayoutDashboard,
@@ -27,6 +28,7 @@ export function projectNavItems(projectId: string): { href: string; label: strin
         { href: `${base}/penalties`, label: "Penalties", icon: ShieldAlert },
         { href: `${base}/deliveries`, label: "Deliveries", icon: Webhook },
         { href: `${base}/ratings`, label: "Ratings", icon: TrendingUp },
+        { href: `${base}/audit-logs`, label: "Audit Logs", icon: History },
         { href: `${base}/api-keys`, label: "API Keys", icon: KeyRound },
         { href: `${base}/webhooks`, label: "Webhooks", icon: RadioTower },
         { href: `${base}/settings`, label: "Settings", icon: Settings },

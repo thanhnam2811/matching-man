@@ -4,6 +4,8 @@ import { DashboardAuthGuard } from "../common/guards/dashboard-auth/dashboard-au
 import { ProjectAccessGuard } from "../common/guards/project-access/project-access.guard";
 import { type DashboardAuthRequest, toDashboardContext } from "../common/interfaces/dashboard-auth-request";
 import { SESSION_TOKEN_SECURITY } from "../swagger";
+import { TrackAudit } from "../audit-logs/decorators/audit-action.decorator";
+import { AuditAction, AuditResourceType } from "../generated/prisma/client";
 import { CreateProjectMemberDto } from "./dto/create-project-member.dto";
 import { UpdateProjectMemberDto } from "./dto/update-project-member.dto";
 import { ProjectMembersService } from "./project-members.service";
@@ -22,6 +24,7 @@ export class ProjectMembersController {
     }
 
     @ApiOperation({ summary: "Add a project member. Requires org ADMIN+ or project ADMIN+." })
+    @TrackAudit({ action: AuditAction.PROJECT_MEMBER_INVITED, resourceType: AuditResourceType.PROJECT_MEMBER })
     @Post()
     create(
         @Req() request: DashboardAuthRequest,
@@ -32,6 +35,7 @@ export class ProjectMembersController {
     }
 
     @ApiOperation({ summary: "Change a project member's role. Requires org ADMIN+ or project ADMIN+." })
+    @TrackAudit({ action: AuditAction.PROJECT_MEMBER_ROLE_UPDATED, resourceType: AuditResourceType.PROJECT_MEMBER })
     @Patch(":memberId")
     update(
         @Req() request: DashboardAuthRequest,
@@ -50,6 +54,7 @@ export class ProjectMembersController {
     @ApiOperation({
         summary: "Remove a member. Requires org ADMIN+ or project ADMIN+; a project must keep at least one owner.",
     })
+    @TrackAudit({ action: AuditAction.PROJECT_MEMBER_REMOVED, resourceType: AuditResourceType.PROJECT_MEMBER })
     @Delete(":memberId")
     remove(
         @Req() request: DashboardAuthRequest,

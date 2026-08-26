@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { AuthenticatedProjectRequest } from "../common/interfaces/authenticated-project-request";
 import { ProjectApiKeyGuard } from "../common/guards/project-api-key/project-api-key.guard";
 import { PROJECT_API_KEY_SECURITY } from "../swagger";
+import { QuotaGuard } from "../metering/guards/quota.guard";
 import { DequeueDto } from "./dto/dequeue.dto";
 import { EnqueueDto } from "./dto/enqueue.dto";
 import { QueuesService } from "./queues.service";
@@ -15,8 +16,10 @@ export class QueuesController {
     constructor(private readonly queuesService: QueuesService) {}
 
     @ApiOperation({ summary: "Add a team or solo player to a matchmaking pool." })
+    @UseGuards(QuotaGuard)
     @Post("enqueue")
     enqueue(@Req() request: AuthenticatedProjectRequest, @Body() enqueueDto: EnqueueDto) {
+        request.params = { ...request.params, projectId: request.authProjectId };
         return this.queuesService.enqueue(request.authProjectId, enqueueDto);
     }
 

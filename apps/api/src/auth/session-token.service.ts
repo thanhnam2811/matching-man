@@ -4,20 +4,26 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 const TTL_SECONDS = 60 * 60 * 12;
 
-type SessionPayload = {
+export type SessionPayload = {
     sub: string;
+    v?: number;
     exp: number;
+};
+
+export type VerifiedSession = {
+    userId: string;
+    tokenVersion: number;
 };
 
 @Injectable()
 export class SessionTokenService {
     constructor(private readonly configService: ConfigService) {}
 
-    sign(userId: string): { token: string; expiresAt: Date } {
+    sign(userId: string, tokenVersion = 0): { token: string; expiresAt: Date } {
         const exp = Math.floor(Date.now() / 1000) + TTL_SECONDS;
-        const payloadB64 = Buffer.from(JSON.stringify({ sub: userId, exp } satisfies SessionPayload)).toString(
-            "base64url",
-        );
+        const payloadB64 = Buffer.from(
+            JSON.stringify({ sub: userId, v: tokenVersion, exp } satisfies SessionPayload),
+        ).toString("base64url");
 
         return {
             token: `${payloadB64}.${this.signature(payloadB64)}`,
@@ -26,6 +32,10 @@ export class SessionTokenService {
     }
 
     verify(token: string): string {
+        return this.verifyPayload(token).userId;
+    }
+
+    verifyPayload(token: string): VerifiedSession {
         const [payloadB64, providedSignature] = token.split(".");
 
         if (!payloadB64 || !providedSignature) {
@@ -52,7 +62,10 @@ export class SessionTokenService {
             throw new UnauthorizedException("Session expired");
         }
 
-        return payload.sub;
+        return {
+            userId: payload.sub,
+            tokenVersion: typeof payload.v === "number" ? payload.v : 0,
+        };
     }
 
     private signature(payloadB64: string): string {

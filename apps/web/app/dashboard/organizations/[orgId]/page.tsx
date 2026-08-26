@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Boxes, ChevronRight, Plus } from "lucide-react";
+import { Boxes, ChevronRight, CreditCard, Plus } from "lucide-react";
 import { ApiError, apiFetch, getCurrentUser, type OrganizationDetail, type OrganizationMember } from "@/lib/api";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -41,12 +41,20 @@ export default async function OrganizationPage({ params }: { params: Promise<{ o
                     <h1 className="text-2xl font-semibold tracking-tight">{organization.name}</h1>
                     <p className="font-mono text-xs text-muted-foreground">{organization.slug}</p>
                 </div>
-                <Button asChild>
-                    <Link href={`/dashboard/organizations/${orgId}/projects/new`}>
-                        <Plus className="size-4 mr-1.5" />
-                        New project
-                    </Link>
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" asChild>
+                        <Link href={`/dashboard/organizations/${orgId}/billing`}>
+                            <CreditCard className="size-4 mr-1.5" />
+                            Billing & Plans
+                        </Link>
+                    </Button>
+                    <Button asChild>
+                        <Link href={`/dashboard/organizations/${orgId}/projects/new`}>
+                            <Plus className="size-4 mr-1.5" />
+                            New project
+                        </Link>
+                    </Button>
+                </div>
             </div>
 
             <div className="space-y-3">

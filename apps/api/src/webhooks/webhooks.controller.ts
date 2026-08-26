@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { DashboardAuthGuard } from "../common/guards/dashboard-auth/dashboard-auth.guard";
 import { ProjectAccessGuard } from "../common/guards/project-access/project-access.guard";
 import { SESSION_TOKEN_SECURITY } from "../swagger";
+import { TrackAudit } from "../audit-logs/decorators/audit-action.decorator";
+import { AuditAction, AuditResourceType } from "../generated/prisma/client";
 import { CreateWebhookDto } from "./dto/create-webhook.dto";
 import { UpdateWebhookDto } from "./dto/update-webhook.dto";
 import { WebhooksService } from "./webhooks.service";
@@ -15,6 +17,7 @@ export class WebhooksController {
     constructor(private readonly webhooksService: WebhooksService) {}
 
     @ApiOperation({ summary: "Register a webhook endpoint for a project." })
+    @TrackAudit({ action: AuditAction.WEBHOOK_CREATED, resourceType: AuditResourceType.WEBHOOK_ENDPOINT })
     @Post()
     create(@Param("projectId") projectId: string, @Body() createWebhookDto: CreateWebhookDto) {
         return this.webhooksService.create(projectId, createWebhookDto);
@@ -27,6 +30,7 @@ export class WebhooksController {
     }
 
     @ApiOperation({ summary: "Update a webhook endpoint." })
+    @TrackAudit({ action: AuditAction.WEBHOOK_UPDATED, resourceType: AuditResourceType.WEBHOOK_ENDPOINT })
     @Patch(":webhookId")
     update(
         @Param("projectId") projectId: string,
@@ -37,6 +41,7 @@ export class WebhooksController {
     }
 
     @ApiOperation({ summary: "Delete a webhook endpoint." })
+    @TrackAudit({ action: AuditAction.WEBHOOK_DELETED, resourceType: AuditResourceType.WEBHOOK_ENDPOINT })
     @Delete(":webhookId")
     remove(@Param("projectId") projectId: string, @Param("webhookId") webhookId: string) {
         return this.webhooksService.remove(projectId, webhookId);

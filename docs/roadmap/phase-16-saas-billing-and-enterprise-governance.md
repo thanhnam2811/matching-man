@@ -2,7 +2,7 @@
 
 ## Status
 
-- [ ] Scheduled
+- [x] Complete (2026-08-26)
 
 ## Objective
 
@@ -26,21 +26,21 @@ Graduated from:
 
 Implement a robust email communication adapter and self-service account recovery flows.
 
-- [ ] **Email Service Module (`apps/api/src/email`):**
+- [x] **Email Service Module (`apps/api/src/email`):**
     - Configurable transport adapter supporting Resend SDK & Nodemailer (SMTP fallback).
     - Environment variables: `RESEND_API_KEY`, `EMAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`.
     - Clean HTML/Text email templates for:
         - Password Reset link with 15-minute expiration.
         - Account Welcome & Email Verification.
-- [ ] **Prisma Schema Updates (`apps/api/prisma/schema.prisma`):**
+- [x] **Prisma Schema Updates (`apps/api/prisma/schema.prisma`):**
     - Add `PasswordResetToken` model (`id`, `userId`, `tokenHash`, `expiresAt`, `usedAt`, `createdAt`).
     - Add `EmailVerificationToken` model (`id`, `userId`, `tokenHash`, `expiresAt`, `usedAt`, `createdAt`).
     - Add `emailVerified` (`Boolean`, default `false`) to `User` model.
-- [ ] **Auth Endpoints (`apps/api/src/auth`):**
+- [x] **Auth Endpoints (`apps/api/src/auth`):**
     - `POST /v1/auth/forgot-password`: Generates cryptographic token, stores SHA-256 hash, dispatches reset email (timing-attack safe).
     - `POST /v1/auth/reset-password`: Validates token hash, updates user password, marks token used, and invalidates existing sessions.
     - `POST /v1/auth/verify-email`: Validates verification token and confirms email.
-- [ ] **Next.js Auth Pages (`apps/web`):**
+- [x] **Next.js Auth Pages (`apps/web`):**
     - `/forgot-password`: Email submission form.
     - `/reset-password`: Token validation and password creation form.
     - `/verify-email`: Confirmation landing page.
@@ -53,18 +53,18 @@ Implement a robust email communication adapter and self-service account recovery
 
 Track, record, and inspect all critical administrative mutations across projects and organizations with asynchronous persistence and sensitive data redaction.
 
-- [ ] **Prisma Schema Updates (`apps/api/prisma/schema.prisma`):**
+- [x] **Prisma Schema Updates (`apps/api/prisma/schema.prisma`):**
     - Add `AuditAction` and `AuditResourceType` enums.
     - Add `AuditLog` model with indexes on `[organizationId, createdAt]`, `[projectId, createdAt]`, `[projectId, action, createdAt]`, and `[actorUserId]`.
-- [ ] **Audit Interceptor & Decorator (`apps/api/src/audit-logs`):**
+- [x] **Audit Interceptor & Decorator (`apps/api/src/audit-logs`):**
     - Create `@AuditAction()` metadata decorator.
     - Create `AuditLogInterceptor` with automatic recursive key sanitizer (`[REDACTED]` for `hashedKey`, `secret`, `passwordHash`, credit card tokens).
     - Asynchronous persistence decoupled from request execution via BullMQ/event bus with 32KB payload size cap.
     - Annotate critical controllers: API Keys, Webhooks, Game Modes, Match Pools, Project Members, Disputes, Penalties.
-- [ ] **Audit Log Query API:**
+- [x] **Audit Log Query API:**
     - `GET /v1/projects/:id/audit-logs` (Filterable by action, actor, date range, with pagination).
     - `GET /v1/organizations/:id/audit-logs`.
-- [ ] **Operator Audit Log Explorer (`apps/web`):**
+- [x] **Operator Audit Log Explorer (`apps/web`):**
     - Project navigation: **Audit Logs** (`/dashboard/projects/[projectId]/audit-logs`).
     - Filterable table with monochrome zinc action badges (`default`/`secondary` for creations, `warning` for modifications, `destructive` for deletions/lockouts, `success` for resolutions/pardons).
     - Interactive 2-column JSON Diff slide-over sheet (`<DetailDrawer size="wide">` per `apps/web/DESIGN.md`) comparing `metadataBefore` vs `metadataAfter`.
@@ -77,18 +77,18 @@ Track, record, and inspect all critical administrative mutations across projects
 
 Track resource consumption in real-time with atomic Redis Hash counters and enforce plan limits without bottlenecking matchmaking.
 
-- [ ] **Prisma Schema Updates (`apps/api/prisma/schema.prisma`):**
+- [x] **Prisma Schema Updates (`apps/api/prisma/schema.prisma`):**
     - Add `UsageMetricDaily` model with composite unique index on `[projectId, date]`.
-- [ ] **Asynchronous Metering Collector (`apps/api/src/metering`):**
+- [x] **Asynchronous Metering Collector (`apps/api/src/metering`):**
     - Date-partitioned Redis Hashes (`usage:{projectId}:{YYYY-MM-DD}`) with 7-day TTL applied atomically on creation.
     - Active project registration set (`usage:active-projects:{YYYY-MM-DD}`) eliminating global Redis scans.
     - Non-blocking, fire-and-forget increments in Enqueue service, Match Assembler, and Webhook Delivery worker.
     - BullMQ daily rollup worker (`flush-daily-usage`): Batched (50–100 items) idempotent upsert using `GREATEST(...)` into `UsageMetricDaily`.
-- [ ] **Quota Definitions & Multi-Tier Caching Guard (`QuotaGuard`):**
+- [x] **Quota Definitions & Multi-Tier Caching Guard (`QuotaGuard`):**
     - Define tier limits (`FREE`: 5k matches, 25k enqueues, 5 pools; `PRO`: 100k matches, 500k enqueues, 30 pools; `ENTERPRISE`: unmetered).
     - 2-tier cache (L1 In-Memory LRU + L2 Redis Snapshot) with strict **Fail-Open Policy** during Redis outages to protect core matchmaking SLA.
     - Return `402 Payment Required` with usage metrics and upgrade links when monthly quota is exhausted.
-- [ ] **Usage Statistics API:**
+- [x] **Usage Statistics API:**
     - `GET /v1/organizations/:id/billing/usage`: Returns current month totals vs plan quotas.
 
 **Exit criteria:** Usage metrics are aggregated with sub-millisecond overhead, and quota limits prevent resource exhaustion.
@@ -99,17 +99,17 @@ Track resource consumption in real-time with atomic Redis Hash counters and enfo
 
 Automate monetization with Stripe Checkout, subscription lifecycle webhooks, and self-service billing management.
 
-- [ ] **Prisma Schema Updates (`apps/api/prisma/schema.prisma`):**
+- [x] **Prisma Schema Updates (`apps/api/prisma/schema.prisma`):**
     - Add `SubscriptionPlanTier` (`FREE`, `PRO`, `ENTERPRISE`), `SubscriptionStatus` (`ACTIVE`, `PAST_DUE`, `CANCELED`, `TRIALING`, `UNPAID`), and `WebhookProcessingStatus` (`PROCESSING`, `COMPLETED`, `FAILED`).
     - Add `Subscription` model (`lastEventCreatedAt`, `cancelAtPeriodEnd`, `currentPeriodEnd`).
     - Add `StripeWebhookEvent` model for distributed webhook deduplication.
-- [ ] **Stripe Billing Module (`apps/api/src/billing`):**
+- [x] **Stripe Billing Module (`apps/api/src/billing`):**
     - Preserve raw request buffer in `main.ts` for HMAC signature validation.
     - Stripe Node SDK integration with environment variables (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID`).
     - `POST /v1/organizations/:id/billing/checkout`: Initiates Stripe Checkout with server-side sanitized return URLs.
     - `POST /v1/organizations/:id/billing/portal`: Generates Stripe Customer Portal session for `OWNER`/`ADMIN` roles.
     - `GET /v1/organizations/:id/billing/subscription`: Fetches active subscription details.
-- [ ] **Stripe Webhook Consumer (`POST /v1/billing/webhook`):**
+- [x] **Stripe Webhook Consumer (`POST /v1/billing/webhook`):**
     - Verifies `stripe-signature` with 300s clock skew tolerance.
     - Idempotent execution claiming events via `StripeWebhookEvent`.
     - Stale / out-of-order event guard comparing `event.created * 1000 < lastEventCreatedAt`.
@@ -123,14 +123,14 @@ Automate monetization with Stripe Checkout, subscription lifecycle webhooks, and
 
 Deliver a polished billing and management interface in `apps/web`.
 
-- [ ] **Organization Billing Page (`/dashboard/organizations/[orgId]/billing`):**
+- [x] **Organization Billing Page (`/dashboard/organizations/[orgId]/billing`):**
     - Plan summary card with status badges.
     - Live usage progress bars (Matches, Enqueues, Active Pools).
     - "Upgrade to Pro" Checkout button & "Manage Billing" Customer Portal link.
-- [ ] **Settings Integration:**
+- [x] **Settings Integration:**
     - Organization Settings navigation tab: **Billing & Plans**.
     - Project Settings: Display current project usage contribution.
-- [ ] **Auth Flow Polish:**
+- [x] **Auth Flow Polish:**
     - Update `/login` with "Forgot password?" link.
     - Embed password reset and verification pages with matching minimalist Zinc design system.
 

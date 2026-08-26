@@ -3,6 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import { timingSafeEqual } from "node:crypto";
 import type { DashboardAuthRequest } from "../../interfaces/dashboard-auth-request";
 import { SessionTokenService } from "../../../auth/session-token.service";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 
 /**
  * Accepts either the shared dashboard admin token (super-admin / break-glass) or a
@@ -13,9 +15,11 @@ export class DashboardAuthGuard implements CanActivate {
     constructor(
         private readonly configService: ConfigService,
         private readonly sessionTokenService: SessionTokenService,
+        private readonly prismaService: PrismaService,
+        private readonly redisService?: RedisService,
     ) {}
 
-    canActivate(context: ExecutionContext) {
+    async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest<DashboardAuthRequest>();
         const authorization = request.headers.authorization;
 
@@ -34,7 +38,43 @@ export class DashboardAuthGuard implements CanActivate {
             return true;
         }
 
-        request.authUserId = this.sessionTokenService.verify(token);
+        const { userId, tokenVersion } = this.sessionTokenService.verifyPayload(token);
+
+        // Fast-path: check cached tokenVersion in Redis if available
+        let currentVersion: number | null = null;
+        if (this.redisService?.client) {
+            try {
+                const cached = await this.redisService.client.get(`user:token_version:${userId}`);
+                if (cached !== null) {
+                    currentVersion = Number(cached);
+                }
+            } catch {
+                // Redis unavailable, fallback to DB
+            }
+        }
+
+        if (currentVersion === null) {
+            const user = await this.prismaService.client.user.findUnique({
+                where: { id: userId },
+                select: { tokenVersion: true },
+            });
+            if (!user) {
+                throw new UnauthorizedException("User not found");
+            }
+            currentVersion = user.tokenVersion;
+
+            if (this.redisService?.client) {
+                this.redisService.client
+                    .set(`user:token_version:${userId}`, String(currentVersion), "EX", 3600)
+                    .catch(() => {});
+            }
+        }
+
+        if (currentVersion !== tokenVersion) {
+            throw new UnauthorizedException("Session revoked. Please sign in again.");
+        }
+
+        request.authUserId = userId;
         request.isSuperAdmin = false;
         return true;
     }

@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { DashboardAuthGuard } from "../common/guards/dashboard-auth/dashboard-auth.guard";
 import { type DashboardAuthRequest, toDashboardContext } from "../common/interfaces/dashboard-auth-request";
 import { SESSION_TOKEN_SECURITY } from "../swagger";
+import { TrackAudit } from "../audit-logs/decorators/audit-action.decorator";
+import { AuditAction, AuditResourceType } from "../generated/prisma/client";
 import { CreateProjectDto } from "./dto/create-project.dto";
 import { UpdateProjectDto } from "./dto/update-project.dto";
 import { ProjectsService } from "./projects.service";
@@ -33,6 +35,7 @@ export class ProjectsController {
     }
 
     @ApiOperation({ summary: "Update project settings including penalty configuration." })
+    @TrackAudit({ action: AuditAction.PROJECT_SETTINGS_UPDATED, resourceType: AuditResourceType.PROJECT })
     @Patch(":projectId")
     update(
         @Req() request: DashboardAuthRequest,

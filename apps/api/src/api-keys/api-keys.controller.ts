@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { DashboardAuthGuard } from "../common/guards/dashboard-auth/dashboard-auth.guard";
 import { ProjectAccessGuard } from "../common/guards/project-access/project-access.guard";
 import { SESSION_TOKEN_SECURITY } from "../swagger";
+import { TrackAudit } from "../audit-logs/decorators/audit-action.decorator";
+import { AuditAction, AuditResourceType } from "../generated/prisma/client";
 import { CreateApiKeyDto } from "./dto/create-api-key.dto";
 import { ApiKeysService } from "./api-keys.service";
 
@@ -14,6 +16,7 @@ export class ApiKeysController {
     constructor(private readonly apiKeysService: ApiKeysService) {}
 
     @ApiOperation({ summary: "Create a project API key. The raw key is only returned once, at creation." })
+    @TrackAudit({ action: AuditAction.API_KEY_CREATED, resourceType: AuditResourceType.API_KEY })
     @Post()
     create(@Param("projectId") projectId: string, @Body() createApiKeyDto: CreateApiKeyDto) {
         return this.apiKeysService.create(projectId, createApiKeyDto);
@@ -26,6 +29,7 @@ export class ApiKeysController {
     }
 
     @ApiOperation({ summary: "Revoke a project API key." })
+    @TrackAudit({ action: AuditAction.API_KEY_REVOKED, resourceType: AuditResourceType.API_KEY })
     @Post(":apiKeyId/revoke")
     revoke(@Param("projectId") projectId: string, @Param("apiKeyId") apiKeyId: string) {
         return this.apiKeysService.revoke(projectId, apiKeyId);

@@ -560,17 +560,21 @@ const RESPONSES: Record<StepId, { status: string; body: string }> = {
     },
 };
 
-function highlightCode(line: string): React.ReactNode[] {
+function highlightCode(line: string, lineIndex: number): React.ReactNode[] {
     const REGEX =
         /(\/\/[^\n]*|#[^\n]*)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`[^`]*`)|(\b(?:import|from|export|default|function|const|let|var|async|await|return|if|else|package|func|type|struct|def|with|as|class|panic|nil|true|false|null|undefined|interface)\b)|(\b(?:POST|GET|Bearer|X-[A-Za-z0-9_-]+)\b)|(\b\d+\b)/g;
 
     const nodes: React.ReactNode[] = [];
     let last = 0;
-    let key = 0;
+    let tokenIndex = 0;
 
     for (let match = REGEX.exec(line); match !== null; match = REGEX.exec(line)) {
         if (match.index > last) {
-            nodes.push(line.slice(last, match.index));
+            nodes.push(
+                <span key={`txt-${lineIndex}-${tokenIndex++}`} className="text-foreground">
+                    {line.slice(last, match.index)}
+                </span>,
+            );
         }
 
         let className = "text-foreground";
@@ -587,7 +591,7 @@ function highlightCode(line: string): React.ReactNode[] {
         }
 
         nodes.push(
-            <span key={key++} className={className}>
+            <span key={`tok-${lineIndex}-${tokenIndex++}`} className={className}>
                 {match[0]}
             </span>,
         );
@@ -595,7 +599,11 @@ function highlightCode(line: string): React.ReactNode[] {
     }
 
     if (last < line.length) {
-        nodes.push(line.slice(last));
+        nodes.push(
+            <span key={`txt-end-${lineIndex}-${tokenIndex++}`} className="text-foreground">
+                {line.slice(last)}
+            </span>,
+        );
     }
 
     return nodes;
@@ -609,6 +617,16 @@ export function CodeWalkthrough() {
     const copyTimer = React.useRef<number | undefined>(undefined);
 
     React.useEffect(() => () => window.clearTimeout(copyTimer.current), []);
+
+    const handleStepChange = (stepId: StepId) => {
+        setSelectedStep(stepId);
+        setTabView("request");
+    };
+
+    const handleLanguageChange = (langId: Language) => {
+        setSelectedLang(langId);
+        setTabView("request");
+    };
 
     const currentStep = STEPS.find((s) => s.id === selectedStep) ?? STEPS[0];
     const currentSnippet = SNIPPETS[selectedStep][selectedLang];
@@ -651,7 +669,7 @@ export function CodeWalkthrough() {
                         <button
                             key={step.id}
                             type="button"
-                            onClick={() => setSelectedStep(step.id)}
+                            onClick={() => handleStepChange(step.id)}
                             className={cn(
                                 "flex flex-col text-left p-4 rounded-xl border transition-all duration-150 relative overflow-hidden",
                                 isActive
@@ -708,29 +726,27 @@ export function CodeWalkthrough() {
                         </div>
                     </div>
 
-                    {/* Middle: Language Selector */}
-                    {tabView === "request" && (
-                        <div className="flex items-center rounded-lg border bg-background/80 p-0.5 shadow-inner">
-                            {LANGUAGES.map((lang) => {
-                                const isLangActive = selectedLang === lang.id;
-                                return (
-                                    <button
-                                        key={lang.id}
-                                        type="button"
-                                        onClick={() => setSelectedLang(lang.id)}
-                                        className={cn(
-                                            "rounded-md px-2.5 py-1 text-xs font-medium transition-colors font-mono",
-                                            isLangActive
-                                                ? "bg-card text-foreground shadow-sm"
-                                                : "text-muted-foreground hover:text-foreground",
-                                        )}
-                                    >
-                                        {lang.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
+                    {/* Middle: Language Selector (Always accessible) */}
+                    <div className="flex items-center rounded-lg border bg-background/80 p-0.5 shadow-inner">
+                        {LANGUAGES.map((lang) => {
+                            const isLangActive = selectedLang === lang.id && tabView === "request";
+                            return (
+                                <button
+                                    key={lang.id}
+                                    type="button"
+                                    onClick={() => handleLanguageChange(lang.id)}
+                                    className={cn(
+                                        "rounded-md px-2.5 py-1 text-xs font-medium transition-colors font-mono",
+                                        isLangActive
+                                            ? "bg-card text-foreground shadow-sm"
+                                            : "text-muted-foreground hover:text-foreground",
+                                    )}
+                                >
+                                    {lang.label}
+                                </button>
+                            );
+                        })}
+                    </div>
 
                     {/* Right: Request / Response Switcher + Copy Button */}
                     <div className="flex items-center gap-2 ml-auto">
@@ -742,7 +758,7 @@ export function CodeWalkthrough() {
                                     "rounded px-2 py-0.5 text-xs font-medium transition-colors",
                                     tabView === "request"
                                         ? "bg-card text-foreground shadow-xs"
-                                        : "text-muted-foreground",
+                                        : "text-muted-foreground hover:text-foreground",
                                 )}
                             >
                                 Request
@@ -751,10 +767,10 @@ export function CodeWalkthrough() {
                                 type="button"
                                 onClick={() => setTabView("response")}
                                 className={cn(
-                                    "rounded px-2 py-0.5 text-xs font-medium transition-colors flex items-center gap-1",
+                                    "rounded px-2 py-0.5 text-xs font-medium transition-colors flex items-center gap-1.5",
                                     tabView === "response"
                                         ? "bg-card text-foreground shadow-xs"
-                                        : "text-muted-foreground",
+                                        : "text-muted-foreground hover:text-foreground",
                                 )}
                             >
                                 Response
@@ -798,19 +814,25 @@ export function CodeWalkthrough() {
                     </div>
                 </div>
 
-                {/* Code Body */}
-                <pre className="max-h-[460px] overflow-auto p-5 font-mono text-xs leading-relaxed text-foreground/90 selection:bg-primary/20">
-                    <code>
-                        {activeContent.split("\n").map((line, idx) => (
-                            <div key={idx} className="table-row">
-                                <span className="table-cell select-none pr-4 text-right text-muted-foreground/40 text-[11px] w-8">
-                                    {idx + 1}
-                                </span>
-                                <span className="table-cell">{line.length > 0 ? highlightCode(line) : " "}</span>
-                            </div>
-                        ))}
-                    </code>
-                </pre>
+                {/* Code Body with Fixed Height & Stable Flex Layout */}
+                <div
+                    key={`${selectedStep}-${selectedLang}-${tabView}`}
+                    className="h-[420px] overflow-auto p-4 font-mono text-xs text-foreground/90 selection:bg-primary/20"
+                >
+                    {activeContent.split("\n").map((line, idx) => (
+                        <div
+                            key={`line-${idx}`}
+                            className="flex items-start min-w-fit leading-6 hover:bg-muted/10 rounded-xs"
+                        >
+                            <span className="w-9 shrink-0 select-none pr-3 text-right text-[11px] font-mono text-muted-foreground/40 tabular-nums">
+                                {idx + 1}
+                            </span>
+                            <span className="whitespace-pre font-mono">
+                                {line.length > 0 ? highlightCode(line, idx) : "\u00A0"}
+                            </span>
+                        </div>
+                    ))}
+                </div>
 
                 {/* Step Context & Architecture Footer */}
                 <div className="grid grid-cols-1 gap-4 border-t bg-muted/10 p-4 sm:grid-cols-3">

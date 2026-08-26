@@ -59,7 +59,7 @@ async function runInteractionTests() {
     if (pythonBtn) {
         await pythonBtn.click();
         await new Promise((r) => setTimeout(r, 200));
-        const codeText = await page.$eval("#developer-hub pre", (el) => el.innerText);
+        const codeText = await page.$eval("#developer-hub div.h-\\[420px\\]", (el) => el.innerText);
         if (!codeText.includes("httpx.Client") && !codeText.includes("import os")) {
             throw new Error("Python snippet not loaded!");
         }
@@ -72,7 +72,7 @@ async function runInteractionTests() {
     if (responseBtn) {
         await responseBtn.click();
         await new Promise((r) => setTimeout(r, 200));
-        const responseText = await page.$eval("#developer-hub pre", (el) => el.innerText);
+        const responseText = await page.$eval("#developer-hub div.h-\\[420px\\]", (el) => el.innerText);
         if (!responseText.includes("queueEntryId") && !responseText.includes("201 Created")) {
             throw new Error("Response JSON not loaded!");
         }

@@ -271,7 +271,10 @@ export function ArchitecturePipeline() {
                                     Active
                                 </span>
                             </div>
-                            <pre className="overflow-x-auto p-4 leading-relaxed text-foreground/90 max-h-[220px]">
+                            <pre
+                                key={activeStage.id}
+                                className="h-[210px] overflow-auto p-4 leading-relaxed text-foreground/90 font-mono text-xs"
+                            >
                                 <code>{activeStage.details.codeSnippet}</code>
                             </pre>
                         </div>

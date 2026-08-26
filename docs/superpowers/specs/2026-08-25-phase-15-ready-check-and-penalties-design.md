@@ -156,7 +156,7 @@ model PlayerPenalty {
 
 ## 3. Public API & Control Plane Contracts
 
-### 3.1 Match Ready Check Handshake API
+### 3.1 Match Ready Check Handshake API (`apps/api/src/matches`)
 
 #### `POST /v1/matches/:id/accept`
 
@@ -241,7 +241,7 @@ model PlayerPenalty {
 
 ---
 
-### 3.2 Enqueue Guard & Penalty Enforcement
+### 3.2 Enqueue Guard & Penalty Enforcement (`apps/api/src/queues`)
 
 #### `POST /v1/queue/enqueue`
 
@@ -261,7 +261,7 @@ model PlayerPenalty {
 
 ---
 
-### 3.3 Operator Moderation API (`apps/api`)
+### 3.3 Operator Moderation API (`apps/api/src/penalties`)
 
 - `GET /v1/projects/:id/penalties` — Paginated list of penalties (filter by status: `ACTIVE`, `EXPIRED`, `REVOKED`, search by `playerId`).
 - `POST /v1/projects/:id/penalties` — Manual lockout creation (`playerId`, `durationSeconds`, `reason`, `notes`).
@@ -271,14 +271,14 @@ model PlayerPenalty {
 
 ## 4. BullMQ Queues & Worker Architecture
 
-| Queue Name            | Job Name              | Producer                 | Consumer                     | Purpose                                                                           |
-| :-------------------- | :-------------------- | :----------------------- | :--------------------------- | :-------------------------------------------------------------------------------- |
-| `ready-check-timeout` | `check-ready-timeout` | `MatchAssembler`         | `ReadyCheckTimeoutProcessor` | Delayed job scheduled for `now + timeoutSeconds`. Cancels match if still pending. |
-| `matchmaking-pool`    | `sweep-pool`          | Priority Re-queue Engine | `MatchmakingSweepProcessor`  | Prioritized sweep triggered immediately when innocent players are re-queued.      |
+| Queue Name            | Job Name              | Producer                       | Consumer                     | Purpose                                                                           |
+| :-------------------- | :-------------------- | :----------------------------- | :--------------------------- | :-------------------------------------------------------------------------------- |
+| `ready-check-timeout` | `check-ready-timeout` | `QueuesService.tryCreateMatch` | `ReadyCheckTimeoutProcessor` | Delayed job scheduled for `now + timeoutSeconds`. Cancels match if still pending. |
+| `matchmaking-pool`    | `sweep-pool`          | Priority Re-queue Engine       | `MatchMakerSweepProcessor`   | Prioritized sweep triggered immediately when innocent players are re-queued.      |
 
 ---
 
-## 5. Webhook Event Catalog
+## 5. Webhook Event Catalog (`apps/api/src/deliveries`)
 
 1. `match.ready_check_started`: Match formed in `PENDING_ACCEPTANCE`, countdown begins.
 2. `match.accepted`: Player/team accepted, returns current progress.

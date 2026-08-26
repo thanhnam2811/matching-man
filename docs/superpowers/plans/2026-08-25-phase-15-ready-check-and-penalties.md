@@ -56,12 +56,13 @@
 
 **Files:**
 
-- Modify: `apps/api/src/modules/game-modes/dto/*.dto.ts`
-- Modify: `apps/api/src/modules/projects/dto/*.dto.ts`
-- Modify: `apps/api/src/modules/game-modes/game-modes.service.ts`
-- Modify: `apps/api/src/modules/projects/projects.service.ts`
-- Test: `apps/api/src/modules/game-modes/game-modes.service.spec.ts`
-- Test: `apps/api/src/modules/projects/projects.service.spec.ts`
+- Modify: `apps/api/src/game-modes/dto/create-game-mode.dto.ts`
+- Modify: `apps/api/src/game-modes/dto/update-game-mode.dto.ts`
+- Modify: `apps/api/src/projects/dto/update-project.dto.ts`
+- Modify: `apps/api/src/game-modes/game-modes.service.ts`
+- Modify: `apps/api/src/projects/projects.service.ts`
+- Test: `apps/api/src/game-modes/game-modes.service.spec.ts`
+- Test: `apps/api/src/projects/projects.service.spec.ts`
 
 - [ ] **Step 1: Write failing unit test for GameMode ready check settings**
       Add unit test verifying `create` and `update` persist `enableReadyCheck` and `readyCheckTimeoutSeconds`.
@@ -80,37 +81,37 @@
 
 **Files:**
 
-- Create: `apps/api/src/modules/queues/processors/ready-check-timeout.processor.ts`
-- Modify: `apps/api/src/modules/queues/queues.constants.ts`
-- Modify: `apps/api/src/modules/queues/queues.module.ts`
-- Test: `apps/api/src/modules/queues/processors/ready-check-timeout.processor.spec.ts`
+- Create: `apps/api/src/matches/ready-check-timeout.processor.ts`
+- Modify: `apps/api/src/matches/matches.module.ts`
+- Modify: `apps/api/src/worker-app.module.ts`
+- Test: `apps/api/src/matches/ready-check-timeout.processor.spec.ts`
 
-- [ ] **Step 1: Define queue constant `READY_CHECK_TIMEOUT_QUEUE`**
+- [ ] **Step 1: Register queue `ready-check-timeout` in `MatchesModule`**
 - [ ] **Step 2: Write failing unit test for `ReadyCheckTimeoutProcessor`**
       Test verifying that when timeout job executes on a `PENDING_ACCEPTANCE` match, it transitions match to `CANCELLED`, marks slots as `TIMED_OUT`, and calls penalty/requeue hooks.
 - [ ] **Step 3: Implement `ReadyCheckTimeoutProcessor`**
-- [ ] **Step 4: Register queue in `QueuesModule` for both Producer and Worker contexts**
+- [ ] **Step 4: Register `ReadyCheckTimeoutProcessor` in `MatchesModule` and `WorkerAppModule`**
 - [ ] **Step 5: Run tests to verify it passes**
       Run: `pnpm --dir apps/api test -- ready-check-timeout.processor.spec.ts`
 
 ---
 
-### Task 4: Match Assembler Ready Check Integration
+### Task 4: Match Formation Ready Check Integration in QueuesService
 
 **Files:**
 
-- Modify: `apps/api/src/modules/matchmaking/match-assembler.service.ts`
-- Modify: `apps/api/src/modules/matchmaking/matchmaking.service.ts`
-- Test: `apps/api/src/modules/matchmaking/match-assembler.service.spec.ts`
+- Modify: `apps/api/src/queues/queues.service.ts`
+- Modify: `apps/api/src/queues/queues.module.ts`
+- Test: `apps/api/src/queues/queues.service.spec.ts`
 
-- [ ] **Step 1: Write failing unit tests for MatchAssembler conditional status assignment**
-    - When `gameMode.enableReadyCheck == true`: match status is `PENDING_ACCEPTANCE`, schedules BullMQ timeout job, emits `match.ready_check_started`.
-    - When `gameMode.enableReadyCheck == false`: match status is `CREATED`, immediate delivery.
+- [ ] **Step 1: Write failing unit tests for `tryCreateMatch` conditional status assignment**
+    - When `gameMode.enableReadyCheck == true`: match status is `PENDING_ACCEPTANCE`, schedules BullMQ timeout job on `ready-check-timeout`, emits `match.ready_check_started`.
+    - When `gameMode.enableReadyCheck == false`: match status is `CREATED`, immediate `match.created` delivery.
 - [ ] **Step 2: Run test to verify it fails**
-      Run: `pnpm --dir apps/api test -- match-assembler.service.spec.ts`
-- [ ] **Step 3: Implement conditional ready check assembly & BullMQ timeout dispatch in `MatchAssemblerService`**
+      Run: `pnpm --dir apps/api test -- queues.service.spec.ts`
+- [ ] **Step 3: Implement conditional ready check match creation & BullMQ timeout dispatch in `QueuesService.tryCreateMatch`**
 - [ ] **Step 4: Run test to verify it passes**
-      Run: `pnpm --dir apps/api test -- match-assembler.service.spec.ts`
+      Run: `pnpm --dir apps/api test -- queues.service.spec.ts`
 
 ---
 
@@ -118,16 +119,16 @@
 
 **Files:**
 
-- Modify: `apps/api/src/modules/matches/matches.service.ts`
-- Modify: `apps/api/src/modules/matches/matches.controller.ts`
-- Create: `apps/api/src/modules/matches/dto/accept-match.dto.ts`
-- Create: `apps/api/src/modules/matches/dto/decline-match.dto.ts`
-- Create: `apps/api/src/modules/matches/dto/ready-check-status.dto.ts`
-- Test: `apps/api/src/modules/matches/matches.service.spec.ts`
-- Test: `apps/api/src/modules/matches/matches.controller.spec.ts`
+- Modify: `apps/api/src/matches/matches.service.ts`
+- Modify: `apps/api/src/matches/matches.controller.ts`
+- Create: `apps/api/src/matches/dto/accept-match.dto.ts`
+- Create: `apps/api/src/matches/dto/decline-match.dto.ts`
+- Create: `apps/api/src/matches/dto/ready-check-status.dto.ts`
+- Test: `apps/api/src/matches/matches.service.spec.ts`
+- Test: `apps/api/src/matches/matches.controller.spec.ts`
 
 - [ ] **Step 1: Write failing tests for `acceptMatch`, `declineMatch`, `getReadyCheckStatus`**
-    - `acceptMatch`: updates slot to `ACCEPTED`, records `respondedAt`. If last player, atomic transaction sets match to `CONFIRMED` and cancels BullMQ timeout.
+    - `acceptMatch`: updates slot `acceptedPlayerIds`. When all members in slot accepted, sets slot `acceptStatus = ACCEPTED`. If last slot, atomic transaction sets match to `CONFIRMED` and cancels BullMQ timeout.
     - `declineMatch`: sets slot to `DECLINED`, match to `DECLINED`, triggers penalty & priority re-queue.
     - `getReadyCheckStatus`: calculates countdown seconds remaining and accepted player list.
 - [ ] **Step 2: Run tests to verify they fail**
@@ -142,17 +143,17 @@
 
 **Files:**
 
-- Create: `apps/api/src/modules/matchmaking/priority-requeue.service.ts`
-- Modify: `apps/api/src/modules/matchmaking/matchmaking.module.ts`
-- Test: `apps/api/src/modules/matchmaking/priority-requeue.service.spec.ts`
+- Modify: `apps/api/src/queues/queues.service.ts`
+- Modify: `apps/api/src/matches/matches.service.ts`
+- Test: `apps/api/src/queues/queues.service.spec.ts`
 
-- [ ] **Step 1: Write failing unit test for `PriorityRequeueService`**
+- [ ] **Step 1: Write failing unit test for `requeueInnocentEntries`**
     - Verifies that innocent `QueueEntry` records have status reverted from `MATCHED` to `QUEUED`.
     - Verifies original `queuedAt` timestamp is strictly preserved.
-    - Verifies immediate `matchmaking-pool` sweep job is triggered with high priority.
-- [ ] **Step 2: Implement `PriorityRequeueService`**
+    - Verifies immediate `matchmaking-pool` sweep job is triggered.
+- [ ] **Step 2: Implement `requeueInnocentEntries` in `QueuesService`**
 - [ ] **Step 3: Run test to verify it passes**
-      Run: `pnpm --dir apps/api test -- priority-requeue.service.spec.ts`
+      Run: `pnpm --dir apps/api test -- queues.service.spec.ts`
 
 ---
 
@@ -160,9 +161,11 @@
 
 **Files:**
 
-- Create: `apps/api/src/modules/penalties/penalties.service.ts`
-- Create: `apps/api/src/modules/penalties/penalties.module.ts`
-- Test: `apps/api/src/modules/penalties/penalties.service.spec.ts`
+- Create: `apps/api/src/penalties/penalties.service.ts`
+- Create: `apps/api/src/penalties/penalties.module.ts`
+- Modify: `apps/api/src/app.module.ts`
+- Modify: `apps/api/src/worker-app.module.ts`
+- Test: `apps/api/src/penalties/penalties.service.spec.ts`
 
 - [ ] **Step 1: Write failing unit tests for penalty creation and tier escalation**
     - First offense: applies `penaltyTiers[0]` (e.g. 180s).
@@ -180,8 +183,9 @@
 
 **Files:**
 
-- Modify: `apps/api/src/modules/queues/queues.service.ts`
-- Test: `apps/api/src/modules/queues/queues.service.spec.ts`
+- Modify: `apps/api/src/queues/queues.service.ts`
+- Modify: `apps/api/src/queues/queues.module.ts`
+- Test: `apps/api/src/queues/queues.service.spec.ts`
 
 - [ ] **Step 1: Write failing unit test for `QueuesService.enqueue` with penalized player**
     - If any player in `members` array has an active non-revoked penalty (`expiresAt > now()`), throw `ForbiddenException` (`PLAYER_IN_COOLDOWN`).
@@ -197,10 +201,10 @@
 
 **Files:**
 
-- Create: `apps/api/src/modules/penalties/penalties.controller.ts`
-- Create: `apps/api/src/modules/penalties/dto/create-manual-penalty.dto.ts`
-- Create: `apps/api/src/modules/penalties/dto/query-penalties.dto.ts`
-- Test: `apps/api/src/modules/penalties/penalties.controller.spec.ts`
+- Create: `apps/api/src/penalties/penalties.controller.ts`
+- Create: `apps/api/src/penalties/dto/create-manual-penalty.dto.ts`
+- Create: `apps/api/src/penalties/dto/query-penalties.dto.ts`
+- Test: `apps/api/src/penalties/penalties.controller.spec.ts`
 
 - [ ] **Step 1: Write failing controller unit tests for list, create manual lockout, and pardon**
 - [ ] **Step 2: Implement controller endpoints and Swagger OpenAPI annotations**
@@ -213,11 +217,12 @@
 
 **Files:**
 
-- Modify: `apps/api/src/modules/events/events.service.ts`
-- Modify: `apps/api/src/modules/matches/matches.service.ts`
-- Test: `apps/api/src/modules/events/events.service.spec.ts`
+- Modify: `apps/api/src/deliveries/deliveries.service.ts`
+- Modify: `apps/api/src/matches/matches.service.ts`
+- Modify: `apps/api/src/penalties/penalties.service.ts`
+- Test: `apps/api/src/deliveries/deliveries.service.spec.ts`
 
-- [ ] **Step 1: Add new webhook event types:**
+- [ ] **Step 1: Support new webhook event types:**
     - `match.ready_check_started`
     - `match.accepted`
     - `match.confirmed`
@@ -225,7 +230,7 @@
     - `match.ready_check_expired`
     - `player.penalized`
 - [ ] **Step 2: Write tests verifying payload schemas and event dispatches**
-- [ ] **Step 3: Implement event triggers across MatchesService and PenaltiesService**
+- [ ] **Step 3: Implement event triggers across `MatchesService` and `PenaltiesService`**
 - [ ] **Step 4: Run tests to verify they pass**
 
 ---
@@ -234,13 +239,15 @@
 
 **Files:**
 
-- Modify: `apps/web/src/app/projects/[projectSlug]/game-modes/components/game-mode-form.tsx`
-- Modify: `apps/web/src/app/projects/[projectSlug]/settings/page.tsx`
-- Create: `apps/web/src/app/projects/[projectSlug]/settings/components/penalty-settings-card.tsx`
+- Modify: `apps/web/app/dashboard/projects/[projectId]/page.tsx`
+- Modify: `apps/web/components/game-modes-table.tsx` (or GameMode modal)
+- Create: `apps/web/components/penalty-settings-card.tsx`
+- Modify: `apps/web/lib/actions.ts`
+- Modify: `apps/web/lib/api.ts`
 - Test: Typecheck & lint validation
 
-- [ ] **Step 1: Add Ready Check toggle & timeout input to GameMode form**
-- [ ] **Step 2: Add Penalty policy card to Project Settings page (toggle, tiers, decay window)**
+- [ ] **Step 1: Add Ready Check toggle & timeout input to GameMode form/modal**
+- [ ] **Step 2: Add Penalty policy card to Project details/settings page**
 - [ ] **Step 3: Run web typecheck**
       Run: `pnpm --dir apps/web typecheck`
 
@@ -250,17 +257,19 @@
 
 **Files:**
 
-- Modify: `apps/web/src/app/projects/[projectSlug]/matches/[matchId]/page.tsx`
-- Create: `apps/web/src/app/projects/[projectSlug]/penalties/page.tsx`
-- Create: `apps/web/src/app/projects/[projectSlug]/penalties/components/penalties-table.tsx`
-- Create: `apps/web/src/app/projects/[projectSlug]/penalties/components/pardon-modal.tsx`
-- Create: `apps/web/src/app/projects/[projectSlug]/penalties/components/manual-penalty-modal.tsx`
-- Modify: `apps/web/src/components/layout/sidebar.tsx` (Add "Penalties" navigation)
+- Modify: `apps/web/app/dashboard/projects/[projectId]/matches/page.tsx`
+- Create: `apps/web/app/dashboard/projects/[projectId]/penalties/page.tsx`
+- Create: `apps/web/app/dashboard/projects/[projectId]/penalties/loading.tsx`
+- Create: `apps/web/app/dashboard/projects/[projectId]/penalties/error.tsx`
+- Create: `apps/web/components/penalties-table.tsx`
+- Create: `apps/web/components/pardon-penalty-modal.tsx`
+- Create: `apps/web/components/manual-penalty-modal.tsx`
+- Modify: `apps/web/components/project-nav.tsx` (Add "Penalties" navigation link)
 - Test: Typecheck & lint validation
 
-- [ ] **Step 1: Update Match detail page with Ready Check countdown & slot status badges**
+- [ ] **Step 1: Update Matches table / detail with Ready Check countdown & slot status badges**
 - [ ] **Step 2: Create Penalties management page with search, filters, and action modals**
-- [ ] **Step 3: Add Penalties item to project sidebar**
+- [ ] **Step 3: Add Penalties item to project navigation in `project-nav.tsx`**
 - [ ] **Step 4: Run web typecheck and build**
       Run: `pnpm --dir apps/web typecheck && pnpm --dir apps/web build`
 

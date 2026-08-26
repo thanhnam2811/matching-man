@@ -4,6 +4,8 @@ import { DashboardAuthGuard } from "../common/guards/dashboard-auth/dashboard-au
 import { ProjectAccessGuard } from "../common/guards/project-access/project-access.guard";
 import { type DashboardAuthRequest, toDashboardContext } from "../common/interfaces/dashboard-auth-request";
 import { SESSION_TOKEN_SECURITY } from "../swagger";
+import { TrackAudit } from "../audit-logs/decorators/audit-action.decorator";
+import { AuditAction, AuditResourceType } from "../generated/prisma/client";
 import { DisputesService } from "./disputes.service";
 import { ListDisputesQueryDto } from "./dto/list-disputes-query.dto";
 import { RejectDisputeDto } from "./dto/reject-dispute.dto";
@@ -29,6 +31,7 @@ export class DisputesController {
     }
 
     @ApiOperation({ summary: "Resolve a dispute with optional winner override and Elo rating reconciliation." })
+    @TrackAudit({ action: AuditAction.DISPUTE_RESOLVED, resourceType: AuditResourceType.DISPUTE })
     @Post(":disputeId/resolve")
     resolve(
         @Req() request: DashboardAuthRequest,
@@ -40,6 +43,7 @@ export class DisputesController {
     }
 
     @ApiOperation({ summary: "Reject a dispute and restore match status." })
+    @TrackAudit({ action: AuditAction.DISPUTE_REJECTED, resourceType: AuditResourceType.DISPUTE })
     @Post(":disputeId/reject")
     reject(
         @Req() request: DashboardAuthRequest,

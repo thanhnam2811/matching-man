@@ -27,104 +27,92 @@
                 "tags": ["Health"]
             }
         },
-        "/v1/auth/contract": {
+        "/v1/projects/{projectId}/audit-logs": {
             "get": {
-                "operationId": "AuthController_getContract",
-                "parameters": [],
-                "responses": {
-                    "200": {
-                        "description": ""
-                    }
-                },
-                "summary": "Return the dashboard API contract (routes and auth schemes).",
-                "tags": ["Auth"]
-            }
-        },
-        "/v1/auth/register": {
-            "post": {
-                "operationId": "AuthController_register",
-                "parameters": [],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/RegisterDto"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": ""
-                    }
-                },
-                "summary": "Register a user, seed a personal organization, and return a session token.",
-                "tags": ["Auth"]
-            }
-        },
-        "/v1/auth/login": {
-            "post": {
-                "operationId": "AuthController_login",
-                "parameters": [],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/LoginDto"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": ""
-                    }
-                },
-                "summary": "Verify credentials and return a session token.",
-                "tags": ["Auth"]
-            }
-        },
-        "/v1/auth/me": {
-            "get": {
-                "operationId": "AuthController_me",
-                "parameters": [],
-                "responses": {
-                    "200": {
-                        "description": ""
-                    }
-                },
-                "security": [
-                    {
-                        "sessionToken": []
-                    }
-                ],
-                "summary": "Return the current user and their organization memberships.",
-                "tags": ["Auth"]
-            }
-        },
-        "/v1/demo/config": {
-            "get": {
-                "operationId": "DemoController_getConfig",
-                "parameters": [],
-                "responses": {
-                    "200": {
-                        "description": ""
-                    }
-                },
-                "summary": "Live config for the public matchmaking sandbox — project id, API key, and game mode ids.",
-                "tags": ["Demo"]
-            }
-        },
-        "/v1/demo/webhook-sink": {
-            "post": {
-                "operationId": "DemoController_receiveWebhook",
+                "operationId": "AuditLogsController_getProjectLogs",
                 "parameters": [
                     {
-                        "name": "x-webhook-event",
+                        "name": "projectId",
                         "required": true,
-                        "in": "header",
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "default": 1,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "maximum": 100,
+                            "default": 50,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "action",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "API_KEY_CREATED",
+                                "API_KEY_REVOKED",
+                                "WEBHOOK_CREATED",
+                                "WEBHOOK_UPDATED",
+                                "WEBHOOK_DELETED",
+                                "GAME_MODE_CREATED",
+                                "GAME_MODE_UPDATED",
+                                "GAME_MODE_DELETED",
+                                "MATCH_POOL_UPDATED",
+                                "PROJECT_MEMBER_INVITED",
+                                "PROJECT_MEMBER_ROLE_UPDATED",
+                                "PROJECT_MEMBER_REMOVED",
+                                "ORGANIZATION_MEMBER_ROLE_UPDATED",
+                                "ORGANIZATION_MEMBER_REMOVED",
+                                "DISPUTE_RESOLVED",
+                                "DISPUTE_REJECTED",
+                                "PENALTY_MANUAL_LOCKOUT",
+                                "PENALTY_REVOKED",
+                                "SUBSCRIPTION_TIER_CHANGED",
+                                "PROJECT_SETTINGS_UPDATED"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "resourceType",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "API_KEY",
+                                "WEBHOOK_ENDPOINT",
+                                "GAME_MODE",
+                                "MATCH_POOL",
+                                "PROJECT_MEMBER",
+                                "ORGANIZATION_MEMBER",
+                                "DISPUTE",
+                                "PENALTY",
+                                "PROJECT",
+                                "ORGANIZATION",
+                                "SUBSCRIPTION"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "actorUserId",
+                        "required": false,
+                        "in": "query",
                         "schema": {
                             "type": "string"
                         }
@@ -135,8 +123,118 @@
                         "description": ""
                     }
                 },
-                "summary": "Delivery target for the demo project's webhook endpoint — logs and acknowledges receipt.",
-                "tags": ["Demo"]
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Get paginated audit logs for a project.",
+                "tags": ["Audit Logs"]
+            }
+        },
+        "/v1/organizations/{id}/audit-logs": {
+            "get": {
+                "operationId": "AuditLogsController_getOrganizationLogs",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "default": 1,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "maximum": 100,
+                            "default": 50,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "action",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "API_KEY_CREATED",
+                                "API_KEY_REVOKED",
+                                "WEBHOOK_CREATED",
+                                "WEBHOOK_UPDATED",
+                                "WEBHOOK_DELETED",
+                                "GAME_MODE_CREATED",
+                                "GAME_MODE_UPDATED",
+                                "GAME_MODE_DELETED",
+                                "MATCH_POOL_UPDATED",
+                                "PROJECT_MEMBER_INVITED",
+                                "PROJECT_MEMBER_ROLE_UPDATED",
+                                "PROJECT_MEMBER_REMOVED",
+                                "ORGANIZATION_MEMBER_ROLE_UPDATED",
+                                "ORGANIZATION_MEMBER_REMOVED",
+                                "DISPUTE_RESOLVED",
+                                "DISPUTE_REJECTED",
+                                "PENALTY_MANUAL_LOCKOUT",
+                                "PENALTY_REVOKED",
+                                "SUBSCRIPTION_TIER_CHANGED",
+                                "PROJECT_SETTINGS_UPDATED"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "resourceType",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "API_KEY",
+                                "WEBHOOK_ENDPOINT",
+                                "GAME_MODE",
+                                "MATCH_POOL",
+                                "PROJECT_MEMBER",
+                                "ORGANIZATION_MEMBER",
+                                "DISPUTE",
+                                "PENALTY",
+                                "PROJECT",
+                                "ORGANIZATION",
+                                "SUBSCRIPTION"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "actorUserId",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Get paginated audit logs across an organization.",
+                "tags": ["Audit Logs"]
             }
         },
         "/v1/organizations": {
@@ -383,6 +481,355 @@
                 ],
                 "summary": "Remove a member. Requires ADMIN or OWNER; an organization must keep at least one OWNER.",
                 "tags": ["Organization Members"]
+            }
+        },
+        "/v1/organizations/{id}/billing/subscription": {
+            "get": {
+                "operationId": "BillingController_getSubscription",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Get subscription details and usage limits for an organization.",
+                "tags": ["Billing"]
+            }
+        },
+        "/v1/organizations/{id}/billing/usage": {
+            "get": {
+                "operationId": "BillingController_getUsage",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Get monthly usage metrics for an organization.",
+                "tags": ["Billing"]
+            }
+        },
+        "/v1/organizations/{id}/billing/checkout": {
+            "post": {
+                "operationId": "BillingController_createCheckout",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateCheckoutSessionDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Initiate Stripe Checkout session to upgrade or change subscription.",
+                "tags": ["Billing"]
+            }
+        },
+        "/v1/organizations/{id}/billing/portal": {
+            "post": {
+                "operationId": "BillingController_createPortal",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreatePortalSessionDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Generate a Stripe Customer Portal session URL.",
+                "tags": ["Billing"]
+            }
+        },
+        "/v1/billing/webhook": {
+            "post": {
+                "operationId": "BillingController_handleWebhook",
+                "parameters": [
+                    {
+                        "name": "stripe-signature",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "summary": "Stripe webhook endpoint for subscription and payment events.",
+                "tags": ["Billing"]
+            }
+        },
+        "/v1/auth/contract": {
+            "get": {
+                "operationId": "AuthController_getContract",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "summary": "Return the dashboard API contract (routes and auth schemes).",
+                "tags": ["Auth"]
+            }
+        },
+        "/v1/auth/register": {
+            "post": {
+                "operationId": "AuthController_register",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "summary": "Register a user, seed a personal organization, and return a session token.",
+                "tags": ["Auth"]
+            }
+        },
+        "/v1/auth/login": {
+            "post": {
+                "operationId": "AuthController_login",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "summary": "Verify credentials and return a session token.",
+                "tags": ["Auth"]
+            }
+        },
+        "/v1/auth/forgot-password": {
+            "post": {
+                "operationId": "AuthController_forgotPassword",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ForgotPasswordDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "summary": "Request a password reset link sent to the user email.",
+                "tags": ["Auth"]
+            }
+        },
+        "/v1/auth/reset-password": {
+            "post": {
+                "operationId": "AuthController_resetPassword",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResetPasswordDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "summary": "Reset password using a valid 15-minute reset token.",
+                "tags": ["Auth"]
+            }
+        },
+        "/v1/auth/verify-email": {
+            "post": {
+                "operationId": "AuthController_verifyEmail",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/VerifyEmailDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "summary": "Verify user email using verification token.",
+                "tags": ["Auth"]
+            }
+        },
+        "/v1/auth/resend-verification": {
+            "post": {
+                "operationId": "AuthController_resendVerification",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Resend email verification link for the authenticated user.",
+                "tags": ["Auth"]
+            }
+        },
+        "/v1/auth/me": {
+            "get": {
+                "operationId": "AuthController_me",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "sessionToken": []
+                    }
+                ],
+                "summary": "Return the current user and their organization memberships.",
+                "tags": ["Auth"]
+            }
+        },
+        "/v1/demo/config": {
+            "get": {
+                "operationId": "DemoController_getConfig",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "summary": "Live config for the public matchmaking sandbox — project id, API key, and game mode ids.",
+                "tags": ["Demo"]
+            }
+        },
+        "/v1/demo/webhook-sink": {
+            "post": {
+                "operationId": "DemoController_receiveWebhook",
+                "parameters": [
+                    {
+                        "name": "x-webhook-event",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "summary": "Delivery target for the demo project's webhook endpoint — logs and acknowledges receipt.",
+                "tags": ["Demo"]
             }
         },
         "/v1/projects": {
@@ -2088,6 +2535,75 @@
             }
         },
         "schemas": {
+            "CreateOrganizationDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "Arena Studio",
+                        "maxLength": 120
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Derived from name when omitted.",
+                        "example": "arena-studio",
+                        "maxLength": 120
+                    }
+                },
+                "required": ["name"]
+            },
+            "AddOrganizationMemberDto": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "description": "The invitee must already be registered.",
+                        "maxLength": 160
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": ["OWNER", "ADMIN", "MEMBER"]
+                    }
+                },
+                "required": ["email", "role"]
+            },
+            "UpdateOrganizationMemberDto": {
+                "type": "object",
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "enum": ["OWNER", "ADMIN", "MEMBER"]
+                    }
+                },
+                "required": ["role"]
+            },
+            "CreateCheckoutSessionDto": {
+                "type": "object",
+                "properties": {
+                    "planTier": {
+                        "type": "string",
+                        "enum": ["FREE", "PRO", "ENTERPRISE"],
+                        "description": "Target subscription plan tier",
+                        "example": "PRO"
+                    },
+                    "returnUrl": {
+                        "type": "string",
+                        "description": "Return URL after completing Checkout (validated against APP_WEB_URL)",
+                        "example": "http://localhost:3001/dashboard/organizations/org_123/billing"
+                    }
+                },
+                "required": ["planTier"]
+            },
+            "CreatePortalSessionDto": {
+                "type": "object",
+                "properties": {
+                    "returnUrl": {
+                        "type": "string",
+                        "description": "Return URL after exiting Stripe Customer Portal (validated against APP_WEB_URL)",
+                        "example": "http://localhost:3001/dashboard/organizations/org_123/billing"
+                    }
+                }
+            },
             "RegisterDto": {
                 "type": "object",
                 "properties": {
@@ -2135,47 +2651,45 @@
                 },
                 "required": ["email", "password"]
             },
-            "CreateOrganizationDto": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "example": "Arena Studio",
-                        "maxLength": 120
-                    },
-                    "slug": {
-                        "type": "string",
-                        "description": "Derived from name when omitted.",
-                        "example": "arena-studio",
-                        "maxLength": 120
-                    }
-                },
-                "required": ["name"]
-            },
-            "AddOrganizationMemberDto": {
+            "ForgotPasswordDto": {
                 "type": "object",
                 "properties": {
                     "email": {
                         "type": "string",
-                        "description": "The invitee must already be registered.",
-                        "maxLength": 160
-                    },
-                    "role": {
-                        "type": "string",
-                        "enum": ["OWNER", "ADMIN", "MEMBER"]
+                        "description": "Email address associated with the user account",
+                        "example": "operator@example.com"
                     }
                 },
-                "required": ["email", "role"]
+                "required": ["email"]
             },
-            "UpdateOrganizationMemberDto": {
+            "ResetPasswordDto": {
                 "type": "object",
                 "properties": {
-                    "role": {
+                    "token": {
                         "type": "string",
-                        "enum": ["OWNER", "ADMIN", "MEMBER"]
+                        "description": "64-character hexadecimal password reset token",
+                        "example": "a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0"
+                    },
+                    "newPassword": {
+                        "type": "string",
+                        "description": "New user password (minimum 8 characters)",
+                        "minLength": 8,
+                        "maxLength": 128,
+                        "example": "CorrectHorseBatteryStaple123!"
                     }
                 },
-                "required": ["role"]
+                "required": ["token", "newPassword"]
+            },
+            "VerifyEmailDto": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "description": "64-character hexadecimal email verification token",
+                        "example": "a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0"
+                    }
+                },
+                "required": ["token"]
             },
             "CreateProjectDto": {
                 "type": "object",

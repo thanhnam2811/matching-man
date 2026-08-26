@@ -45,9 +45,9 @@ deferred.** The two changes with evidence behind them, in order:
 ## Auth and Platform (future increments beyond Phase 7)
 
 - [ ] OAuth / social login (Phase 7 ships email + password only)
-- [ ] Org-level billing / usage metering
-- [ ] Audit log for control-plane mutations
-- [ ] Email verification and password reset flows
+- [x] Org-level billing / usage metering (Graduated to Phase 16)
+- [x] Audit log for control-plane mutations (Graduated to Phase 16)
+- [x] Email verification and password reset flows (Graduated to Phase 16)
 
 ## Notes
 
@@ -62,4 +62,6 @@ deferred.** The two changes with evidence behind them, in order:
   [`phase-14-scale-and-dispute-resolution.md`](phase-14-scale-and-dispute-resolution.md).
 - Accept or decline handshake (Ready Check), priority re-queuing, and player dodge penalties graduated to
   [`phase-15-ready-check-and-penalties.md`](phase-15-ready-check-and-penalties.md).
+- Org-level Stripe billing, usage metering & quotas, control-plane audit logs, and email verification/password reset flows graduated to
+  [`phase-16-saas-billing-and-enterprise-governance.md`](phase-16-saas-billing-and-enterprise-governance.md).
 - No source evidence yet for remaining items in this file.

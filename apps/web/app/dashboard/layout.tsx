@@ -14,7 +14,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     try {
         user = await getCurrentUser();
     } catch {
-        redirect("/login");
+        redirect("/api/session?redirect=/login");
     }
 
     return (

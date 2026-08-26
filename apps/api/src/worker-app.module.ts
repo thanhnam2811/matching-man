@@ -6,6 +6,8 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { BullMQConfigModule } from "./common/redis/bullmq-config.module";
 import { validateEnv } from "./config/env.validation";
 import { buildPinoHttpOptions } from "./config/pino-http.options";
+import { EmailModule } from "./email/email.module";
+import { MeteringModule } from "./metering/metering.module";
 import { AuthModule } from "./auth/auth.module";
 import { QueuesModule } from "./queues/queues.module";
 import { DeliveriesModule } from "./deliveries/deliveries.module";
@@ -31,6 +33,8 @@ import { DemoModule } from "./demo/demo.module";
         ScheduleModule.forRoot(),
         BullMQConfigModule,
         PrismaModule,
+        EmailModule,
+        MeteringModule,
         AuthModule,
         QueuesModule,
         MatchesModule,

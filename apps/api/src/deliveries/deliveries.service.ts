@@ -4,6 +4,7 @@ import { Queue } from "bullmq";
 import { createHmac } from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { WebhookDeliveryStatus } from "../generated/prisma/client";
+import { MeteringService } from "../metering/metering.service";
 import type { ListDeliveriesQueryDto } from "./dto/list-deliveries-query.dto";
 
 export const RETRY_DELAYS_MS = [0, 30_000, 300_000, 1_800_000, 7_200_000];
@@ -17,6 +18,7 @@ export class WebhookDeliveryService {
     constructor(
         private readonly prismaService: PrismaService,
         @InjectQueue("webhook-delivery") private readonly webhookDeliveryQueue: Queue,
+        private readonly meteringService?: MeteringService,
     ) {}
 
     async scheduleDelivery(projectId: string, eventType: string, payload: unknown) {
@@ -35,6 +37,8 @@ export class WebhookDeliveryService {
         if (subscribedEndpoints.length === 0) {
             return;
         }
+
+        this.meteringService?.incrementUsageAsync(projectId, "webhookDeliveries", subscribedEndpoints.length);
 
         await Promise.all(
             subscribedEndpoints.map(async (ep) => {

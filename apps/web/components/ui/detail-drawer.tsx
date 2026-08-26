@@ -9,15 +9,24 @@ export function DetailDrawer({
     open,
     onClose,
     title,
+    size = "default",
     children,
 }: {
     open: boolean;
     onClose: () => void;
     title: string;
+    size?: "default" | "wide";
     children: React.ReactNode;
 }) {
     return (
-        <Drawer open={open} onClose={onClose} side="right" desktop label={title} panelClassName="w-full max-w-md">
+        <Drawer
+            open={open}
+            onClose={onClose}
+            side="right"
+            desktop
+            label={title}
+            panelClassName={cn("w-full", size === "wide" ? "max-w-2xl lg:max-w-3xl" : "max-w-md")}
+        >
             <div className="flex h-14 shrink-0 items-center justify-between border-b px-4">
                 <h2 className="truncate text-sm font-semibold">{title}</h2>
                 <button

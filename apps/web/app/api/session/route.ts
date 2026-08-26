@@ -19,6 +19,13 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
 }
 
+export async function GET(request: Request) {
+    const url = new URL(request.url);
+    const redirectTo = url.searchParams.get("redirect") || "/login";
+    (await cookies()).delete(TOKEN_COOKIE);
+    return Response.redirect(new URL(redirectTo, request.url));
+}
+
 export async function DELETE() {
     (await cookies()).delete(TOKEN_COOKIE);
     return Response.json({ ok: true });

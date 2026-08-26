@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { DashboardAuthGuard } from "../common/guards/dashboard-auth/dashboard-auth.guard";
 import { ProjectAccessGuard } from "../common/guards/project-access/project-access.guard";
 import { SESSION_TOKEN_SECURITY } from "../swagger";
+import { TrackAudit } from "../audit-logs/decorators/audit-action.decorator";
+import { AuditAction, AuditResourceType } from "../generated/prisma/client";
 import { CreateGameModeDto } from "./dto/create-game-mode.dto";
 import { GameModesService } from "./game-modes.service";
 
@@ -14,6 +16,7 @@ export class GameModesController {
     constructor(private readonly gameModesService: GameModesService) {}
 
     @ApiOperation({ summary: "Create a game mode for a project." })
+    @TrackAudit({ action: AuditAction.GAME_MODE_CREATED, resourceType: AuditResourceType.GAME_MODE })
     @Post()
     create(@Param("projectId") projectId: string, @Body() createGameModeDto: CreateGameModeDto) {
         return this.gameModesService.create(projectId, createGameModeDto);

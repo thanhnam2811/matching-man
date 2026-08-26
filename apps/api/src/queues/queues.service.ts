@@ -22,6 +22,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ProjectEnvironmentsService } from "../projects/project-environments.service";
 import { WebhookDeliveryService } from "../deliveries/deliveries.service";
 import { PenaltiesService } from "../penalties/penalties.service";
+import { MeteringService } from "../metering/metering.service";
 import { DequeueDto } from "./dto/dequeue.dto";
 import { EnqueueDto } from "./dto/enqueue.dto";
 
@@ -56,6 +57,7 @@ export class QueuesService {
         @InjectQueue("queue-timeout") private readonly queueTimeoutQueue: Queue,
         @InjectQueue("matchmaking-pool") private readonly matchmakingPoolQueue: Queue,
         @InjectQueue("ready-check-timeout") private readonly readyCheckTimeoutQueue: Queue,
+        private readonly meteringService?: MeteringService,
     ) {}
 
     async enqueue(authProjectId: string, enqueueDto: EnqueueDto) {
@@ -136,6 +138,8 @@ export class QueuesService {
         );
 
         await this.triggerPoolMatching(inserted.matchPoolId, authProjectId);
+
+        this.meteringService?.incrementUsageAsync(authProjectId, "enqueueRequests");
 
         return {
             queueEntryId: inserted.queueEntryId,
@@ -532,6 +536,8 @@ export class QueuesService {
                 FROM inserted_slots
                 WHERE queue_entries.id = inserted_slots.queue_entry_id
             `);
+
+            this.meteringService?.incrementUsageAsync(pool.projectId, "matchesCreated");
 
             return matchId;
         });

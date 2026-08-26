@@ -97,6 +97,38 @@ class EnvironmentVariables {
     @IsInt()
     @Min(1)
     DEMO_RESET_INTERVAL_MINUTES = 60;
+
+    @IsOptional()
+    @IsString()
+    STRIPE_SECRET_KEY?: string;
+
+    @IsOptional()
+    @IsString()
+    STRIPE_WEBHOOK_SECRET?: string;
+
+    @IsOptional()
+    @IsString()
+    STRIPE_PRO_PRICE_ID?: string;
+
+    @IsOptional()
+    @IsString()
+    RESEND_API_KEY?: string;
+
+    @IsString()
+    EMAIL_FROM = "Matching Hub <noreply@matching-man.dev>";
+
+    @IsString()
+    APP_WEB_URL = "http://localhost:3001";
+
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    PASSWORD_RESET_THROTTLE_TTL_MS = 900_000;
+
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    PASSWORD_RESET_THROTTLE_LIMIT = 3;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

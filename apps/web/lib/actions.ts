@@ -361,3 +361,69 @@ export async function updateProjectPenaltyConfigAction(_prev: FormState, formDat
     revalidatePath(`/dashboard/projects/${projectId}`);
     return {};
 }
+
+export async function createCheckoutSessionAction(
+    organizationId: string,
+    planTier: string = "PRO",
+): Promise<{ url?: string; error?: string }> {
+    try {
+        const result = await apiFetch<{ url: string }>(`/organizations/${organizationId}/billing/checkout`, {
+            method: "POST",
+            body: JSON.stringify({ planTier }),
+        });
+        return { url: result?.url };
+    } catch (error) {
+        return { error: humanize(error) };
+    }
+}
+
+export async function createCustomerPortalAction(organizationId: string): Promise<{ url?: string; error?: string }> {
+    try {
+        const result = await apiFetch<{ url: string }>(`/organizations/${organizationId}/billing/portal`, {
+            method: "POST",
+            body: JSON.stringify({}),
+        });
+        return { url: result?.url };
+    } catch (error) {
+        return { error: humanize(error) };
+    }
+}
+
+export async function forgotPasswordAction(email: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        await apiFetch<{ message: string }>("/auth/forgot-password", {
+            method: "POST",
+            body: JSON.stringify({ email }),
+        });
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: humanize(error) };
+    }
+}
+
+export async function resetPasswordAction(
+    token: string,
+    newPassword: string,
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        await apiFetch<{ message: string }>("/auth/reset-password", {
+            method: "POST",
+            body: JSON.stringify({ token, newPassword }),
+        });
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: humanize(error) };
+    }
+}
+
+export async function verifyEmailAction(token: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        await apiFetch<{ message: string }>("/auth/verify-email", {
+            method: "POST",
+            body: JSON.stringify({ token }),
+        });
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: humanize(error) };
+    }
+}

@@ -25,6 +25,10 @@ import { DisputesModule } from "./disputes/disputes.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { DemoModule } from "./demo/demo.module";
 import { PenaltiesModule } from "./penalties/penalties.module";
+import { EmailModule } from "./email/email.module";
+import { AuditLogsModule } from "./audit-logs/audit-logs.module";
+import { MeteringModule } from "./metering/metering.module";
+import { BillingModule } from "./billing/billing.module";
 import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project-throttler.guard";
 
 @Module({
@@ -55,6 +59,10 @@ import { ProjectThrottlerGuard } from "./common/guards/project-throttler/project
         BullMQConfigModule,
         HealthModule,
         PrismaModule,
+        EmailModule,
+        AuditLogsModule,
+        MeteringModule,
+        BillingModule,
         AuthModule,
         OrganizationsModule,
         ProjectsModule,

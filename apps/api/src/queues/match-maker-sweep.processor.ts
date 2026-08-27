@@ -46,7 +46,7 @@ export class MatchMakerSweepProcessor extends WorkerHost {
         }
     }
 
-    @Cron("*/5 * * * * *")
+    @Cron("0 * * * * *")
     async sweepStalledPools() {
         this.schedulerHealthService.recordRun(SCHEDULER_JOBS.MATCH_MAKER_SWEEP);
 

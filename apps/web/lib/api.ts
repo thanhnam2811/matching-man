@@ -64,6 +64,13 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
 export type SessionLoginResult = { ok: true } | { ok: false; status: number };
 
+export function isSecureCookieRequired(): boolean {
+    if (process.env.NODE_ENV !== "production") return false;
+    const apiUrl = process.env.API_BASE_URL || "";
+    if (apiUrl.includes("localhost") || apiUrl.includes("127.0.0.1")) return false;
+    return true;
+}
+
 /**
  * Logs into the NestJS API and, on success, stores the returned token in the
  * httpOnly `dashboard_token` cookie. Shared by the normal email/password login
@@ -88,7 +95,7 @@ export async function loginAndSetSessionCookie(email: string, password: string):
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: isSecureCookieRequired(),
         maxAge: 60 * 60 * 12,
     });
 

@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { API_BASE_URL, TOKEN_COOKIE } from "@/lib/api";
+import { API_BASE_URL, isSecureCookieRequired, TOKEN_COOKIE } from "@/lib/api";
 
 export async function POST(request: Request) {
     const body = (await request.json().catch(() => null)) as {
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: isSecureCookieRequired(),
         maxAge: 60 * 60 * 12,
     });
 

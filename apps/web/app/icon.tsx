@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-// Mirrors components/brand-mark.tsx (gradient square + two dots) as the browser-tab favicon.
+// Industrial monochrome brand mark for "Matching Hub" as the browser-tab favicon.
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
@@ -14,24 +14,25 @@ export default function Icon() {
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: 8,
-                background: "linear-gradient(135deg, #6366f1 0%, #7c3aed 100%)",
+                background: "#09090b",
+                border: "1px solid #27272a",
             }}
         >
             <div style={{ display: "flex", alignItems: "center" }}>
                 <div
                     style={{
-                        width: 7,
-                        height: 7,
+                        width: 8,
+                        height: 8,
                         borderRadius: 9999,
-                        background: "rgba(255,255,255,0.95)",
+                        background: "#fafafa",
                     }}
                 />
                 <div
                     style={{
-                        width: 7,
-                        height: 7,
+                        width: 8,
+                        height: 8,
                         borderRadius: 9999,
-                        background: "rgba(255,255,255,0.6)",
+                        background: "rgba(250, 250, 250, 0.55)",
                         marginLeft: -3,
                     }}
                 />

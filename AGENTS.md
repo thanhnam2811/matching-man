@@ -40,24 +40,26 @@ The admin UI (`apps/web`) reads the API base URL from `API_BASE_URL` (default `h
 
 ## Deployment
 
-The API (`apps/api`) deploys as a Docker container to a self-hosted VPS; the admin UI
-(`apps/web`) deploys separately to Vercel. Full runbook: `docs/roadmap/phase-8-deploy.md`.
+The API (`apps/api`) deploys as a Docker container to a self-hosted VPS (`/srv/matching-man`,
+compose file `/srv/matching-man/docker-compose.vps.yml` on the box); the admin UI (`apps/web`)
+deploys separately to Vercel.
 
 - `pnpm docker:build` — build the API image locally (`Dockerfile`)
 - `pnpm docker:up` — run Postgres only, for local dev against `pnpm start:dev`
 - `docker compose up` — full stack (Postgres + built API image) via `docker-compose.yml`
-- CI/CD (`.github/workflows/pipeline.yml`, push to `main`): lint/test → `prisma migrate
-deploy` against Neon → build & push image to `ghcr.io/thanhnam2811/matching-man` →
-  SSH into the VPS over a Cloudflare Tunnel and restart via `docker-compose.prod.yml`.
-- **DB migrations run in CI, not in the container.** If you change
-  `apps/api/prisma/schema.prisma`, generate a real migration
-  (`pnpm --dir apps/api prisma:migrate:dev --name <name>`) and commit it — the
-  `db_migrate` CI job only replays committed migration files, it does not diff the
-  schema.
-- `apps/api/.env.production` (real secrets, VPS-only) is never committed or copied by
-  CI — it's expected to already exist at `/root/apps/matching-man/apps/api/.env.production`
-  on the VPS. `entrypoint.sh` does not run migrations at container boot, only a Neon
-  cold-start wakeup retry loop, then starts `node dist/src/main`.
+- CI/CD (`.github/workflows/pipeline.yml`, push to `main`): lint/test → build & push image to
+  `ghcr.io/thanhnam2811/matching-man` (`latest` + `:<sha>`) → SSH to the VPS with a restricted
+  deploy key whose only allowed command is `deploy <sha>`, which runs
+  `/home/namtt/ops/matching-man-deploy.sh <sha>` on the VPS: pull → `prisma migrate deploy`
+  against the self-hosted database → recreate app + worker → health check → automatic
+  rollback to the previous tag on failure.
+- **Migrations run on the VPS during the rollout** — never in CI, never at container boot.
+  If you change `apps/api/prisma/schema.prisma`, generate a real migration
+  (`pnpm --dir apps/api prisma:migrate:dev --name <name>`) and commit it; the rollout only
+  replays committed migration files, it does not diff the schema.
+- Production secrets live only in `/srv/matching-man/.env.vps` on the VPS (mode 600); they are
+  never committed and never passed through CI. `entrypoint.sh` does not run migrations at
+  container boot, it only starts `node dist/src/main`.
 
 ## Decision Rules
 

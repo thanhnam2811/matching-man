@@ -71,7 +71,7 @@ More diagrams (module graph, ER model, auth flows, matchmaking sequence): [`docs
 | Layer     | Technology                                                                     |
 | --------- | ------------------------------------------------------------------------------ |
 | API       | NestJS 11, TypeScript, class-validator DTOs, `@nestjs/schedule` processors     |
-| Database  | PostgreSQL (Neon in production), Prisma 7 ORM + versioned migrations           |
+| Database  | PostgreSQL 17 (self-hosted in production), Prisma 7 ORM + versioned migrations |
 | Dashboard | Next.js 15 (App Router), React Server Components, Server Actions, Tailwind CSS |
 | Tooling   | pnpm workspaces, oxlint + oxfmt, Husky + lint-staged, Jest (unit + e2e)        |
 | Delivery  | Docker, GitHub Actions CI/CD, GHCR, self-hosted VPS behind Cloudflare Tunnel   |
@@ -81,7 +81,7 @@ More diagrams (module graph, ER model, auth flows, matchmaking sequence): [`docs
 - **No Redis required.** Webhook retries and queue-timeout scans run as PostgreSQL-backed jobs driven by in-process NestJS schedulers — durable and operable without an always-on worker fleet. Redis/BullMQ is a planned upgrade path, gated on measured throughput (see [backlog](docs/roadmap/backlog.md)).
 - **Security by design.** API keys are stored hashed, webhooks are HMAC-signed so receivers can verify authenticity, dashboard sessions use signed httpOnly cookies, and all project-scoped routes are membership-gated.
 - **Zero-CORS architecture.** The dashboard calls the API exclusively server-side (RSC + Server Actions), so no API credentials ever reach the browser and the API needs no CORS configuration.
-- **Real CI/CD.** Every push to `main` runs lint + tests, replays Prisma migrations against the production database, builds and pushes a Docker image to GHCR, then deploys to the VPS over a Cloudflare Tunnel. Migrations run in CI, never at container boot.
+- **Real CI/CD.** Every push to `main` runs lint + tests, builds and pushes a Docker image (tagged `latest` and `:<sha>`) to GHCR, then rolls that exact tag out on the VPS. Migrations run on the VPS during the rollout, never at container boot.
 - **Audit-friendly domain model.** Queue entries, matches, webhook delivery attempts, and rating changes are all persisted as history, not just current state.
 
 ## Repository Layout
@@ -145,14 +145,15 @@ Pre-commit hooks (Husky + lint-staged) format and lint staged files automaticall
 ## Deployment
 
 ```
-Browser ──> Vercel (apps/web) ──server-side──> VPS / Docker (apps/api) ──> Neon (PostgreSQL)
+Browser ──> Vercel (apps/web) ──server-side──> Cloudflare Tunnel ──> VPS / Docker (apps/api) ──> PostgreSQL 17 + Redis (Docker, private)
 ```
 
-- **API** — Docker container on a self-hosted VPS, reached through a Cloudflare Tunnel. Stateless and disposable; the database stays external on Neon.
+- **API** — Docker container on a self-hosted VPS, published on `127.0.0.1:3000` and reachable only through a Cloudflare Tunnel. The database and queue run in the same compose project on that VPS (`/srv/matching-man/docker-compose.vps.yml`) and are never exposed publicly.
 - **Dashboard** — deployed to Vercel.
-- **Pipeline** — [`.github/workflows/pipeline.yml`](.github/workflows/pipeline.yml): lint/test → `prisma migrate deploy` → build & push image to GHCR → SSH deploy via `docker-compose.prod.yml`.
+- **Pipeline** — [`.github/workflows/pipeline.yml`](.github/workflows/pipeline.yml): lint/test → build & push `ghcr.io/thanhnam2811/matching-man:{latest,<sha>}` → SSH into the VPS with a restricted deploy key that runs `/home/namtt/ops/matching-man-deploy.sh <sha>`: pull → `prisma migrate deploy` → recreate app + worker → health check → rollback to the previous tag on failure.
+- **Migrations run on the VPS inside that rollout**, against the self-hosted database. CI never connects to a production database.
 
-Full runbook: [`docs/roadmap/phase-8-deploy.md`](docs/roadmap/phase-8-deploy.md).
+Full runbook: [`docs/roadmap/phase-8-deploy.md`](docs/roadmap/phase-8-deploy.md) (historical — see the superseded note at the top for the current topology).
 
 ## Documentation
 

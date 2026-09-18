@@ -2,6 +2,14 @@
 
 Goal: make the landing page and live `/demo` reachable on the public internet.
 
+> **Superseded (2026-09-18).** Production now runs on the VPS under `/srv/matching-man`
+> with a **self-hosted PostgreSQL 17 + Redis** in the same compose project
+> (`/srv/matching-man/docker-compose.vps.yml`) behind a Cloudflare Tunnel. The pipeline
+> builds and pushes the image to GHCR, then SSHes in with a restricted deploy key that
+> runs `/home/namtt/ops/matching-man-deploy.sh <sha>` (pull → migrate → recreate →
+> health check → rollback). Neon, the Cloudflare Access SSH topology, `docker-compose.prod.yml`
+> and `/root/apps` are no longer used; the sections below are kept for historical reference.
+
 > **History**: this API originally deployed to Render (see git history for
 > `render.yaml` / `keep-warm.yml`). It has since migrated to a self-hosted VPS
 > running Docker, following the same pattern as the sibling `tiny-link` project
